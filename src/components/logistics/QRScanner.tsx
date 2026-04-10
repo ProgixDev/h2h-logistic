@@ -1,0 +1,221 @@
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, TextInput, StyleSheet } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
+import { Typography } from '@/constants/Typography';
+import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useColorScheme } from '@/hooks/useColorScheme';
+
+interface QRScannerProps {
+  onScan: (data: string) => void;
+  onManualEntry?: (code: string) => void;
+  instruction?: string;
+}
+
+export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps) {
+  const { colors } = useColorScheme();
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [flashOn, setFlashOn] = useState(false);
+  const [showManual, setShowManual] = useState(false);
+  const [manualCode, setManualCode] = useState('');
+  const [flashColor, setFlashColor] = useState<string | null>(null);
+
+  // Scanning line animation
+  const scanLineY = useSharedValue(0);
+  useEffect(() => {
+    scanLineY.value = withRepeat(
+      withSequence(
+        withTiming(220, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      ),
+      -1,
+      false,
+    );
+  }, []);
+
+  const scanLineStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: scanLineY.value }],
+  }));
+
+  const handleBarcode = useCallback(({ data }: { data: string }) => {
+    if (scanned) return;
+    setScanned(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    onScan(data);
+  }, [scanned, onScan]);
+
+  const handleManualSubmit = () => {
+    if (manualCode.trim()) {
+      onManualEntry?.(manualCode.trim());
+    }
+  };
+
+  // Flash overlay
+  useEffect(() => {
+    if (flashColor) {
+      const timer = setTimeout(() => setFlashColor(null), 400);
+      return () => clearTimeout(timer);
+    }
+  }, [flashColor]);
+
+  const triggerSuccess = () => setFlashColor('#10B98140');
+  const triggerError = () => setFlashColor('#EF444440');
+
+  if (!permission) return null;
+
+  if (!permission.granted) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Icon name="camera" size={56} color={colors.textSecondary} />
+        <Text style={[styles.permissionText, { color: colors.text }]}>
+          Autorisez l'accès à la caméra pour scanner les QR codes.
+        </Text>
+        <Button title="Autoriser la caméra" onPress={requestPermission} variant="gradient" />
+      </View>
+    );
+  }
+
+  if (showManual) {
+    return (
+      <View style={[styles.manualContainer, { backgroundColor: colors.background }]}>
+        <Text style={[styles.manualTitle, { color: colors.text }]}>Saisie manuelle</Text>
+        <Text style={[styles.manualSub, { color: colors.textSecondary }]}>
+          Entrez le code du QR code du vendeur
+        </Text>
+        <TextInput
+          style={[styles.manualInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
+          value={manualCode}
+          onChangeText={setManualCode}
+          placeholder="HTH-2024-0001"
+          placeholderTextColor={colors.textSecondary}
+          autoFocus
+          autoCapitalize="characters"
+        />
+        <Button title="Valider" onPress={handleManualSubmit} variant="gradient" disabled={!manualCode.trim()} />
+        <TouchableOpacity onPress={() => { setShowManual(false); setScanned(false); }}>
+          <Text style={[styles.backToScan, { color: colors.primary }]}>Retour au scanner</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <CameraView
+        style={styles.camera}
+        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+        onBarcodeScanned={scanned ? undefined : handleBarcode}
+        enableTorch={flashOn}
+      />
+
+      {/* Dark overlay with transparent scan area */}
+      <View style={styles.overlay}>
+        <View style={styles.overlayTop} />
+        <View style={styles.overlayMiddle}>
+          <View style={styles.overlaySide} />
+          <View style={styles.scanArea}>
+            {/* Corner markers */}
+            <View style={[styles.corner, styles.cornerTL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerTR, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBL, { borderColor: colors.primary }]} />
+            <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
+            {/* Scanning line */}
+            <Animated.View style={[styles.scanLine, { backgroundColor: colors.primary }, scanLineStyle]} />
+          </View>
+          <View style={styles.overlaySide} />
+        </View>
+        <View style={styles.overlayBottom}>
+          <Text style={styles.instruction}>
+            {instruction ?? 'Scannez le QR code du vendeur'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Flash overlay */}
+      {flashColor && <View style={[styles.flashOverlay, { backgroundColor: flashColor }]} />}
+
+      {/* Bottom controls */}
+      <View style={styles.controls}>
+        <TouchableOpacity
+          onPress={() => setFlashOn(!flashOn)}
+          style={[styles.flashBtn, { backgroundColor: flashOn ? colors.warning : 'rgba(255,255,255,0.2)' }]}
+        >
+          <Icon name={flashOn ? 'flashlight-on' : 'flashlight'} size={22} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        {scanned && (
+          <Button
+            title="Scanner à nouveau"
+            onPress={() => setScanned(false)}
+            variant="outline"
+            textStyle={{ color: '#FFFFFF' }}
+            style={{ borderColor: '#FFFFFF' }}
+          />
+        )}
+
+        <TouchableOpacity onPress={() => setShowManual(true)}>
+          <Text style={styles.manualLink}>Entrer le code manuellement</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+}
+
+const SCAN_SIZE = 250;
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  camera: { flex: 1 },
+
+  // Overlay
+  overlay: { ...StyleSheet.absoluteFillObject },
+  overlayTop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  overlayMiddle: { flexDirection: 'row' },
+  overlaySide: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  scanArea: { width: SCAN_SIZE, height: SCAN_SIZE },
+  overlayBottom: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: Spacing.xxl },
+
+  // Corners
+  corner: { position: 'absolute', width: 28, height: 28, borderWidth: 3 },
+  cornerTL: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: BorderRadius.sm },
+  cornerTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: BorderRadius.sm },
+  cornerBL: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: BorderRadius.sm },
+  cornerBR: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: BorderRadius.sm },
+
+  // Scan line
+  scanLine: { width: '100%', height: 2, opacity: 0.8 },
+
+  instruction: { ...Typography.bodyMedium, color: '#FFFFFF', textAlign: 'center', paddingHorizontal: Spacing.xxl },
+
+  // Flash
+  flashOverlay: { ...StyleSheet.absoluteFillObject },
+
+  // Controls
+  controls: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center', gap: Spacing.lg },
+  flashBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  flashIcon: { fontSize: 22 },
+  manualLink: { ...Typography.captionMedium, color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' },
+
+  // Permission
+  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.lg },
+  permissionEmoji: { fontSize: 56 },
+  permissionText: { ...Typography.body, textAlign: 'center', lineHeight: 22 },
+
+  // Manual
+  manualContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.xl },
+  manualTitle: { ...Typography.h2 },
+  manualSub: { ...Typography.body, textAlign: 'center' },
+  manualInput: { width: '100%', borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, textAlign: 'center', ...Typography.h3, letterSpacing: 2 },
+  backToScan: { ...Typography.bodyMedium, textDecorationLine: 'underline' },
+});

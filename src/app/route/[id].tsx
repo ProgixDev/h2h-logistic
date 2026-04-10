@@ -1,0 +1,226 @@
+import React from 'react';
+import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
+import { Header } from '@/components/layout/Header';
+import { Card } from '@/components/ui/Card';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { RouteTimeline } from '@/components/route/RouteTimeline';
+import { Icon } from '@/components/ui/Icon';
+import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
+import { Typography } from '@/constants/Typography';
+import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useRouteStore } from '@/stores/useRouteStore';
+import { formatDate } from '@/utils/formatting';
+
+const DAYS_SHORT: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' };
+
+export default function RouteDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { colors } = useColorScheme();
+  const router = useRouter();
+  const { routes, updateRoute, deleteRoute, hasActiveMission, toggleRouteStatus } = useRouteStore();
+
+  const route = routes.find((r) => r.id === id);
+  if (!route) {
+    return (
+      <SafeAreaWrapper>
+        <Header title="Trajet" showBack />
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Trajet introuvable</Text>
+      </SafeAreaWrapper>
+    );
+  }
+
+  const transport = TRANSPORT_TYPES.find((t) => t.id === route.transportType);
+  const isActive = route.status === 'active';
+  const hasMission = hasActiveMission(route.id);
+  const avgEarnings = route.missionsCount > 0 ? 4.5 : 0; // mock average
+
+  const handleDelete = () => {
+    if (hasMission) {
+      Alert.alert('Impossible', 'Ce trajet a une mission en cours. Terminez-la d\'abord.');
+      return;
+    }
+    Alert.alert('Supprimer ce trajet ?', 'Cette action est irréversible.', [
+      { text: 'Annuler', style: 'cancel' },
+      { text: 'Supprimer', style: 'destructive', onPress: () => { deleteRoute(route.id); router.back(); } },
+    ]);
+  };
+
+  // Schedule text
+  const daysText = route.schedule.recurringDays?.length
+    ? route.schedule.recurringDays.sort((a, b) => a - b).map((d) => DAYS_SHORT[d]).join(', ')
+    : null;
+
+  return (
+    <SafeAreaWrapper>
+      <Header title={`${route.departureCity} → ${route.arrivalCity}`} showBack />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* Active mission warning */}
+        {hasMission && (
+          <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="alert-circle" size={16} color={colors.warning} />
+              <Text style={[styles.warningText, { color: colors.warning, flex: 1 }]}>
+                Ce trajet a une mission en cours. Certaines modifications sont limitées.
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Status + transport */}
+        <View style={styles.statusRow}>
+          <View style={styles.statusLeft}>
+            <View style={[styles.statusDot, { backgroundColor: isActive ? colors.online : colors.offline }]} />
+            <Badge label={isActive ? 'Actif' : 'Hors ligne'} variant={isActive ? 'success' : 'default'} />
+          </View>
+          <View style={styles.transportBadge}>
+            <Icon name={transport?.iconName ?? 'walk'} size={18} color={colors.textSecondary} />
+            <Text style={[styles.transportLabel, { color: colors.textSecondary }]}>{transport?.label}</Text>
+          </View>
+        </View>
+
+        {/* Info card */}
+        <Card>
+          <InfoRow label="Type" value={route.type === 'recurring' ? 'Récurrent' : 'Ponctuel'} colors={colors} />
+          <InfoRow label="Capacité" value={`${route.maxPackages} colis — Taille ${route.maxSize} max — ${route.maxWeight} kg`} colors={colors} />
+          <InfoRow label="Hors hub" value={route.horsHub ? 'Oui' : 'Non'} colors={colors} />
+          {daysText && <InfoRow label="Jours" value={daysText} colors={colors} />}
+          <InfoRow label="Horaire collecte" value={route.schedule.pickupTime} colors={colors} />
+          {Object.entries(route.schedule.deliveryTimes).map(([hubId, time]) => {
+            const hub = route.deliveryHubs.find((h) => h.hubId === hubId);
+            return <InfoRow key={hubId} label={`Livraison ${hub?.hubName ?? ''}`} value={time} colors={colors} />;
+          })}
+          <InfoRow label="Créé le" value={formatDate(route.createdAt)} colors={colors} />
+        </Card>
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{route.missionsCount}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Missions</Text>
+          </Card>
+          <Card style={styles.statCard}>
+            <Text style={[styles.statValue, { color: colors.success }]}>{avgEarnings.toFixed(1)}€</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Moy./mission</Text>
+          </Card>
+        </View>
+
+        {/* Route timeline with hub locking */}
+        <Text style={[styles.sectionTitle, { color: colors.text }]}>Itinéraire</Text>
+        <Card>
+          {/* Pickup hub */}
+          <View style={styles.hubRow}>
+            <View style={[styles.hubDot, { backgroundColor: colors.primary }]} />
+            <View style={styles.hubInfo}>
+              <Text style={[styles.hubName, { color: colors.text }]}>{route.pickupHub.hubName}</Text>
+              <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
+                {route.pickupHub.city} — {route.schedule.pickupTime}
+              </Text>
+              {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — mission en cours</Text></View>}
+            </View>
+          </View>
+
+          {/* Delivery hubs */}
+          {route.deliveryHubs.map((hub, idx) => {
+            const time = route.schedule.deliveryTimes[hub.hubId] ?? '';
+            const isLocked = hasMission && idx === 0; // First hub locked during mission
+            const isDimmed = hasMission && idx > 0;
+
+            return (
+              <View key={hub.hubId} style={styles.hubRow}>
+                <View style={[styles.hubDot, { backgroundColor: colors.primaryGradientEnd, opacity: isDimmed ? 0.4 : 1 }]} />
+                <View style={[styles.hubInfo, isDimmed && { opacity: 0.4 }]}>
+                  <Text style={[styles.hubName, { color: colors.text }]}>{hub.hubName}</Text>
+                  <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
+                    {hub.city} — {time}
+                  </Text>
+                  {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — mission en cours</Text></View>}
+                  {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la mission</Text>}
+                </View>
+              </View>
+            );
+          })}
+        </Card>
+      </ScrollView>
+
+      {/* Bottom actions */}
+      <View style={styles.actions}>
+        <View style={styles.actionsRow}>
+          <Button
+            title="Modifier"
+            onPress={() => router.push({ pathname: '/route/edit', params: { id: route.id } })}
+            variant="outline"
+            fullWidth={false}
+            style={styles.actionBtn}
+          />
+          <Button
+            title={isActive ? 'Mettre hors ligne' : 'Activer'}
+            onPress={() => toggleRouteStatus(route.id)}
+            variant={isActive ? 'outline' : 'gradient'}
+            fullWidth={false}
+            style={styles.actionBtn}
+          />
+        </View>
+        <Button title="Supprimer le trajet" onPress={handleDelete} variant="danger" />
+      </View>
+    </SafeAreaWrapper>
+  );
+}
+
+function InfoRow({ label, value, colors }: { label: string; value: string; colors: any }) {
+  return (
+    <View style={styles.infoRow}>
+      <Text style={[styles.infoLabel, { color: colors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.infoValue, { color: colors.text }]}>{value}</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  scroll: { gap: Spacing.lg, paddingBottom: Spacing.lg },
+  notFound: { ...Typography.body, textAlign: 'center', marginTop: Spacing.section },
+
+  // Warning
+  warningBanner: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 1 },
+  warningText: { ...Typography.captionMedium, textAlign: 'center', lineHeight: 18 },
+
+  // Status
+  statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  statusLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  statusDot: { width: 8, height: 8, borderRadius: 4 },
+  transportBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  transportIcon: { fontSize: 18 },
+  transportLabel: { ...Typography.bodyMedium },
+
+  // Info
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 0.5, borderBottomColor: '#E5E7EB20' },
+  infoLabel: { ...Typography.caption },
+  infoValue: { ...Typography.captionMedium },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: Spacing.md },
+  statCard: { flex: 1, alignItems: 'center', gap: Spacing.xs },
+  statValue: { fontFamily: 'Poppins_700Bold', fontSize: 24, lineHeight: 30 },
+  statLabel: { ...Typography.caption },
+
+  // Section
+  sectionTitle: { ...Typography.h3 },
+
+  // Hubs
+  hubRow: { flexDirection: 'row', gap: Spacing.md, paddingVertical: Spacing.md },
+  hubDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
+  hubInfo: { flex: 1, gap: 2 },
+  hubName: { ...Typography.bodyMedium },
+  hubMeta: { ...Typography.caption },
+  lockLabel: { ...Typography.caption, fontSize: 11, marginTop: 2 },
+
+  // Actions
+  actions: { paddingVertical: Spacing.lg, gap: Spacing.md },
+  actionsRow: { flexDirection: 'row', gap: Spacing.md },
+  actionBtn: { flex: 1 },
+});

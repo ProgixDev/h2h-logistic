@@ -1,0 +1,441 @@
+import React, { useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  ActionSheetIOS,
+  Platform,
+  Alert,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { Image } from 'expo-image';
+import { Header } from '@/components/layout/Header';
+import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/Button';
+import { Typography } from '@/constants/Typography';
+import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useColorScheme } from '@/hooks/useColorScheme';
+import { useAuthStore } from '@/stores/useAuthStore';
+import { Icon } from '@/components/ui/Icon';
+import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
+
+const CITIES = [
+  'Nice',
+  'Cannes',
+  'Marseille',
+  'Toulon',
+  'Antibes',
+  'Fréjus',
+  'Monaco',
+] as const;
+
+export default function CompleteProfileScreen() {
+  const { colors } = useColorScheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { completeProfile, isLoading } = useAuthStore();
+
+  const [avatar, setAvatar] = useState<string | undefined>();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [city, setCity] = useState('');
+  const [transportType, setTransportType] = useState('');
+  const [showCityPicker, setShowCityPicker] = useState(false);
+
+  const isValid = firstName.trim().length > 0 && lastName.trim().length > 0;
+
+  // Avatar picker
+  const pickImage = useCallback(async (source: 'camera' | 'gallery') => {
+    let result: ImagePicker.ImagePickerResult;
+
+    if (source === 'camera') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission requise', "Autorisez l'accès à la caméra pour prendre une photo.");
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+    } else {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission requise', "Autorisez l'accès à la galerie pour choisir une photo.");
+        return;
+      }
+      result = await ImagePicker.launchImageLibraryAsync({
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+    }
+
+    if (!result.canceled && result.assets[0]) {
+      setAvatar(result.assets[0].uri);
+    }
+  }, []);
+
+  const handleAvatarPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Annuler', 'Prendre une photo', 'Choisir dans la galerie'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) pickImage('camera');
+          if (buttonIndex === 2) pickImage('gallery');
+        },
+      );
+    } else {
+      Alert.alert('Photo de profil', 'Choisissez une source', [
+        { text: 'Caméra', onPress: () => pickImage('camera') },
+        { text: 'Galerie', onPress: () => pickImage('gallery') },
+        { text: 'Annuler', style: 'cancel' },
+      ]);
+    }
+  }, []);
+
+  // City picker
+  const handleCityPress = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Annuler', ...CITIES],
+          cancelButtonIndex: 0,
+          title: 'Ville principale',
+        },
+        (buttonIndex) => {
+          if (buttonIndex > 0) {
+            setCity(CITIES[buttonIndex - 1]);
+          }
+        },
+      );
+    } else {
+      setShowCityPicker(!showCityPicker);
+    }
+  }, [showCityPicker]);
+
+  const handleSubmit = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await completeProfile({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      city: city || 'Non renseignée',
+      transportType: transportType || 'walking',
+      avatar,
+    });
+    router.replace('/(tabs)');
+  }, [firstName, lastName, city, transportType, avatar]);
+
+  const handleSkip = useCallback(async () => {
+    await completeProfile({
+      firstName: 'Transporteur',
+      lastName: '',
+      city: 'Non renseignée',
+      transportType: 'walking',
+    });
+    router.replace('/(tabs)');
+  }, []);
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={{ paddingTop: insets.top }}>
+        <View style={{ paddingHorizontal: Spacing.lg }}>
+          <Header title="" showBack />
+        </View>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Title */}
+        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+          <Text style={[styles.title, { color: colors.text }]}>Complétez votre profil</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+            Ces informations aident les vendeurs et acheteurs à vous identifier.
+          </Text>
+        </Animated.View>
+
+        {/* Avatar */}
+        <Animated.View entering={FadeInDown.delay(200).duration(400)} style={styles.avatarSection}>
+          <TouchableOpacity onPress={handleAvatarPress} style={styles.avatarWrapper}>
+            {avatar ? (
+              <Image source={{ uri: avatar }} style={styles.avatarImage} />
+            ) : (
+              <View style={[styles.avatarPlaceholder, { backgroundColor: colors.primary + '15' }]}>
+                <Icon name="camera" size={32} color={colors.primary} />
+              </View>
+            )}
+            <View style={[styles.avatarBadge, { backgroundColor: colors.primary }]}>
+              <Text style={styles.avatarBadgeIcon}>+</Text>
+            </View>
+          </TouchableOpacity>
+          <Text style={[styles.avatarHint, { color: colors.textSecondary }]}>
+            Ajouter une photo
+          </Text>
+        </Animated.View>
+
+        {/* Name inputs */}
+        <Animated.View entering={FadeInDown.delay(300).duration(400)} style={styles.fields}>
+          <Input
+            label="Prénom"
+            value={firstName}
+            onChangeText={setFirstName}
+            placeholder="Votre prénom"
+            autoFocus
+          />
+          <Input
+            label="Nom"
+            value={lastName}
+            onChangeText={setLastName}
+            placeholder="Votre nom"
+          />
+        </Animated.View>
+
+        {/* City picker */}
+        <Animated.View entering={FadeInDown.delay(400).duration(400)}>
+          <Text style={[styles.fieldLabel, { color: colors.text }]}>Ville principale</Text>
+          <TouchableOpacity
+            onPress={handleCityPress}
+            style={[
+              styles.pickerButton,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <Text
+              style={[
+                styles.pickerText,
+                { color: city ? colors.text : colors.textSecondary },
+              ]}
+            >
+              {city || 'Sélectionnez votre ville'}
+            </Text>
+            <Text style={[styles.pickerChevron, { color: colors.textSecondary }]}>▾</Text>
+          </TouchableOpacity>
+
+          {/* Android city list fallback */}
+          {showCityPicker && Platform.OS !== 'ios' && (
+            <View style={[styles.cityList, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              {CITIES.map((c) => (
+                <TouchableOpacity
+                  key={c}
+                  onPress={() => {
+                    setCity(c);
+                    setShowCityPicker(false);
+                  }}
+                  style={[
+                    styles.cityItem,
+                    c === city && { backgroundColor: colors.primary + '12' },
+                  ]}
+                >
+                  <Text style={[styles.cityItemText, { color: colors.text }]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Transport type chips */}
+        <Animated.View entering={FadeInDown.delay(500).duration(400)}>
+          <Text style={[styles.fieldLabel, { color: colors.text }]}>
+            Moyen de transport principal
+          </Text>
+          <View style={styles.chipsRow}>
+            {TRANSPORT_TYPES.map((type) => {
+              const isSelected = transportType === type.id;
+              return (
+                <TouchableOpacity
+                  key={type.id}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setTransportType(type.id);
+                  }}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: isSelected ? colors.primary : colors.surface,
+                      borderColor: isSelected ? colors.primary : colors.border,
+                    },
+                  ]}
+                >
+                  <Icon name={type.iconName} size={18} color={isSelected ? '#FFFFFF' : colors.text} />
+                  <Text
+                    style={[
+                      styles.chipLabel,
+                      { color: isSelected ? '#FFFFFF' : colors.text },
+                    ]}
+                  >
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Bottom actions */}
+      <Animated.View
+        entering={FadeInDown.delay(600).duration(400)}
+        style={[styles.actions, { paddingBottom: insets.bottom + Spacing.lg }]}
+      >
+        <Button
+          title="Commencer à transporter"
+          onPress={handleSubmit}
+          variant="gradient"
+          disabled={!isValid}
+          loading={isLoading}
+        />
+        <TouchableOpacity onPress={handleSkip} hitSlop={16} style={styles.skipButton}>
+          <Text style={[styles.skipText, { color: colors.textSecondary }]}>Plus tard</Text>
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scroll: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.lg,
+    gap: Spacing.xxl,
+  },
+  title: {
+    ...Typography.h1,
+  },
+  subtitle: {
+    ...Typography.body,
+    marginTop: Spacing.xs,
+    lineHeight: 22,
+  },
+  avatarSection: {
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  avatarWrapper: {
+    position: 'relative',
+  },
+  avatarImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+  },
+  avatarPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarIcon: {
+    fontSize: 32,
+  },
+  avatarBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  avatarBadgeIcon: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  avatarHint: {
+    ...Typography.caption,
+  },
+  fields: {
+    gap: Spacing.lg,
+  },
+  fieldLabel: {
+    ...Typography.captionMedium,
+    marginBottom: Spacing.xs,
+  },
+  pickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1.5,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.lg,
+    height: 48,
+  },
+  pickerText: {
+    ...Typography.body,
+  },
+  pickerChevron: {
+    fontSize: 12,
+  },
+  cityList: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    marginTop: Spacing.xs,
+    overflow: 'hidden',
+  },
+  cityItem: {
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+  },
+  cityItemText: {
+    ...Typography.body,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+  },
+  chipIcon: {
+    fontSize: 18,
+  },
+  chipLabel: {
+    ...Typography.captionMedium,
+  },
+  actions: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.lg,
+    gap: Spacing.md,
+    alignItems: 'center',
+  },
+  skipButton: {
+    paddingVertical: Spacing.sm,
+  },
+  skipText: {
+    ...Typography.bodyMedium,
+    textDecorationLine: 'underline',
+  },
+});

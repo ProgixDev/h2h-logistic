@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "h2h-logistic",
+    "name": "H2H Logistic",
     "slug": "h2h-logistic",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,11 +8,14 @@
     "scheme": "h2hlogistic",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.handtohand.logistic",
+      "supportsTablet": true,
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.handtohand.logistic",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#14248A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -28,13 +31,17 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#14248A",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
         }
-      ]
+      ],
+      "expo-image",
+      "expo-secure-store",
+      "expo-font",
+      "expo-maps"
     ],
     "experiments": {
       "typedRoutes": true,

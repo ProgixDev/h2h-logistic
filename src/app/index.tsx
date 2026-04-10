@@ -1,98 +1,138 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
+import { Typography } from '@/constants/Typography';
+import { Spacing } from '@/constants/Spacing';
+import { useAuthStore } from '@/stores/useAuthStore';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+const LOGO = require('@/assets/images/logo.png');
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+export default function SplashScreen() {
+  const router = useRouter();
+  const { hydrate, isAuthenticated, isOnboarded } = useAuthStore();
+
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(0.8);
+  const subtitleOpacity = useSharedValue(0);
+  const subtitleTranslateY = useSharedValue(10);
+
+  const navigate = () => {
+    if (!isOnboarded) {
+      router.replace('/(onboarding)');
+    } else if (!isAuthenticated) {
+      router.replace('/(auth)');
+    } else {
+      router.replace('/(tabs)');
+    }
+  };
+
+  useEffect(() => {
+    hydrate();
+
+    logoOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
+    logoScale.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
+
+    subtitleOpacity.value = withDelay(
+      400,
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }),
     );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+    subtitleTranslateY.value = withDelay(
+      400,
+      withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) }),
+    );
+
+    const timer = setTimeout(() => {
+      navigate();
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  const logoAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
+  }));
+
+  const subtitleAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: subtitleOpacity.value,
+    transform: [{ translateY: subtitleTranslateY.value }],
+  }));
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <LinearGradient
+      colors={['#14248A', '#2A8A6A']}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+      style={styles.container}
+    >
+      <View style={styles.content}>
+        <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
+          <Image source={LOGO} style={styles.logoImage} contentFit="contain" />
+        </Animated.View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        <Animated.View style={subtitleAnimatedStyle}>
+          <Text style={styles.logoH2H}>H2H</Text>
+          <Text style={styles.logoLogistic}>Logistic</Text>
+        </Animated.View>
+      </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
-
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+      <Animated.View style={[styles.footer, subtitleAnimatedStyle]}>
+        <Text style={styles.tagline}>L'app des transporteurs</Text>
+      </Animated.View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
   },
-  safeArea: {
+  content: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.lg,
   },
-  title: {
+  logoContainer: {
+    alignItems: 'center',
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+  },
+  logoH2H: {
+    fontFamily: 'Poppins_700Bold',
+    fontSize: 42,
+    lineHeight: 50,
+    color: '#FFFFFF',
+    letterSpacing: 4,
     textAlign: 'center',
   },
-  code: {
+  logoLogistic: {
+    fontFamily: 'Poppins_500Medium',
+    fontSize: 18,
+    lineHeight: 24,
+    color: 'rgba(255, 255, 255, 0.85)',
+    letterSpacing: 6,
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
+  footer: {
+    alignItems: 'center',
+    paddingBottom: Spacing.section + 20,
+  },
+  tagline: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
   },
 });
