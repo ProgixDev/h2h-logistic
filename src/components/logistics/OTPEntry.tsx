@@ -1,3 +1,9 @@
+/**
+ * @deprecated
+ * The buyer-side OTP entry flow has been replaced by QR scanning + package scan
+ * (see src/app/mission/delivery.tsx). This component is kept on disk to avoid
+ * breaking any remaining imports, but it is no longer used by the delivery flow.
+ */
 import React, { useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { OTPInput, type OTPInputHandle } from '@/components/ui/OTPInput';

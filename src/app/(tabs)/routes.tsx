@@ -106,7 +106,7 @@ export default function RoutesScreen() {
             iconName="tab-routes"
             title="Aucun trajet publié"
             description={filter === 'active'
-              ? 'Publiez votre premier trajet pour commencer à recevoir des missions.'
+              ? 'Publiez votre premier trajet pour commencer à recevoir des livraisons.'
               : filter === 'paused'
                 ? 'Aucun trajet hors ligne.'
                 : 'Vous n\'avez pas encore de trajet.'}

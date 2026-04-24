@@ -46,20 +46,9 @@ export default function RootLayout() {
             animation: 'slide_from_right',
           }}
         >
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(onboarding)" />
-          <Stack.Screen name="(tabs)" />
           <Stack.Screen name="publish" options={{ animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="mission" />
-          <Stack.Screen name="route" />
-          <Stack.Screen name="history" />
-          <Stack.Screen name="earnings" />
-          <Stack.Screen name="hub" />
           <Stack.Screen name="navigate" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
-          <Stack.Screen name="chat" />
-          <Stack.Screen name="notifications" />
-          <Stack.Screen name="settings" />
+          <Stack.Screen name="call" options={{ animation: 'slide_from_bottom', gestureEnabled: false }} />
         </Stack>
       </SafeAreaProvider>
     </GestureHandlerRootView>

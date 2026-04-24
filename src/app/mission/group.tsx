@@ -3,7 +3,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'rea
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import dayjs from 'dayjs';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -12,6 +12,15 @@ import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { Icon } from '@/components/ui/Icon';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
+import { ParticipantsCard, type ActiveParty } from '@/components/mission/ParticipantsCard';
+import { ActivePartyCard } from '@/components/mission/ActivePartyCard';
+import { ScheduleReminderCard } from '@/components/mission/ScheduleReminderCard';
+import { DirectionHubButton } from '@/components/mission/DirectionHubButton';
+import { ResponsibilitiesCard } from '@/components/mission/ResponsibilitiesCard';
+import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
+import { BonEnvoiRow } from '@/components/mission/BonEnvoiRow';
+import { useRouteStore } from '@/stores/useRouteStore';
+import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { OffHubProposalSheet } from '@/components/logistics/OffHubProposal';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -33,15 +42,20 @@ export default function MissionGroupScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getMissionById } = useMissionStore();
 
-  const mission = getMissionById(id ?? '');
+  // Use an explicit selector so the component reliably re-renders on every
+  // store mutation. Subscribing to the `missions` array reference guarantees
+  // re-renders because the store always rebuilds that array on every update.
+  const mission = useMissionStore((s) => {
+    const list = s.missions;
+    return list.find((m) => m.id === (id ?? ''));
+  });
 
   if (!mission) {
     return (
       <View style={[gs.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Mission" showBack /></View>
-        <Text style={[gs.notFound, { color: colors.textSecondary }]}>Mission introuvable</Text>
+        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Livraison" showBack /></View>
+        <Text style={[gs.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
       </View>
     );
   }
@@ -49,16 +63,81 @@ export default function MissionGroupScreen() {
   return <GroupContent mission={mission} colors={colors} router={router} insets={insets} />;
 }
 
+// TODO(backend): remove before production — dev-only demo helper
+const DEMO_STATUS_ORDER: Array<import('@/types/mission').MissionStatus> = [
+  'group_created',
+  'pickup_pending',
+  'picked_up',
+  'in_transit',
+  'delivery_pending',
+  'delivered',
+  'completed',
+];
+
 function GroupContent({ mission, colors, router, insets }: { mission: Mission; colors: any; router: any; insets: any }) {
-  const { cancelMission, reportSellerAbsence, reportBuyerAbsence, proposeOffHub, updateMissionStatus } = useMissionStore();
+  // Select actions individually so we don't re-subscribe to the whole state.
+  const cancelMission = useMissionStore((s) => s.cancelMission);
+  const reportSellerAbsence = useMissionStore((s) => s.reportSellerAbsence);
+  const reportBuyerAbsence = useMissionStore((s) => s.reportBuyerAbsence);
+  const proposeOffHub = useMissionStore((s) => s.proposeOffHub);
+  const updateMissionStatus = useMissionStore((s) => s.updateMissionStatus);
+  const confirmPickup = useMissionStore((s) => s.confirmPickup);
+  const confirmDelivery = useMissionStore((s) => s.confirmDelivery);
+  const { routes } = useRouteStore();
+  const routeForMission = routes.find((r) => r.id === mission.routeId);
+  const missionTransportType = routeForMission?.transportType ?? 'car';
+  const missionDistanceKm = estimateDistanceKm(mission.pickupHub.city, mission.deliveryHub.city);
+  const missionKgSaved = calculateCo2Saved(missionDistanceKm, missionTransportType);
   const [showToast, setShowToast] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
   const [packageExpanded, setPackageExpanded] = useState(false);
   const [showOffHub, setShowOffHub] = useState(false);
-  const [responsibilityExpanded, setResponsibilityExpanded] = useState(false);
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
+
+  // ─── Current counterparty (drives arrow + ActivePartyCard) ───
+  const activeParty: ActiveParty = useMemo(() => {
+    if (['group_created', 'pickup_pending'].includes(mission.status)) return 'seller';
+    if (['picked_up', 'in_transit', 'delivery_pending'].includes(mission.status)) return 'buyer';
+    return null;
+  }, [mission.status]);
+
+  const reminderPhase: 'pickup' | 'delivery' | 'completed' = useMemo(() => {
+    if (['group_created', 'pickup_pending'].includes(mission.status)) return 'pickup';
+    if (['picked_up', 'in_transit', 'delivery_pending'].includes(mission.status)) return 'delivery';
+    return 'completed';
+  }, [mission.status]);
+
+  const activePartyData = activeParty === 'seller' ? mission.seller : activeParty === 'buyer' ? mission.buyer : null;
+
+  const activePhaseLabel = useMemo(() => {
+    if (!activeParty) return '';
+    const targetTime = activeParty === 'seller' ? mission.pickupHub.scheduledTime : mission.deliveryHub.scheduledTime;
+    const diffMs = dayjs(targetTime).diff(dayjs());
+    const prefix = activeParty === 'seller' ? 'Prise en charge' : 'Livraison';
+
+    if (diffMs <= 0) return `${prefix} — rendez-vous maintenant`;
+    const totalMinutes = Math.floor(diffMs / 60000);
+    const h = Math.floor(totalMinutes / 60);
+    const m = totalMinutes % 60;
+    const duration = h > 0 ? `${String(h).padStart(2, '0')}h${String(m).padStart(2, '0')}` : `${m} min`;
+    return `${prefix} dans ${duration}`;
+  }, [activeParty, mission.pickupHub.scheduledTime, mission.deliveryHub.scheduledTime]);
+
+  const handleOpenChat = (party: MissionParticipant, role: 'seller' | 'buyer') => {
+    router.push({
+      pathname: '/chat/[id]',
+      params: {
+        id: party.id,
+        name: party.name,
+        role,
+        avatar: party.avatar ?? '',
+        missionId: mission.id,
+        listingTitle: mission.package.description,
+      },
+    });
+  };
 
   const canProposeOffHub = useMemo(() => {
     const targetTime = ['pickup_pending', 'group_created'].includes(mission.status)
@@ -85,16 +164,16 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   };
 
   const handleReportSellerAbsence = () => {
-    Alert.alert('Signaler l\'absence du vendeur', 'La mission sera annulée sans pénalité pour vous.', [
+    Alert.alert('Signaler l\'absence du vendeur', 'La livraison sera annulée sans pénalité pour vous.', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Signaler', onPress: () => { reportSellerAbsence(mission.id); toast('Mission annulée — absence du vendeur.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: 'Signaler', onPress: () => { reportSellerAbsence(mission.id); toast('Livraison annulée — absence du vendeur.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
     ]);
   };
 
   const handleReportBuyerAbsence = () => {
     Alert.alert('L\'acheteur ne s\'est pas présenté', 'Que souhaitez-vous faire ?', [
       { text: 'Attendre +5 min', onPress: () => { reportBuyerAbsence(mission.id, true); toast('Tolérance étendue.'); } },
-      { text: 'Annuler', style: 'destructive', onPress: () => { reportBuyerAbsence(mission.id, false); toast('Mission annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: 'Annuler', style: 'destructive', onPress: () => { reportBuyerAbsence(mission.id, false); toast('Livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
       { text: 'Patienter', style: 'cancel' },
     ]);
   };
@@ -106,9 +185,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
       ? 'Vous avez le colis. Veuillez le remettre au hub le plus proche.'
       : 'L\'annulation sera notée sur votre profil.';
 
-    Alert.alert(hasPackage ? 'Vous avez le colis' : 'Annuler la mission ?', msg, [
+    Alert.alert(hasPackage ? 'Vous avez le colis' : 'Annuler la livraison ?', msg, [
       { text: 'Retour', style: 'cancel' },
-      { text: hasPackage ? 'J\'ai remis le colis' : 'Confirmer l\'annulation', style: 'destructive', onPress: () => { cancelMission(mission.id, reason); toast('Mission annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: hasPackage ? 'J\'ai remis le colis' : 'Confirmer l\'annulation', style: 'destructive', onPress: () => { cancelMission(mission.id, reason); toast('Livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
     ]);
   };
 
@@ -118,7 +197,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   return (
     <View style={[gs.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-        <Header title={`Mission #${missionCode}`} showBack />
+        <Header title={`Livraison #${missionCode}`} showBack />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[gs.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}>
@@ -130,20 +209,64 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </View>
         )}
 
-        {/* Participants */}
+        {/* Participants (3 bubbles + directional gold arrow) */}
         <Animated.View entering={FadeInDown.delay(100).duration(300)}>
-          <Card>
-            <View style={gs.participantsRow}>
-              <PBubble p={mission.seller} role="Vendeur" hub={mission.pickupHub.isOffHub ? `Hors hub — ${mission.pickupHub.offHubAddress}` : mission.pickupHub.name} colors={colors} onContact={() => toast('Chat vendeur — bientôt disponible')} />
-              <View style={gs.youBubble}>
-                <View style={[gs.avatar, { backgroundColor: colors.primary }]}><Text style={gs.avatarText}>{mission.transporter.name[0]}</Text></View>
-                <Text style={[gs.pName, { color: colors.text }]}>Vous</Text>
-                <View style={gs.youStatus}><View style={[gs.sDot, { backgroundColor: colors.success }]} /><Text style={[gs.sLabel, { color: colors.success }]}>En route</Text></View>
-              </View>
-              <PBubble p={mission.buyer} role="Acheteur" hub={mission.deliveryHub.isOffHub ? `Hors hub — ${mission.deliveryHub.offHubAddress}` : mission.deliveryHub.name} colors={colors} onContact={() => toast('Chat acheteur — bientôt disponible')} />
-            </View>
-          </Card>
+          <ParticipantsCard
+            seller={mission.seller}
+            buyer={mission.buyer}
+            transporter={mission.transporter}
+            activeParty={activeParty}
+            onPressParticipant={handleOpenChat}
+          />
         </Animated.View>
+
+        {/* Active counterparty card (prominent, tappable to chat) */}
+        {activeParty && activePartyData && (
+          <Animated.View entering={FadeInDown.delay(150).duration(300)}>
+            <ActivePartyCard
+              party={activePartyData}
+              contextLabel={activeParty === 'seller' ? 'Vendeur' : 'Acheteur'}
+              phase={activePhaseLabel}
+              onPress={() => handleOpenChat(activePartyData, activeParty)}
+            />
+          </Animated.View>
+        )}
+
+        {/* Schedule reminder with live countdown */}
+        {reminderPhase !== 'completed' && (
+          <Animated.View entering={FadeInDown.delay(180).duration(300)}>
+            <ScheduleReminderCard
+              pickupTime={mission.pickupHub.scheduledTime}
+              pickupHubName={mission.pickupHub.name}
+              deliveryTime={mission.deliveryHub.scheduledTime}
+              deliveryHubName={mission.deliveryHub.name}
+              pickupActualTime={mission.pickupHub.actualTime}
+              phase={reminderPhase}
+            />
+          </Animated.View>
+        )}
+
+        {/* Big context-aware action button */}
+        {reminderPhase !== 'completed' && (
+          <Animated.View entering={FadeInDown.delay(220).duration(300)}>
+            <DirectionHubButton
+              phase={reminderPhase}
+              hubName={reminderPhase === 'pickup' ? mission.pickupHub.name : mission.deliveryHub.name}
+              onPress={() =>
+                router.push({
+                  pathname: reminderPhase === 'pickup' ? '/mission/pickup' : '/mission/delivery',
+                  params: { id: mission.id },
+                })
+              }
+              onNavigatePress={() =>
+                router.push({
+                  pathname: '/navigate/[missionId]',
+                  params: { missionId: mission.id, dest: reminderPhase },
+                })
+              }
+            />
+          </Animated.View>
+        )}
 
         {/* No-show alerts */}
         {isPickupLate && (
@@ -167,12 +290,48 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           <MissionTimeline mission={mission} onPickup={handlePickup} onDelivery={handleDelivery} onNavigate={handleNavigate} />
         </Animated.View>
 
-        {/* Off-hub link */}
+        {/* Off-hub + report links */}
         {canProposeOffHub && (
           <TouchableOpacity onPress={() => setShowOffHub(true)} hitSlop={12}>
             <Text style={[gs.offHubLink, { color: colors.primary }]}>Proposer hors hub</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          onPress={() => {
+            Alert.alert('Signaler un hub', 'Quel hub souhaitez-vous signaler ?', [
+              {
+                text: `Hub vendeur — ${mission.pickupHub.name}`,
+                onPress: () =>
+                  router.push({
+                    pathname: '/hub/report' as any,
+                    params: {
+                      hubId: mission.pickupHub.id,
+                      hubName: mission.pickupHub.name,
+                      hubAddress: mission.pickupHub.city,
+                    },
+                  }),
+              },
+              {
+                text: `Hub acheteur — ${mission.deliveryHub.name}`,
+                onPress: () =>
+                  router.push({
+                    pathname: '/hub/report' as any,
+                    params: {
+                      hubId: mission.deliveryHub.id,
+                      hubName: mission.deliveryHub.name,
+                      hubAddress: mission.deliveryHub.city,
+                    },
+                  }),
+              },
+              { text: 'Annuler', style: 'cancel' },
+            ]);
+          }}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Signaler un hub"
+        >
+          <Text style={[gs.offHubLink, { color: colors.textSecondary }]}>Signaler un hub</Text>
+        </TouchableOpacity>
         {!canProposeOffHub && !mission.offHubProposal && (
           <Text style={[gs.offHubDisabled, { color: colors.textSecondary }]}>Le hors hub n'est plus disponible.</Text>
         )}
@@ -194,20 +353,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </ScrollView>
         </Animated.View>
 
-        {/* Responsibility */}
+        {/* Responsibilities */}
         <Animated.View entering={FadeInDown.delay(400).duration(300)}>
-          <TouchableOpacity onPress={() => setResponsibilityExpanded(!responsibilityExpanded)} activeOpacity={0.8}>
-            <Card style={{ backgroundColor: colors.primary + '06' }}>
-              <View style={gs.respH}><View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="clipboard" size={16} color={colors.text} /><Text style={[gs.respT, { color: colors.text }]}>Vos responsabilités</Text></View><Text style={{ color: colors.textSecondary }}>{responsibilityExpanded ? '▴' : '▾'}</Text></View>
-              {responsibilityExpanded && (
-                <View style={gs.respB}>
-                  <RR t="Votre responsabilité commence à l'heure exacte du rendez-vous." c={colors} />
-                  <RR t="Vous devez être disponible jusqu'à +10 minutes." c={colors} />
-                  <RR t="L'arrivée en avance (-10 min) est conseillée mais pas obligatoire." c={colors} />
-                </View>
-              )}
-            </Card>
-          </TouchableOpacity>
+          <ResponsibilitiesCard />
         </Animated.View>
 
         {/* Package */}
@@ -233,10 +381,56 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </TouchableOpacity>
         </Animated.View>
 
+        {/* Bon d'envoi */}
+        <Animated.View entering={FadeInDown.delay(480).duration(300)}>
+          <BonEnvoiRow mission={mission} />
+        </Animated.View>
+
+        {/* Eco impact */}
+        {missionKgSaved > 0 && (
+          <Animated.View entering={FadeInDown.delay(550).duration(300)}>
+            <EcoImpactCard kgSaved={missionKgSaved} variant="compact" />
+          </Animated.View>
+        )}
+
         {/* Cancel */}
         <TouchableOpacity onPress={handleCancelMission} hitSlop={12} style={gs.cancelBtn}>
-          <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la mission</Text>
+          <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la livraison</Text>
         </TouchableOpacity>
+
+        {/* TODO(backend): remove before production — dev-only phase walker */}
+        {__DEV__ && (
+          <View style={gs.devBar}>
+            <Text style={gs.devLabel}>DEV · Statut actuel : {mission.status}</Text>
+            <View style={gs.devBtnRow}>
+              <TouchableOpacity
+                style={[gs.devBtn, { backgroundColor: '#F5A623' }]}
+                onPress={() => {
+                  const currentIdx = DEMO_STATUS_ORDER.indexOf(mission.status);
+                  const nextIdx = Math.min(currentIdx + 1, DEMO_STATUS_ORDER.length - 1);
+                  const nextStatus = DEMO_STATUS_ORDER[nextIdx];
+                  if (nextStatus === 'picked_up') {
+                    confirmPickup(mission.id);
+                  } else if (nextStatus === 'delivered') {
+                    confirmDelivery(mission.id);
+                  } else {
+                    updateMissionStatus(mission.id, nextStatus);
+                  }
+                }}
+                accessibilityLabel="Dev: advance to next phase"
+              >
+                <Text style={gs.devBtnText}>Étape suivante →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[gs.devBtn, { backgroundColor: 'rgba(245,166,35,0.25)', borderWidth: 1, borderColor: '#F5A623' }]}
+                onPress={() => updateMissionStatus(mission.id, 'group_created')}
+                accessibilityLabel="Dev: reset to first phase"
+              >
+                <Text style={[gs.devBtnText, { color: '#F5A623' }]}>Reset</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       <OffHubProposalSheet visible={showOffHub} onClose={() => setShowOffHub(false)} onSend={handleOffHub} pickupHubName={mission.pickupHub.name} deliveryHubName={mission.deliveryHub.name} />
@@ -245,26 +439,8 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   );
 }
 
-function PBubble({ p, role, hub, colors, onContact }: { p: MissionParticipant; role: string; hub: string; colors: any; onContact: () => void }) {
-  return (
-    <View style={gs.pBubble}>
-      <View style={[gs.avatar, { backgroundColor: colors.accent + '40' }]}><Text style={[gs.avatarText, { color: colors.primary }]}>{p.name[0]}</Text></View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-        <Text style={[gs.pName, { color: colors.text }]} numberOfLines={1}>{p.name.split(' ')[0]}</Text>
-        {p.isFavorite && <Icon name="star" size={10} color={colors.warning} />}
-      </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}><Icon name="location" size={10} color={colors.textSecondary} /><Text style={[gs.pHub, { color: colors.textSecondary }]} numberOfLines={1}>{hub.length > 16 ? hub.slice(0, 15) + '…' : hub}</Text></View>
-      <TouchableOpacity onPress={onContact} style={[gs.cBtn, { borderColor: colors.primary }]}><Text style={[gs.cText, { color: colors.primary }]}>Contacter</Text></TouchableOpacity>
-    </View>
-  );
-}
-
 function DR({ l, v, c, vc }: { l: string; v: string; c: any; vc?: string }) {
   return <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}><Text style={[gs.pkgSub, { color: c.textSecondary }]}>{l}</Text><Text style={[gs.pkgTitle, { color: vc ?? c.text }]}>{v}</Text></View>;
-}
-
-function RR({ t, c }: { t: string; c: any }) {
-  return <View style={{ flexDirection: 'row', gap: Spacing.sm }}><Text style={{ color: c.primary }}>•</Text><Text style={[gs.pkgSub, { color: c.textSecondary, flex: 1, lineHeight: 20 }]}>{t}</Text></View>;
 }
 
 const gs = StyleSheet.create({
@@ -278,24 +454,9 @@ const gs = StyleSheet.create({
   alertDesc: { ...Typography.caption, lineHeight: 18, marginBottom: Spacing.md },
   offHubLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
   offHubDisabled: { ...Typography.caption, textAlign: 'center', fontStyle: 'italic' },
-  participantsRow: { flexDirection: 'row', justifyContent: 'space-between', gap: Spacing.sm },
-  pBubble: { flex: 1, alignItems: 'center', gap: 4 },
-  youBubble: { flex: 1, alignItems: 'center', gap: 4 },
-  avatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  avatarText: { fontFamily: 'Poppins_600SemiBold', fontSize: 16, color: '#FFFFFF' },
-  pName: { ...Typography.captionMedium, textAlign: 'center', maxWidth: 80 },
-  pHub: { fontSize: 10, lineHeight: 14, textAlign: 'center' },
-  youStatus: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  sDot: { width: 6, height: 6, borderRadius: 3 },
-  sLabel: { fontSize: 10, fontFamily: 'Poppins_500Medium' },
-  cBtn: { borderWidth: 1, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3, marginTop: 2 },
-  cText: { fontSize: 10, fontFamily: 'Poppins_500Medium' },
   msgs: { gap: Spacing.sm, paddingRight: Spacing.lg },
   msgPill: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1 },
   msgText: { ...Typography.caption },
-  respH: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  respT: { ...Typography.bodyMedium },
-  respB: { marginTop: Spacing.md, gap: Spacing.sm },
   pkgH: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pkgHL: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, flex: 1 },
   pkgT: { width: 44, height: 44, borderRadius: BorderRadius.sm, alignItems: 'center', justifyContent: 'center' },
@@ -304,4 +465,20 @@ const gs = StyleSheet.create({
   pkgD: { borderTopWidth: 0.5, marginTop: Spacing.md, paddingTop: Spacing.md, gap: Spacing.sm },
   cancelBtn: { alignItems: 'center', paddingVertical: Spacing.md },
   cancelText: { ...Typography.captionMedium, textDecorationLine: 'underline' },
+
+  // Dev-only demo bar — TODO(backend): remove before production
+  devBar: {
+    marginTop: Spacing.md,
+    marginHorizontal: Spacing.xs,
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: '#F5A62344',
+    backgroundColor: '#F5A62310',
+    gap: Spacing.sm,
+  },
+  devLabel: { ...Typography.caption, color: '#F5A623', letterSpacing: 0.5, textAlign: 'center' },
+  devBtnRow: { flexDirection: 'row', gap: Spacing.sm },
+  devBtn: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, alignItems: 'center' },
+  devBtnText: { ...Typography.captionMedium, color: '#FFFFFF', letterSpacing: 0.5 },
 });

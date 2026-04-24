@@ -40,8 +40,8 @@ const STEPS: StepConfig[] = [
   {
     status: 'accepted',
     iconName: 'checkmark-circle',
-    label: 'Mission acceptée',
-    getDesc: () => 'Vous avez accepté cette mission',
+    label: 'Livraison acceptée',
+    getDesc: () => 'Vous avez accepté cette livraison',
   },
   {
     status: 'group_created',
@@ -83,7 +83,7 @@ const STEPS: StepConfig[] = [
   {
     status: 'delivered',
     iconName: 'trophy',
-    label: 'Mission terminée',
+    label: 'Livraison terminée',
     getDesc: (m) => `Paiement libéré : ${m.transporterEarning.toFixed(2)}€`,
   },
 ];
@@ -153,11 +153,12 @@ export function MissionTimeline({ mission, onPickup, onDelivery, onNavigate }: M
                   style={[
                     styles.line,
                     {
-                      backgroundColor: isCompleted ? colors.success : colors.border,
-                      borderStyle: isPending ? 'dashed' : 'solid',
-                      borderLeftWidth: isPending ? 1.5 : 0,
-                      borderLeftColor: isPending ? colors.border : undefined,
-                      width: isPending ? 0 : 2,
+                      backgroundColor: isCompleted
+                        ? colors.success
+                        : isPending
+                          ? colors.border + '60'
+                          : colors.border,
+                      width: 2,
                     },
                   ]}
                 />

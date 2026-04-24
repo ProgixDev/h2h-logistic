@@ -125,5 +125,9 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     return route;
   },
 
-  loadMockData: () => set({ routes: mockRoutes }),
+  loadMockData: () => {
+    // Idempotent: preserve any routes the user has already created/modified.
+    if (get().routes.length > 0) return;
+    set({ routes: mockRoutes });
+  },
 }));

@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, StyleSheet, AccessibilityInfo } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
@@ -12,38 +13,38 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { QRScanner } from '@/components/logistics/QRScanner';
 import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
 import { Icon } from '@/components/ui/Icon';
+import { ScanProgressDots } from '@/components/mission/ScanProgressDots';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMissionStore } from '@/stores/useMissionStore';
 
-type PickupStep = 'approach' | 'scan' | 'confirmed';
+type PickupStep = 'approach' | 'scan-seller' | 'scan-package' | 'confirmed';
 
-const MOCK_QR_PREFIX = 'H2H-';
+const MAX_PACKAGE_ATTEMPTS = 3;
 
 export default function PickupScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getMissionById, updateMissionStatus } = useMissionStore();
+  const { getMissionById, confirmPickup, updateMissionStatus } = useMissionStore();
 
   const mission = getMissionById(id ?? '');
   const [step, setStep] = useState<PickupStep>('approach');
-  const [showToast, setShowToast] = useState(false);
-  const [proximity, setProximity] = useState(230); // mock meters
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' | 'error' } | null>(null);
+  const [scannerResetSignal, setScannerResetSignal] = useState(0);
+  const [packageAttempts, setPackageAttempts] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const [proximity] = useState(230);
 
-  // Success animation
   const checkScale = useSharedValue(0);
-  const checkStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: checkScale.value }],
-  }));
+  const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
 
   if (!mission) {
     return (
@@ -51,43 +52,81 @@ export default function PickupScreen() {
         <View style={{ paddingHorizontal: Spacing.lg }}>
           <Header title="Récupération" showBack />
         </View>
-        <Text style={[s.notFound, { color: colors.textSecondary }]}>Mission introuvable</Text>
+        <Text style={[s.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
       </View>
     );
   }
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
 
-  // ─── QR validation ─────────────────────────────────────────
-  const validateQR = (data: string): boolean => {
-    // Mock: accept any QR containing the mission ID or starting with H2H-
-    return data.includes(mission.id) || data.startsWith(MOCK_QR_PREFIX);
+  const showToast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
+    setToast({ msg, type });
   };
 
-  const handleScan = (data: string) => {
-    if (validateQR(data)) {
+  const resetScanner = () => setScannerResetSignal((n) => n + 1);
+
+  const matchesSeller = (code: string): boolean => {
+    const normalized = code.trim().toUpperCase();
+    return (
+      !!mission.seller.qrCode && normalized === mission.seller.qrCode.toUpperCase()
+    ) || normalized.includes(mission.id.toUpperCase()) || normalized.startsWith('SEL-') || normalized.startsWith('HTH-');
+  };
+
+  const matchesPackage = (code: string): boolean => {
+    const normalized = code.trim().toUpperCase();
+    return !!mission.package.trackingNumber && normalized === mission.package.trackingNumber.toUpperCase();
+  };
+
+  const handleSellerScan = useCallback((code: string) => {
+    if (matchesSeller(code)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      confirmPickup();
+      showToast('Vendeur identifié ✓', 'success');
+      AccessibilityInfo.announceForAccessibility('Vendeur identifié. Étape 2 sur 2 : scanner le colis.');
+      setTimeout(() => setStep('scan-package'), 400);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      // Reset scanner after showing error — handled by QRScanner component
+      showToast("Ce n'est pas le bon vendeur. Vérifiez avec lui, ou entrez le code manuellement.", 'error');
+      resetScanner();
     }
-  };
+  }, [mission.id, mission.seller.qrCode]);
 
-  const handleManualEntry = (code: string) => {
-    if (code.startsWith('HTH-') || code.includes(mission.id)) {
+  const handlePackageScan = useCallback((code: string) => {
+    if (matchesPackage(code)) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      confirmPickup();
+      showToast('Colis vérifié ✓', 'success');
+      confirmPickup(mission.id);
+      AccessibilityInfo.announceForAccessibility('Colis vérifié. Prise en charge confirmée.');
+      setStep('confirmed');
+      checkScale.value = withSpring(1, { damping: 12, stiffness: 150 });
     } else {
+      const next = packageAttempts + 1;
+      setPackageAttempts(next);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (next >= MAX_PACKAGE_ATTEMPTS) {
+        setLocked(true);
+        showToast("Merci de contacter le support via le chat.", 'error');
+      } else {
+        showToast("Ce colis ne correspond pas à la livraison. Pouvez-vous vérifier avec le vendeur ?", 'error');
+        resetScanner();
+      }
     }
+  }, [mission.id, mission.package.trackingNumber, packageAttempts]);
+
+  // ─── DEV BYPASS — skips validation entirely ───────────────
+  // TODO(backend): remove before production
+  const bypassSellerStep = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast('Vendeur identifié ✓ (bypass)', 'success');
+    setTimeout(() => setStep('scan-package'), 300);
   };
 
-  const confirmPickup = () => {
-    updateMissionStatus(mission.id, 'picked_up');
+  // TODO(backend): remove before production
+  const bypassPackageStep = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    showToast('Colis vérifié ✓ (bypass)', 'success');
+    confirmPickup(mission.id);
     setStep('confirmed');
     checkScale.value = withSpring(1, { damping: 12, stiffness: 150 });
-    setShowToast(true);
   };
 
   // ─── STEP: APPROACH ────────────────────────────────────────
@@ -104,10 +143,10 @@ export default function PickupScreen() {
         <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
           <Header title="Récupération du colis" showBack />
           <Text style={[s.missionRef, { color: colors.textSecondary }]}>#{missionCode}</Text>
+          <ScanProgressDots partyLabel="Vendeur" partyState="pending" packageState="pending" />
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          {/* Hub info */}
           <Card>
             <View style={s.hubRow}>
               <Icon name="hub-gare" size={28} color={colors.primary} />
@@ -118,13 +157,11 @@ export default function PickupScreen() {
             </View>
           </Card>
 
-          {/* Tolerance */}
           <ToleranceWindow
             scheduledTime={mission.pickupHub.scheduledTime}
             toleranceMinutes={mission.pickupHub.toleranceMinutes}
           />
 
-          {/* GPS proximity */}
           <View style={[s.proximityCard, { backgroundColor: proximityColor + '12' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name="location-filled" size={16} color={proximityColor} />
@@ -132,12 +169,15 @@ export default function PickupScreen() {
             </View>
           </View>
 
-          {/* Seller info */}
           <Card>
             <View style={s.sellerRow}>
-              <View style={[s.sellerAvatar, { backgroundColor: colors.accent + '30' }]}>
-                <Text style={s.sellerInitial}>{mission.seller.name[0]}</Text>
-              </View>
+              {mission.seller.avatar ? (
+                <Image source={{ uri: mission.seller.avatar }} style={s.sellerAvatarImg} contentFit="cover" />
+              ) : (
+                <View style={[s.sellerAvatar, { backgroundColor: colors.accent + '30' }]}>
+                  <Text style={[s.sellerInitial, { color: colors.primary }]}>{mission.seller.name[0]}</Text>
+                </View>
+              )}
               <View style={s.sellerInfo}>
                 <Text style={[s.sellerName, { color: colors.text }]}>{mission.seller.name}</Text>
                 <Text style={[s.sellerHint, { color: colors.textSecondary }]}>
@@ -150,28 +190,124 @@ export default function PickupScreen() {
 
         <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
           <Button
-            title="Scanner le QR code"
-            onPress={() => setStep('scan')}
+            title="Scanner le QR du vendeur"
+            onPress={() => {
+              AccessibilityInfo.announceForAccessibility('Étape 1 sur 2 : scanner le QR du vendeur.');
+              setStep('scan-seller');
+            }}
             variant="gradient"
             style={{ minHeight: 52 }}
           />
         </View>
+
+        {toast && (
+          <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={2500} />
+        )}
       </View>
     );
   }
 
-  // ─── STEP: SCAN ────────────────────────────────────────────
-  if (step === 'scan') {
+  // ─── STEP: SCAN SELLER ─────────────────────────────────────
+  if (step === 'scan-seller') {
     return (
       <View style={[s.screen, { backgroundColor: '#000' }]}>
-        <View style={[s.scanHeader, { paddingTop: insets.top }]}>
+        <View style={[s.scanHeader, { paddingTop: insets.top, backgroundColor: 'rgba(0,0,0,0.4)' }]}>
           <Header title="" showBack />
+          <View style={s.stepBanner}>
+            <Text style={s.stepBannerText}>Étape 1/2 — QR vendeur</Text>
+          </View>
+          <ScanProgressDots partyLabel="Vendeur" partyState="active" packageState="pending" />
         </View>
         <QRScanner
-          onScan={handleScan}
-          onManualEntry={handleManualEntry}
-          instruction="Scannez le QR code du vendeur"
+          mode="seller-qr"
+          onScan={handleSellerScan}
+          onManualEntry={handleSellerScan}
+          resetSignal={scannerResetSignal}
+          // TODO(backend): remove before production
+          onDevBypass={bypassSellerStep}
         />
+        {toast && (
+          <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={3000} />
+        )}
+      </View>
+    );
+  }
+
+  // ─── STEP: SCAN PACKAGE ────────────────────────────────────
+  if (step === 'scan-package') {
+    if (locked) {
+      return (
+        <View style={[s.screen, { backgroundColor: colors.background }]}>
+          <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
+            <Header title="Récupération du colis" showBack />
+            <ScanProgressDots partyLabel="Vendeur" partyState="done" packageState="active" />
+          </View>
+          <View style={s.lockedContent}>
+            <Icon name="chat" size={56} color={colors.primary} />
+            <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d'aide ?</Text>
+            <Text style={[s.lockedSub, { color: colors.textSecondary }]}>
+              Merci de contacter le support via le chat. Nous allons vous aider à résoudre cette livraison.
+            </Text>
+            <Button
+              title="Ouvrir le chat support"
+              onPress={() =>
+                router.push({
+                  pathname: '/chat/[id]',
+                  params: { id: 'support', name: 'Support H2H', role: 'support', missionId: mission.id },
+                })
+              }
+              variant="gradient"
+            />
+            <Button
+              title="Réessayer le scan"
+              onPress={() => {
+                setLocked(false);
+                setPackageAttempts(0);
+                resetScanner();
+              }}
+              variant="outline"
+            />
+          </View>
+          {toast && (
+            <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={3500} />
+          )}
+        </View>
+      );
+    }
+
+    return (
+      <View style={[s.screen, { backgroundColor: '#000' }]}>
+        <View style={[s.scanHeader, { paddingTop: insets.top, backgroundColor: 'rgba(0,0,0,0.4)' }]}>
+          <Header title="" showBack />
+          <View style={s.stepBanner}>
+            <Text style={s.stepBannerText}>Étape 2/2 — Scanner le colis</Text>
+          </View>
+          <ScanProgressDots partyLabel="Vendeur" partyState="done" packageState="active" />
+          {/* Seller confirmation thumbnail */}
+          <View style={s.sellerConfirm}>
+            {mission.seller.avatar ? (
+              <Image source={{ uri: mission.seller.avatar }} style={s.sellerConfirmAvatar} contentFit="cover" />
+            ) : (
+              <View style={[s.sellerConfirmAvatar, { backgroundColor: colors.accent + '60', alignItems: 'center', justifyContent: 'center' }]}>
+                <Text style={{ color: '#FFFFFF', fontFamily: 'Poppins_600SemiBold' }}>{mission.seller.name[0]}</Text>
+              </View>
+            )}
+            <Text style={s.sellerConfirmName} numberOfLines={1}>
+              {mission.seller.name.split(' ')[0]} identifié ✓
+            </Text>
+          </View>
+        </View>
+        <QRScanner
+          mode="package"
+          onScan={handlePackageScan}
+          onManualEntry={handlePackageScan}
+          resetSignal={scannerResetSignal}
+          // TODO(backend): remove before production
+          onDevBypass={bypassPackageStep}
+        />
+        {toast && (
+          <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={3000} />
+        )}
       </View>
     );
   }
@@ -197,7 +333,6 @@ export default function PickupScreen() {
           </Text>
         </Animated.View>
 
-        {/* Package summary */}
         <Animated.View entering={FadeInDown.delay(500).duration(400)} style={{ width: '100%', paddingHorizontal: Spacing.xxl }}>
           <Card>
             <View style={s.packageRow}>
@@ -233,7 +368,9 @@ export default function PickupScreen() {
         />
       </View>
 
-      <Toast message="Prise en charge confirmée" type="success" visible={showToast} onHide={() => setShowToast(false)} duration={2500} />
+      {toast && (
+        <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={2500} />
+      )}
     </View>
   );
 }
@@ -244,29 +381,30 @@ const s = StyleSheet.create({
   missionRef: { ...Typography.caption, textAlign: 'center', marginBottom: Spacing.sm },
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, gap: Spacing.lg, paddingBottom: Spacing.lg },
 
-  // Hub
   hubRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  hubIcon: { fontSize: 28 },
   hubInfo: { flex: 1, gap: 2 },
   hubName: { ...Typography.bodyMedium },
   hubCity: { ...Typography.caption },
 
-  // Proximity
   proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
   proximityText: { ...Typography.bodyMedium },
 
-  // Seller
   sellerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   sellerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  sellerInitial: { fontFamily: 'Poppins_600SemiBold', fontSize: 18, color: '#FFFFFF' },
+  sellerAvatarImg: { width: 48, height: 48, borderRadius: 24 },
+  sellerInitial: { fontFamily: 'Poppins_600SemiBold', fontSize: 18 },
   sellerInfo: { flex: 1, gap: Spacing.xs },
   sellerName: { ...Typography.bodyMedium },
   sellerHint: { ...Typography.caption, lineHeight: 18 },
 
-  // Scan header
-  scanHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, paddingHorizontal: Spacing.lg },
+  scanHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  stepBanner: { alignSelf: 'center', backgroundColor: 'rgba(255,255,255,0.15)', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, marginVertical: Spacing.xs },
+  stepBannerText: { color: '#FFFFFF', ...Typography.captionMedium },
 
-  // Confirmed
+  sellerConfirm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, alignSelf: 'center', backgroundColor: 'rgba(16,185,129,0.2)', paddingHorizontal: Spacing.md, paddingVertical: 6, borderRadius: BorderRadius.full, marginTop: 4 },
+  sellerConfirmAvatar: { width: 24, height: 24, borderRadius: 12 },
+  sellerConfirmName: { color: '#FFFFFF', ...Typography.captionMedium },
+
   confirmedContent: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.xl },
   checkCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center' },
   checkIcon: { color: '#FFFFFF', fontSize: 40, fontWeight: '700', lineHeight: 44 },
@@ -275,13 +413,15 @@ const s = StyleSheet.create({
   confirmedSub: { ...Typography.body, textAlign: 'center', paddingHorizontal: Spacing.xxl, lineHeight: 22 },
   warmMsg: { ...Typography.body, textAlign: 'center', fontStyle: 'italic' },
 
-  // Package
   packageRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   packageThumb: { width: 48, height: 48, borderRadius: BorderRadius.sm, alignItems: 'center', justifyContent: 'center' },
-  packageIcon: { fontSize: 24 },
   packageInfo: { flex: 1, gap: 2 },
   packageTitle: { ...Typography.bodyMedium },
   packageMeta: { ...Typography.caption },
+
+  lockedContent: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.lg },
+  lockedTitle: { ...Typography.h2 },
+  lockedSub: { ...Typography.body, textAlign: 'center', lineHeight: 22, marginBottom: Spacing.md },
 
   footer: { paddingHorizontal: Spacing.lg },
 });

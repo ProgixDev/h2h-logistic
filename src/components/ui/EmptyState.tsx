@@ -37,8 +37,8 @@ export function EmptyState({ iconName, title, description, actionLabel, onAction
 /** Pre-defined warm empty state messages */
 export const EMPTY_MESSAGES = {
   missions: {
-    title: 'Aucune mission pour le moment',
-    description: 'Restez actif pour recevoir des propositions ! De nouvelles missions arrivent régulièrement.',
+    title: 'Aucune livraison pour le moment',
+    description: 'Restez actif pour recevoir des propositions ! De nouvelles livraisons arrivent régulièrement.',
   },
   routes: {
     title: 'Publiez votre premier trajet',
@@ -46,11 +46,11 @@ export const EMPTY_MESSAGES = {
   },
   history: {
     title: 'Aucune livraison effectuée',
-    description: 'Votre historique apparaîtra ici après votre première mission.',
+    description: 'Votre historique apparaîtra ici après votre première livraison.',
   },
   notifications: {
     title: 'Tout est calme pour le moment',
-    description: 'Vous serez notifié dès qu\'une nouvelle mission correspond à vos trajets.',
+    description: 'Vous serez notifié dès qu\'une nouvelle livraison correspond à vos trajets.',
   },
   favorites: {
     title: 'Aucun client favori',
@@ -58,7 +58,7 @@ export const EMPTY_MESSAGES = {
   },
   earnings: {
     title: 'Pas encore de gains',
-    description: 'Acceptez votre première mission pour commencer à gagner !',
+    description: 'Acceptez votre première livraison pour commencer à gagner !',
   },
 } as const;
 

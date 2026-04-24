@@ -127,7 +127,7 @@ export function StatusToggle({ isOnline, onToggle }: StatusToggleProps) {
             Passer hors ligne ?
           </Text>
           <Text style={[styles.sheetDesc, { color: colors.textSecondary }]}>
-            Vous ne recevrez plus de propositions de mission tant que vous serez hors ligne.
+            Vous ne recevrez plus de propositions de livraison tant que vous serez hors ligne.
           </Text>
           <View style={styles.sheetActions}>
             <Button title="Passer hors ligne" onPress={confirmOffline} variant="danger" />

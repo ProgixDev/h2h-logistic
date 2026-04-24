@@ -1,108 +1,155 @@
-import React, { useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, FlatList, Pressable, TextInput, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Icon } from '@/components/ui/Icon';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Icon } from '@/components/ui/Icon';
+import { ConversationGroup } from '@/components/chat/ConversationGroup';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { getConversationPreview } from '@/services/mock/chat';
+import type { Mission, MissionParticipant, MissionStatus } from '@/types/mission';
 
-interface Conversation {
-  id: string;
-  name: string;
-  role: 'seller' | 'buyer';
-  lastMessage: string;
-  time: string;
-  unread: number;
-  missionRoute: string;
-  avatar: string;
+const STATUS_LABELS: Partial<Record<MissionStatus, { label: string; variant: 'default' | 'success' | 'warning' }>> = {
+  accepted: { label: 'Acceptée', variant: 'default' },
+  seller_pending: { label: 'Attente vendeur', variant: 'warning' },
+  group_created: { label: 'Prête', variant: 'success' },
+  pickup_pending: { label: 'Prise en charge', variant: 'warning' },
+  picked_up: { label: 'En transit', variant: 'default' },
+  in_transit: { label: 'En transit', variant: 'default' },
+  delivery_pending: { label: 'Remise', variant: 'warning' },
+};
+
+interface GroupItem {
+  mission: Mission;
+  completed: boolean;
 }
 
 export default function MessagesScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getActiveMissions, loadMockData } = useMissionStore();
+  const { getActiveMissions, getCompletedMissions, loadMockData } = useMissionStore();
 
-  useEffect(() => { loadMockData(); }, []);
+  const [showHistory, setShowHistory] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const activeMissions = getActiveMissions();
+  useEffect(() => {
+    loadMockData();
+  }, []);
 
-  // Build conversations from active missions
-  const conversations: Conversation[] = activeMissions.flatMap((m) => [
-    {
-      id: `${m.id}-seller`,
-      name: m.seller.name,
-      role: 'seller' as const,
-      lastMessage: 'Le colis est prêt au hub.',
-      time: 'Il y a 5 min',
-      unread: 1,
-      missionRoute: `${m.pickupHub.city} → ${m.deliveryHub.city}`,
-      avatar: m.seller.name[0],
-    },
-    {
-      id: `${m.id}-buyer`,
-      name: m.buyer.name,
-      role: 'buyer' as const,
-      lastMessage: 'Merci, j\'attends votre arrivée !',
-      time: 'Il y a 12 min',
-      unread: 0,
-      missionRoute: `${m.pickupHub.city} → ${m.deliveryHub.city}`,
-      avatar: m.buyer.name[0],
-    },
-  ]);
+  const groups = useMemo<GroupItem[]>(() => {
+    const active = getActiveMissions().map((m) => ({ mission: m, completed: false }));
+    const past = showHistory
+      ? getCompletedMissions().map((m) => ({ mission: m, completed: true }))
+      : [];
+
+    const all = [...active, ...past];
+
+    const q = search.trim().toLowerCase();
+    if (!q) return all;
+
+    return all.filter((g) => {
+      const title = g.mission.package.description.toLowerCase();
+      const seller = g.mission.seller.name.toLowerCase();
+      const buyer = g.mission.buyer.name.toLowerCase();
+      return title.includes(q) || seller.includes(q) || buyer.includes(q);
+    });
+  }, [showHistory, search, getActiveMissions, getCompletedMissions]);
+
+  const handleOpenChat = (mission: Mission, participant: MissionParticipant, role: 'seller' | 'buyer') => {
+    router.push({
+      pathname: '/chat/[id]',
+      params: {
+        id: participant.id,
+        name: participant.name,
+        role,
+        avatar: participant.avatar ?? '',
+        missionId: mission.id,
+        listingTitle: mission.package.description,
+      },
+    });
+  };
+
+  const renderItem = ({ item, index }: { item: GroupItem; index: number }) => {
+    const { mission, completed } = item;
+    const sellerPreview = getConversationPreview(mission.id, 'seller');
+    const buyerPreview = getConversationPreview(mission.id, 'buyer');
+    const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
+    const routeSummary = `${mission.pickupHub.city} → ${mission.deliveryHub.city}`;
+    const status = STATUS_LABELS[mission.status];
+
+    return (
+      <Animated.View entering={FadeInDown.delay(index * 50).duration(250)}>
+        <ConversationGroup
+          missionId={mission.id}
+          listingTitle={mission.package.description}
+          routeSummary={routeSummary}
+          missionCode={missionCode}
+          seller={mission.seller}
+          buyer={mission.buyer}
+          sellerLastMessage={sellerPreview.lastMessage}
+          sellerTimestamp={sellerPreview.timestamp}
+          sellerUnreadCount={sellerPreview.unreadCount}
+          buyerLastMessage={buyerPreview.lastMessage}
+          buyerTimestamp={buyerPreview.timestamp}
+          buyerUnreadCount={buyerPreview.unreadCount}
+          statusLabel={status?.label}
+          statusVariant={status?.variant}
+          completed={completed}
+          onOpenChat={(participant, role) => handleOpenChat(mission, participant, role)}
+        />
+      </Animated.View>
+    );
+  };
 
   return (
     <View style={[s.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+      {/* Header */}
       <View style={s.header}>
         <Text style={[s.title, { color: colors.text }]}>Messages</Text>
       </View>
 
+      {/* Search bar */}
+      <View style={[s.searchWrap, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Icon name="search" size={18} color={colors.textSecondary} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Rechercher une livraison ou un nom"
+          placeholderTextColor={colors.textSecondary}
+          style={[s.searchInput, { color: colors.text }]}
+          accessibilityLabel="Rechercher une conversation"
+        />
+      </View>
+
       <FlatList
-        data={conversations}
-        keyExtractor={(item) => item.id}
+        data={groups}
+        keyExtractor={(item) => `${item.mission.id}-${item.completed ? 'done' : 'active'}`}
+        renderItem={renderItem}
         contentContainerStyle={s.list}
-        renderItem={({ item, index }) => (
-          <Animated.View entering={FadeInDown.delay(index * 60).duration(250)}>
-            <TouchableOpacity
-              onPress={() => router.push({ pathname: '/chat/[id]' as any, params: { id: item.id, name: item.name, role: item.role } })}
-              style={[s.convRow, { borderBottomColor: colors.border }]}
-              activeOpacity={0.7}
-            >
-              {/* Avatar */}
-              <View style={[s.avatar, { backgroundColor: item.role === 'seller' ? colors.primary + '20' : colors.accent + '30' }]}>
-                <Text style={[s.avatarText, { color: item.role === 'seller' ? colors.primary : colors.accent }]}>{item.avatar}</Text>
-              </View>
-
-              {/* Content */}
-              <View style={s.convContent}>
-                <View style={s.convTopRow}>
-                  <Text style={[s.convName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-                  <Text style={[s.convTime, { color: colors.textSecondary }]}>{item.time}</Text>
-                </View>
-                <Text style={[s.convRoute, { color: colors.textSecondary }]}>{item.missionRoute}</Text>
-                <Text style={[s.convMessage, { color: item.unread > 0 ? colors.text : colors.textSecondary }]} numberOfLines={1}>
-                  {item.lastMessage}
-                </Text>
-              </View>
-
-              {/* Unread badge */}
-              {item.unread > 0 && (
-                <View style={[s.unreadBadge, { backgroundColor: colors.primary }]}>
-                  <Text style={s.unreadText}>{item.unread}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          </Animated.View>
-        )}
+        ItemSeparatorComponent={() => <View style={{ height: 28 }} />}
+        ListFooterComponent={
+          <Pressable
+            onPress={() => setShowHistory((v) => !v)}
+            accessibilityRole="switch"
+            accessibilityState={{ checked: showHistory }}
+            style={s.historyToggle}
+            hitSlop={8}
+          >
+            <Text style={[s.historyText, { color: colors.primary }]}>
+              {showHistory ? 'Masquer' : 'Afficher'} l'historique des conversations
+            </Text>
+          </Pressable>
+        }
         ListEmptyComponent={
           <EmptyState
             iconName="chat"
-            title="Aucune conversation"
-            description="Vos messages avec les vendeurs et acheteurs apparaîtront ici lors de vos missions."
+            title="Aucune conversation pour le moment"
+            description="Vos conversations apparaîtront ici dès qu'une livraison sera active."
           />
         }
       />
@@ -114,42 +161,32 @@ const s = StyleSheet.create({
   screen: { flex: 1 },
   header: { paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md },
   title: { ...Typography.h1 },
-  list: { paddingBottom: Spacing.section },
-  convRow: {
+  searchWrap: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    ...Typography.body,
+  },
+  list: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.lg,
-    borderBottomWidth: 0.5,
-    gap: Spacing.md,
+    paddingBottom: Spacing.section,
+    paddingTop: Spacing.xs,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  historyToggle: {
     alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
   },
-  avatarText: {
-    fontFamily: 'Poppins_600SemiBold',
-    fontSize: 18,
-  },
-  convContent: { flex: 1, gap: 2 },
-  convTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  convName: { ...Typography.bodyMedium, flex: 1, marginRight: Spacing.sm },
-  convTime: { ...Typography.caption, fontSize: 11 },
-  convRoute: { ...Typography.caption, fontSize: 11 },
-  convMessage: { ...Typography.body, marginTop: 2 },
-  unreadBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unreadText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
+  historyText: {
+    ...Typography.captionMedium,
+    textDecorationLine: 'underline',
   },
 });

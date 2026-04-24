@@ -28,6 +28,7 @@ export interface MissionParticipant {
   rating?: number;
   role: 'seller' | 'buyer' | 'transporter';
   isFavorite?: boolean;
+  qrCode?: string;
 }
 
 export interface MissionPackage {
@@ -38,6 +39,7 @@ export interface MissionPackage {
   photo?: string;
   thumbnail?: string;
   condition?: string;
+  trackingNumber?: string;
 }
 
 export interface MissionHub {

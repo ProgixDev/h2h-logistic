@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, ScrollView, Alert, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import { View, Text, ScrollView, Alert, Pressable, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
@@ -7,13 +7,15 @@ import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { RouteTimeline } from '@/components/route/RouteTimeline';
 import { Icon } from '@/components/ui/Icon';
+import { HubParticipantChip, type HubParticipantInfo } from '@/components/route/HubParticipantChip';
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
+import { useMissionStore } from '@/stores/useMissionStore';
+import { ACTIVE_STATUSES } from '@/types/mission';
 import { formatDate } from '@/utils/formatting';
 
 const DAYS_SHORT: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' };
@@ -39,9 +41,56 @@ export default function RouteDetailScreen() {
   const hasMission = hasActiveMission(route.id);
   const avgEarnings = route.missionsCount > 0 ? 4.5 : 0; // mock average
 
+  // ─── Participants per hubId from active missions on this route ───
+  const { missions } = useMissionStore();
+  const participantsByHubId = useMemo(() => {
+    const map: Record<string, HubParticipantInfo[]> = {};
+    const routeMissions = missions.filter(
+      (m) => m.routeId === route.id && ACTIVE_STATUSES.includes(m.status),
+    );
+    for (const m of routeMissions) {
+      const sellerKey = m.pickupHub.id;
+      if (!map[sellerKey]) map[sellerKey] = [];
+      map[sellerKey].push({ participant: m.seller, role: 'seller' });
+      const buyerKey = m.deliveryHub.id;
+      if (!map[buyerKey]) map[buyerKey] = [];
+      map[buyerKey].push({ participant: m.buyer, role: 'buyer' });
+    }
+    return map;
+  }, [missions, route.id]);
+
+  const handleChipPress = (info: HubParticipantInfo) => {
+    router.push({
+      pathname: '/chat/[id]',
+      params: {
+        id: info.participant.id,
+        name: info.participant.name,
+        role: info.role,
+        avatar: info.participant.avatar ?? '',
+      },
+    });
+  };
+
+  const handleReportHub = (hubId: string, hubName: string, city: string) => {
+    router.push({
+      pathname: '/hub/report' as any,
+      params: { hubId, hubName, hubAddress: city },
+    });
+  };
+
+  const handleChipMore = (extras: HubParticipantInfo[]) => {
+    Alert.alert(
+      'Participants à ce hub',
+      extras
+        .map((e, idx) => `${idx + 1}. ${e.participant.name} — ${e.role === 'seller' ? 'Vendeur' : 'Acheteur'}`)
+        .join('\n'),
+      [{ text: 'OK', style: 'default' }],
+    );
+  };
+
   const handleDelete = () => {
     if (hasMission) {
-      Alert.alert('Impossible', 'Ce trajet a une mission en cours. Terminez-la d\'abord.');
+      Alert.alert('Impossible', 'Ce trajet a une livraison en cours. Terminez-la d\'abord.');
       return;
     }
     Alert.alert('Supprimer ce trajet ?', 'Cette action est irréversible.', [
@@ -66,7 +115,7 @@ export default function RouteDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name="alert-circle" size={16} color={colors.warning} />
               <Text style={[styles.warningText, { color: colors.warning, flex: 1 }]}>
-                Ce trajet a une mission en cours. Certaines modifications sont limitées.
+                Ce trajet a une livraison en cours. Certaines modifications sont limitées.
               </Text>
             </View>
           </View>
@@ -102,11 +151,11 @@ export default function RouteDetailScreen() {
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
             <Text style={[styles.statValue, { color: colors.primary }]}>{route.missionsCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Missions</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Livraisons</Text>
           </Card>
           <Card style={styles.statCard}>
             <Text style={[styles.statValue, { color: colors.success }]}>{avgEarnings.toFixed(1)}€</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Moy./mission</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Moy./livraison</Text>
           </Card>
         </View>
 
@@ -117,12 +166,31 @@ export default function RouteDetailScreen() {
           <View style={styles.hubRow}>
             <View style={[styles.hubDot, { backgroundColor: colors.primary }]} />
             <View style={styles.hubInfo}>
-              <Text style={[styles.hubName, { color: colors.text }]}>{route.pickupHub.hubName}</Text>
+              <View style={styles.hubNameRow}>
+                <Text style={[styles.hubName, { color: colors.text, flex: 1 }]}>{route.pickupHub.hubName}</Text>
+                <Pressable
+                  onPress={() => handleReportHub(route.pickupHub.hubId, route.pickupHub.hubName, route.pickupHub.city)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Signaler le hub ${route.pickupHub.hubName}`}
+                  style={({ pressed }) => [styles.reportInline, { opacity: pressed ? 0.6 : 1 }]}
+                >
+                  <Icon name="flag" size={12} color={colors.textSecondary} />
+                  <Text style={[styles.reportInlineText, { color: colors.textSecondary }]}>Signaler</Text>
+                </Pressable>
+              </View>
               <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                 {route.pickupHub.city} — {route.schedule.pickupTime}
               </Text>
-              {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — mission en cours</Text></View>}
+              {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — livraison en cours</Text></View>}
             </View>
+            {participantsByHubId[route.pickupHub.hubId]?.length > 0 && (
+              <HubParticipantChip
+                participants={participantsByHubId[route.pickupHub.hubId]}
+                onPress={handleChipPress}
+                onPressMore={handleChipMore}
+              />
+            )}
           </View>
 
           {/* Delivery hubs */}
@@ -130,18 +198,38 @@ export default function RouteDetailScreen() {
             const time = route.schedule.deliveryTimes[hub.hubId] ?? '';
             const isLocked = hasMission && idx === 0; // First hub locked during mission
             const isDimmed = hasMission && idx > 0;
+            const hubParticipants = participantsByHubId[hub.hubId] ?? [];
 
             return (
               <View key={hub.hubId} style={styles.hubRow}>
                 <View style={[styles.hubDot, { backgroundColor: colors.primaryGradientEnd, opacity: isDimmed ? 0.4 : 1 }]} />
                 <View style={[styles.hubInfo, isDimmed && { opacity: 0.4 }]}>
-                  <Text style={[styles.hubName, { color: colors.text }]}>{hub.hubName}</Text>
+                  <View style={styles.hubNameRow}>
+                    <Text style={[styles.hubName, { color: colors.text, flex: 1 }]}>{hub.hubName}</Text>
+                    <Pressable
+                      onPress={() => handleReportHub(hub.hubId, hub.hubName, hub.city)}
+                      hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Signaler le hub ${hub.hubName}`}
+                      style={({ pressed }) => [styles.reportInline, { opacity: pressed ? 0.6 : 1 }]}
+                    >
+                      <Icon name="flag" size={12} color={colors.textSecondary} />
+                      <Text style={[styles.reportInlineText, { color: colors.textSecondary }]}>Signaler</Text>
+                    </Pressable>
+                  </View>
                   <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                     {hub.city} — {time}
                   </Text>
-                  {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — mission en cours</Text></View>}
-                  {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la mission</Text>}
+                  {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — livraison en cours</Text></View>}
+                  {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la livraison</Text>}
                 </View>
+                {hubParticipants.length > 0 && (
+                  <HubParticipantChip
+                    participants={hubParticipants}
+                    onPress={handleChipPress}
+                    onPressMore={handleChipMore}
+                  />
+                )}
               </View>
             );
           })}
@@ -216,8 +304,11 @@ const styles = StyleSheet.create({
   hubDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
   hubInfo: { flex: 1, gap: 2 },
   hubName: { ...Typography.bodyMedium },
+  hubNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   hubMeta: { ...Typography.caption },
   lockLabel: { ...Typography.caption, fontSize: 11, marginTop: 2 },
+  reportInline: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 36, paddingHorizontal: 4 },
+  reportInlineText: { ...Typography.caption, fontSize: 11 },
 
   // Actions
   actions: { paddingVertical: Spacing.lg, gap: Spacing.md },

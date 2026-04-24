@@ -57,7 +57,7 @@ export function RouteCard({ route }: RouteCardProps) {
           text: isActive ? 'Mettre hors ligne' : 'Activer',
           onPress: () => {
             if (hasMission && isActive) {
-              Alert.alert('Mission en cours', 'Ce trajet a une mission active. Il restera visible jusqu\'à la fin de la mission.');
+              Alert.alert('Livraison en cours', 'Ce trajet a une livraison active. Il restera visible jusqu\'à la fin de la livraison.');
             }
             toggleRouteStatus(route.id);
           },
@@ -67,7 +67,7 @@ export function RouteCard({ route }: RouteCardProps) {
           style: 'destructive',
           onPress: () => {
             if (hasMission) {
-              Alert.alert('Impossible', 'Ce trajet a une mission en cours. Terminez la mission avant de supprimer.');
+              Alert.alert('Impossible', 'Ce trajet a une livraison en cours. Terminez la livraison avant de supprimer.');
               return;
             }
             Alert.alert('Supprimer ce trajet ?', 'Cette action est irréversible.', [
@@ -124,7 +124,7 @@ export function RouteCard({ route }: RouteCardProps) {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name="package" size={14} color={colors.primary} />
             <Text style={[styles.missions, { color: colors.primary }]}>
-              {route.missionsCount} missions
+              {route.missionsCount} livraisons
             </Text>
           </View>
         </View>
@@ -135,7 +135,7 @@ export function RouteCard({ route }: RouteCardProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="alert-circle" size={14} color={colors.warning} />
               <Text style={[styles.missionBannerText, { color: colors.warning }]}>
-                Mission en cours
+                Livraison en cours
               </Text>
             </View>
           </View>

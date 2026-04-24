@@ -1,10 +1,33 @@
 /**
- * OSRM Routing Service
- * Uses the public OSRM demo server for route calculation.
- * In production, replace with a self-hosted OSRM instance.
+ * Routing Service
+ *
+ * Strategy:
+ *   1. If a Mapbox access token is configured, hit Mapbox Directions
+ *      first. Turn-by-turn quality on par with Google Maps, with proper
+ *      lane guidance, real road geometry, and accurate maneuver text.
+ *   2. Otherwise (or on Mapbox failure) fall back to public OSRM mirrors.
+ *   3. Local fallbacks further up the stack handle total outages.
+ *
+ * To enable Mapbox:
+ *   1. Create a free Mapbox account → https://account.mapbox.com/
+ *   2. Copy your "Default public token" (starts with `pk.`)
+ *   3. Paste it into `MAPBOX_ACCESS_TOKEN` in src/services/routing.ts
+ *      OR set it via Expo env: `EXPO_PUBLIC_MAPBOX_TOKEN=pk....`
+ *
+ * Free tier: 100k Directions requests / month. Demo-safe.
  */
 
-const OSRM_BASE = 'https://router.project-osrm.org';
+// Prefer the env var so the token isn't hardcoded into the repo.
+const MAPBOX_ACCESS_TOKEN =
+  (process.env.EXPO_PUBLIC_MAPBOX_TOKEN as string | undefined) ?? '';
+
+// Public OSRM mirrors, tried in order if Mapbox is unavailable.
+const OSRM_ENDPOINTS = [
+  'https://router.project-osrm.org',
+  'https://routing.openstreetmap.de/routed-car',
+];
+
+const REQUEST_TIMEOUT_MS = 8000;
 
 export interface Coordinate {
   latitude: number;
@@ -32,20 +55,40 @@ export interface RouteResult {
   steps: RouteStep[];
 }
 
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 /**
- * Get driving directions between two coordinates via OSRM.
+ * Mapbox Directions API — same shape as OSRM but returns a real,
+ * road-snapped route with high-quality French maneuver text.
  */
-export async function getRoute(
+async function getRouteViaMapbox(
   origin: Coordinate,
   destination: Coordinate,
 ): Promise<RouteResult> {
-  const url = `${OSRM_BASE}/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson&steps=true&annotations=true&language=fr`;
+  if (!MAPBOX_ACCESS_TOKEN) throw new Error('No Mapbox token configured');
 
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`OSRM request failed: ${response.status}`);
+  const url =
+    `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/` +
+    `${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}` +
+    `?geometries=geojson&steps=true&overview=full&language=fr` +
+    `&voice_instructions=true&banner_instructions=true` +
+    `&access_token=${MAPBOX_ACCESS_TOKEN}`;
+
+  const response = await fetchWithTimeout(url, REQUEST_TIMEOUT_MS);
+  if (!response.ok) throw new Error(`Mapbox Directions → ${response.status}`);
 
   const data = await response.json();
-  if (data.code !== 'Ok' || !data.routes?.length) throw new Error('Route not found');
+  if (data.code !== 'Ok' || !data.routes?.length) {
+    throw new Error(`Mapbox Directions → no route (${data.code ?? 'empty'})`);
+  }
 
   const route = data.routes[0];
   const leg = route.legs[0];
@@ -70,6 +113,75 @@ export async function getRoute(
     geometry: route.geometry.coordinates,
     steps,
   };
+}
+
+/**
+ * Get driving directions.
+ * Primary: Mapbox Directions (if token set).
+ * Fallback: public OSRM mirrors in order.
+ */
+export async function getRoute(
+  origin: Coordinate,
+  destination: Coordinate,
+): Promise<RouteResult> {
+  let lastError: unknown;
+
+  // 1. Try Mapbox Directions first when configured — best quality route.
+  if (MAPBOX_ACCESS_TOKEN) {
+    try {
+      return await getRouteViaMapbox(origin, destination);
+    } catch (e) {
+      lastError = e;
+      // Fall through to OSRM
+    }
+  }
+
+  // 2. Public OSRM mirrors.
+  for (const base of OSRM_ENDPOINTS) {
+    const url = `${base}/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=geojson&steps=true&annotations=true&language=fr`;
+
+    try {
+      const response = await fetchWithTimeout(url, REQUEST_TIMEOUT_MS);
+      if (!response.ok) {
+        lastError = new Error(`OSRM ${base} → ${response.status}`);
+        continue;
+      }
+      const data = await response.json();
+      if (data.code !== 'Ok' || !data.routes?.length) {
+        lastError = new Error(`OSRM ${base} → no route (${data.code ?? 'empty'})`);
+        continue;
+      }
+
+      const route = data.routes[0];
+      const leg = route.legs[0];
+
+      const steps: RouteStep[] = leg.steps.map((step: any) => ({
+        instruction: step.maneuver.instruction || buildInstruction(step),
+        distance: step.distance,
+        duration: step.duration,
+        maneuver: {
+          type: step.maneuver.type,
+          modifier: step.maneuver.modifier,
+          location: step.maneuver.location,
+          bearing_after: step.maneuver.bearing_after ?? 0,
+        },
+        name: step.name || '',
+        geometry: step.geometry?.coordinates ?? [],
+      }));
+
+      return {
+        distance: route.distance,
+        duration: route.duration,
+        geometry: route.geometry.coordinates,
+        steps,
+      };
+    } catch (e) {
+      lastError = e;
+      // Try next endpoint
+    }
+  }
+
+  throw lastError ?? new Error('All OSRM endpoints failed');
 }
 
 function buildInstruction(step: any): string {

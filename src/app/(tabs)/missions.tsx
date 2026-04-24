@@ -47,7 +47,7 @@ export default function MissionsScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Missions</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Livraisons</Text>
       </View>
 
       {/* Segmented control */}
@@ -92,11 +92,11 @@ export default function MissionsScreen() {
         )}
         ListEmptyComponent={
           tab === 'new' ? (
-            <EmptyState iconName="package" title="Aucune mission disponible" description="Restez actif pour recevoir des propositions !" />
+            <EmptyState iconName="package" title="Aucune livraison disponible" description="Restez actif pour recevoir des propositions !" />
           ) : tab === 'active' ? (
-            <EmptyState iconName="rocket" title="Aucune mission en cours" description="Acceptez une proposition pour démarrer." />
+            <EmptyState iconName="rocket" title="Aucune livraison en cours" description="Acceptez une proposition pour démarrer." />
           ) : (
-            <EmptyState iconName="document" title="Aucune mission terminée" description="Vos livraisons terminées apparaîtront ici." />
+            <EmptyState iconName="document" title="Aucune livraison terminée" description="Vos livraisons terminées apparaîtront ici." />
           )
         }
       />
@@ -113,10 +113,35 @@ function ProposalCard({ mission, colors, router }: { mission: Mission; colors: a
     <TouchableOpacity
       onPress={() => router.push({ pathname: '/mission/accept', params: { id: mission.id } })}
       activeOpacity={0.8}
+      style={{
+        shadowColor: colors.gold,
+        shadowOpacity: 0.25,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 2 },
+        elevation: 4,
+      }}
     >
-      <Card style={isFavorite ? { borderColor: colors.primary, borderWidth: 1.5, backgroundColor: colors.primary + '06' } : undefined}>
+      <Card
+        style={{
+          borderLeftWidth: 4,
+          borderLeftColor: colors.gold,
+          ...(isFavorite ? { borderColor: colors.primary, borderWidth: 1.5, backgroundColor: colors.primary + '06', borderLeftWidth: 4, borderLeftColor: colors.gold } : {}),
+        }}
+      >
         <View style={styles.proposalTop}>
-          <Badge label="Nouvelle mission" variant="warning" />
+          <View
+            style={{
+              backgroundColor: colors.gold,
+              borderColor: colors.goldBorder,
+              borderWidth: 1.5,
+              paddingHorizontal: Spacing.sm,
+              paddingVertical: Spacing.xs,
+              borderRadius: BorderRadius.full,
+              alignSelf: 'flex-start',
+            }}
+          >
+            <Text style={{ ...Typography.captionMedium, color: '#1A1A1E' }}>Nouvelle livraison</Text>
+          </View>
           {isFavorite && <Badge label="Client favori" variant="default" />}
         </View>
 

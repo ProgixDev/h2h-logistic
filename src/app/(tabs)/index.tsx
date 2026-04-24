@@ -34,6 +34,8 @@ import { formatCurrency, formatTime } from '@/utils/formatting';
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { mockNotifications, type AppNotification } from '@/services/mock/notifications';
 import { DailyConfirmation } from '@/components/route/DailyConfirmation';
+import { EcoImpactSummary } from '@/components/dashboard/EcoImpactSummary';
+import { useEcoImpactStore } from '@/stores/useEcoImpactStore';
 import type { Mission } from '@/types/mission';
 import type { PublishedRoute } from '@/types/route';
 
@@ -56,6 +58,12 @@ export default function HomeScreen() {
     useMissionStore();
   const { routes, loadMockData: loadRoutes } = useRouteStore();
   const { summary, loadMockData: loadEarnings } = useEarningsStore();
+  const {
+    totalKgSavedAllTime,
+    totalKgSavedThisMonth,
+    kgSavedLastMonth,
+    loadMockData: loadEco,
+  } = useEcoImpactStore();
 
   const [refreshing, setRefreshing] = useState(false);
   const [earningsPeriod, setEarningsPeriod] = useState<EarningsPeriod>('month');
@@ -89,6 +97,7 @@ export default function HomeScreen() {
     loadMissions();
     loadRoutes();
     loadEarnings();
+    loadEco();
   }, []);
 
   const onRefresh = useCallback(async () => {
@@ -96,6 +105,7 @@ export default function HomeScreen() {
     loadMissions();
     loadRoutes();
     loadEarnings();
+    loadEco();
     // Simulate network delay
     setTimeout(() => setRefreshing(false), 800);
   }, []);
@@ -217,7 +227,7 @@ export default function HomeScreen() {
         {/* ─── 2. ACTIVE MISSIONS ─── */}
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <SectionHeader
-            title="Missions en cours"
+            title="Livraisons en cours"
             count={activeMissions.length}
             onViewAll={() => router.push('/(tabs)/missions')}
             colors={colors}
@@ -238,7 +248,7 @@ export default function HomeScreen() {
             <Card style={styles.emptyCard}>
               <Icon name="package" size={32} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Aucune mission en cours.{'\n'}Vos prochaines missions apparaîtront ici.
+                Aucune livraison en cours.{'\n'}Vos prochaines livraisons apparaîtront ici.
               </Text>
             </Card>
           )}
@@ -281,7 +291,7 @@ export default function HomeScreen() {
                 <Card style={styles.emptyRouteCard}>
                   <Icon name="tab-routes" size={32} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    Publiez votre premier trajet{'\n'}pour recevoir des missions.
+                    Publiez votre premier trajet{'\n'}pour recevoir des livraisons.
                   </Text>
                 </Card>
               }
@@ -317,6 +327,15 @@ export default function HomeScreen() {
               colors={colors}
             />
           </View>
+        </Animated.View>
+
+        {/* ─── 4b. ECO IMPACT ─── */}
+        <Animated.View entering={FadeInDown.delay(450).duration(400)}>
+          <EcoImpactSummary
+            kgSavedThisMonth={totalKgSavedThisMonth}
+            kgSavedLastMonth={kgSavedLastMonth}
+            kgSavedAllTime={totalKgSavedAllTime}
+          />
         </Animated.View>
 
         {/* ─── 5. RECENT NOTIFICATIONS ─── */}
@@ -787,7 +806,6 @@ const styles = StyleSheet.create({
     width: 110,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
-    borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.lg,

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +13,9 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { useRouteStore } from '@/stores/useRouteStore';
+import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
+import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { formatCurrency, formatTime, formatDate } from '@/utils/formatting';
 
 export default function AcceptMissionScreen() {
@@ -20,14 +24,15 @@ export default function AcceptMissionScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { getMissionById, acceptMission, rejectMission, isLoading } = useMissionStore();
+  const { routes } = useRouteStore();
 
   const mission = getMissionById(id ?? '');
 
   if (!mission) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Mission" showBack /></View>
-        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Mission introuvable</Text>
+        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Livraison" showBack /></View>
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
       </View>
     );
   }
@@ -48,8 +53,17 @@ export default function AcceptMissionScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-        <Header title="Proposition de mission" showBack />
+        <Header title="Nouvelle livraison" showBack />
       </View>
+
+      <LinearGradient
+        colors={[colors.gold, colors.goldLight]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.goldBanner}
+      >
+        <Text style={styles.goldBannerText}>✨  Nouvelle livraison</Text>
+      </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Package section */}
@@ -97,7 +111,7 @@ export default function AcceptMissionScreen() {
             <View style={styles.timelineRow}>
               <View style={styles.timelineDotCol}>
                 <View style={[styles.timelineDot, { backgroundColor: colors.primary }]} />
-                <View style={[styles.timelineLine, { borderColor: colors.border }]} />
+                <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
               </View>
               <View style={styles.timelineContent}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="location-filled" size={14} color={colors.primary} /><Text style={[styles.timelineHub, { color: colors.text }]}>{mission.pickupHub.name}</Text></View>
@@ -144,6 +158,15 @@ export default function AcceptMissionScreen() {
           </Text>
         </Card>
 
+        {/* Eco impact */}
+        {(() => {
+          const route = routes.find((r) => r.id === mission.routeId);
+          const transportType = route?.transportType ?? 'car';
+          const distanceKm = estimateDistanceKm(mission.pickupHub.city, mission.deliveryHub.city);
+          const kgSaved = calculateCo2Saved(distanceKm, transportType);
+          return kgSaved > 0 ? <EcoImpactCard kgSaved={kgSaved} /> : null;
+        })()}
+
         {/* Expiry timer */}
         {mission.proposalExpiresAt && (
           <ProposalTimer expiresAt={mission.proposalExpiresAt} colors={colors} />
@@ -153,7 +176,7 @@ export default function AcceptMissionScreen() {
       {/* Action buttons */}
       <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Accepter la mission"
+          title="Accepter la livraison"
           onPress={handleAccept}
           variant="gradient"
           loading={isLoading}
@@ -205,6 +228,8 @@ const sty = StyleSheet.create({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
+  goldBanner: { height: 48, alignItems: 'center', justifyContent: 'center', marginHorizontal: Spacing.lg, borderRadius: BorderRadius.md, marginTop: Spacing.sm },
+  goldBannerText: { fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: '#1A1A1E' },
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.lg },
   notFound: { ...Typography.body, textAlign: 'center', marginTop: Spacing.section },
 
@@ -231,7 +256,7 @@ const styles = StyleSheet.create({
   timelineRow: { flexDirection: 'row', gap: Spacing.md },
   timelineDotCol: { alignItems: 'center', width: 16 },
   timelineDot: { width: 12, height: 12, borderRadius: 6, marginTop: 4 },
-  timelineLine: { flex: 1, borderLeftWidth: 2, borderStyle: 'dashed', marginVertical: 4, minHeight: 24 },
+  timelineLine: { flex: 1, width: 2, marginVertical: 4, minHeight: 24, alignSelf: 'center' },
   timelineContent: { flex: 1, paddingBottom: Spacing.lg, gap: 2 },
   timelineHub: { ...Typography.bodyMedium },
   timelineCity: { ...Typography.caption },

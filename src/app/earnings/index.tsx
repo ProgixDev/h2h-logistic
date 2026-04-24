@@ -15,6 +15,8 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useEarningsStore } from '@/stores/useEarningsStore';
+import { useEcoImpactStore } from '@/stores/useEcoImpactStore';
+import { formatCo2 } from '@/utils/carbon';
 import { formatCurrency, formatDate } from '@/utils/formatting';
 
 type Period = 'today' | 'week' | 'month' | 'total';
@@ -32,11 +34,19 @@ export default function EarningsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { summary, transactions, dailyEarnings, loadMockData, getEarningsForPeriod } = useEarningsStore();
+  const {
+    totalKgSavedAllTime,
+    totalKgSavedThisMonth,
+    loadMockData: loadEco,
+  } = useEcoImpactStore();
   const [period, setPeriod] = useState<Period>('week');
   const [showEconomy, setShowEconomy] = useState(false);
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
 
-  useEffect(() => { loadMockData(); }, []);
+  useEffect(() => { loadMockData(); loadEco(); }, []);
+
+  const periodCo2Kg =
+    period === 'total' ? totalKgSavedAllTime : totalKgSavedThisMonth;
 
   const periodData = getEarningsForPeriod(period);
 
@@ -94,6 +104,17 @@ export default function EarningsScreen() {
             <Text style={[s.chartTotal, { color: colors.text }]}>
               Total : {formatCurrency(periodData.amount)} ({periodData.deliveries} livraisons)
             </Text>
+            {periodCo2Kg > 0 && (
+              <View style={[s.co2Row, { borderTopColor: colors.border }]}>
+                <Icon name="leaf" size={16} color={colors.success} />
+                <Text style={[s.co2Label, { color: colors.textSecondary }]}>
+                  CO₂ évité sur la période
+                </Text>
+                <Text style={[s.co2Amount, { color: colors.success }]}>
+                  {formatCo2(periodCo2Kg)}
+                </Text>
+              </View>
+            )}
           </Card>
         </Animated.View>
 
@@ -255,6 +276,9 @@ const s = StyleSheet.create({
   chartContainer: { alignItems: 'center', paddingVertical: Spacing.md },
   chartTooltip: { ...Typography.captionMedium, marginBottom: Spacing.sm },
   chartTotal: { ...Typography.bodyMedium, textAlign: 'center', marginTop: Spacing.md },
+  co2Row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.md, paddingTop: Spacing.md, borderTopWidth: 0.5 },
+  co2Label: { ...Typography.caption, flex: 1 },
+  co2Amount: { ...Typography.captionMedium },
 
   // Transactions
   sectionTitle: { ...Typography.h3, marginBottom: Spacing.sm },

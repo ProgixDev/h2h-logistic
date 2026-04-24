@@ -93,7 +93,7 @@ export default function HistoryScreen() {
             <EmptyState
               iconName="document"
               title="Aucune livraison pour le moment."
-              description="Publiez un trajet et acceptez votre première mission !"
+              description="Publiez un trajet et acceptez votre première livraison !"
               actionLabel="Publier un trajet"
               onAction={() => router.push('/publish/type')}
             />

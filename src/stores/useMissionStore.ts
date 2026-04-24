@@ -53,6 +53,14 @@ export const useMissionStore = create<MissionState>((set, get) => ({
   missions: [],
 
   loadMockData: () => {
+    // Idempotent: don't overwrite live state once the store has been seeded.
+    // Without this, any screen that calls loadMockData on mount
+    // (dashboard, missions tab, messages tab, pull-to-refresh) would reset
+    // in-progress status transitions like confirmPickup / confirmDelivery.
+    const s = get();
+    if (s.proposals.length > 0 || s.activeMissions.length > 0 || s.completedMissions.length > 0) {
+      return;
+    }
     set({
       proposals: [...mockProposals],
       activeMissions: [...mockActiveMissions],

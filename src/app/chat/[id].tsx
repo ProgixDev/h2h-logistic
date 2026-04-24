@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,21 +9,26 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Image } from 'expo-image';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import Animated, { FadeInDown } from 'react-native-reanimated';
-import { Header } from '@/components/layout/Header';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { Icon } from '@/components/ui/Icon';
+import { Toast } from '@/components/ui/Toast';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+type MessageType = 'text' | 'call-summary';
+
 interface Message {
   id: string;
+  type: MessageType;
   text: string;
   fromMe: boolean;
   time: string;
+  callDuration?: string; // for call-summary
 }
 
 const QUICK_REPLIES = [
@@ -35,13 +40,20 @@ const QUICK_REPLIES = [
 
 // Mock messages
 const MOCK_MESSAGES: Message[] = [
-  { id: '1', text: 'Bonjour ! Le colis est prêt au hub.', fromMe: false, time: '14:22' },
-  { id: '2', text: 'Parfait, je suis en route.', fromMe: true, time: '14:23' },
-  { id: '3', text: "D'accord, à tout de suite !", fromMe: false, time: '14:24' },
+  { id: '1', type: 'text', text: 'Bonjour ! Le colis est prêt au hub.', fromMe: false, time: '14:22' },
+  { id: '2', type: 'text', text: 'Parfait, je suis en route.', fromMe: true, time: '14:23' },
+  { id: '3', type: 'text', text: "D'accord, à tout de suite !", fromMe: false, time: '14:24' },
 ];
 
 export default function ChatScreen() {
-  const { id, name, role } = useLocalSearchParams<{ id: string; name: string; role: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    name: string;
+    role: string;
+    avatar?: string;
+    callDuration?: string;
+  }>();
+  const { id, name, role, avatar } = params;
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -49,6 +61,24 @@ export default function ChatScreen() {
 
   const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
   const [input, setInput] = useState('');
+  const [showVideoTip, setShowVideoTip] = useState(false);
+
+  // When returning from a call, append a call-summary message
+  useEffect(() => {
+    if (params.callDuration) {
+      const summary: Message = {
+        id: `call-${Date.now()}`,
+        type: 'call-summary',
+        text: 'Appel audio',
+        fromMe: false,
+        time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        callDuration: params.callDuration,
+      };
+      setMessages((prev) => [...prev, summary]);
+      // Clear the param so back-and-forth doesn't re-add
+      router.setParams({ callDuration: undefined } as any);
+    }
+  }, [params.callDuration]);
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
@@ -56,6 +86,7 @@ export default function ChatScreen() {
 
     const newMsg: Message = {
       id: `msg-${Date.now()}`,
+      type: 'text',
       text: text.trim(),
       fromMe: true,
       time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -63,7 +94,6 @@ export default function ChatScreen() {
     setMessages((prev) => [...prev, newMsg]);
     setInput('');
 
-    // Mock auto-reply after 2s
     setTimeout(() => {
       const replies = [
         'Bien reçu, merci !',
@@ -73,6 +103,7 @@ export default function ChatScreen() {
       ];
       const reply: Message = {
         id: `msg-reply-${Date.now()}`,
+        type: 'text',
         text: replies[Math.floor(Math.random() * replies.length)],
         fromMe: false,
         time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -83,24 +114,50 @@ export default function ChatScreen() {
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
   };
 
+  const startAudioCall = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push({
+      pathname: '/call/[id]' as any,
+      params: { id, name: name ?? '', role: role ?? '', avatar: avatar ?? '' },
+    });
+  };
+
   const roleLabel = role === 'seller' ? 'Vendeur' : 'Acheteur';
 
   return (
     <View style={[s.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={[s.headerBar, { paddingTop: insets.top, backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn} hitSlop={12} accessibilityLabel="Retour">
           <Icon name="back" size={24} color={colors.text} />
         </TouchableOpacity>
-        <View style={[s.headerAvatar, { backgroundColor: role === 'seller' ? colors.primary + '20' : colors.accent + '30' }]}>
-          <Text style={[s.headerAvatarText, { color: role === 'seller' ? colors.primary : colors.accent }]}>{(name ?? 'U')[0]}</Text>
-        </View>
+        {avatar ? (
+          <Image source={{ uri: avatar }} style={s.headerAvatarImg} contentFit="cover" />
+        ) : (
+          <View style={[s.headerAvatar, { backgroundColor: role === 'seller' ? colors.primary + '20' : colors.accent + '30' }]}>
+            <Text style={[s.headerAvatarText, { color: role === 'seller' ? colors.primary : colors.accent }]}>{(name ?? 'U')[0]}</Text>
+          </View>
+        )}
         <View style={s.headerInfo}>
           <Text style={[s.headerName, { color: colors.text }]} numberOfLines={1}>{name ?? 'Contact'}</Text>
           <Text style={[s.headerRole, { color: colors.textSecondary }]}>{roleLabel}</Text>
         </View>
-        <TouchableOpacity style={s.callBtn} hitSlop={12}>
-          <Icon name="call" size={20} color={colors.primary} />
+        <TouchableOpacity
+          onPress={startAudioCall}
+          style={s.headerAction}
+          hitSlop={8}
+          accessibilityLabel={`Appeler ${name ?? 'le contact'}`}
+        >
+          <Icon name="call" size={22} color={colors.primary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => setShowVideoTip(true)}
+          style={s.headerAction}
+          hitSlop={8}
+          accessibilityLabel="Appel vidéo, bientôt disponible"
+          accessibilityState={{ disabled: true }}
+        >
+          <Icon name="video" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
@@ -116,21 +173,33 @@ export default function ChatScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={s.messageList}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-          renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 30).duration(200)}>
-              <View style={[s.bubble, item.fromMe ? s.bubbleMe : s.bubbleThem, {
-                backgroundColor: item.fromMe ? colors.primary : colors.surface,
-                borderColor: item.fromMe ? colors.primary : colors.border,
-              }]}>
-                <Text style={[s.bubbleText, { color: item.fromMe ? '#FFFFFF' : colors.text }]}>
-                  {item.text}
-                </Text>
-                <Text style={[s.bubbleTime, { color: item.fromMe ? 'rgba(255,255,255,0.6)' : colors.textSecondary }]}>
-                  {item.time}
-                </Text>
-              </View>
-            </Animated.View>
-          )}
+          renderItem={({ item, index }) => {
+            if (item.type === 'call-summary') {
+              return (
+                <Animated.View entering={FadeIn.duration(250)} style={s.callSummary}>
+                  <Icon name="call" size={14} color={colors.textSecondary} />
+                  <Text style={[s.callSummaryText, { color: colors.textSecondary }]}>
+                    Appel audio · {item.callDuration ?? '00:00'} · Terminé
+                  </Text>
+                </Animated.View>
+              );
+            }
+            return (
+              <Animated.View entering={FadeInDown.delay(index * 30).duration(200)}>
+                <View style={[s.bubble, item.fromMe ? s.bubbleMe : s.bubbleThem, {
+                  backgroundColor: item.fromMe ? colors.primary : colors.surface,
+                  borderColor: item.fromMe ? colors.primary : colors.border,
+                }]}>
+                  <Text style={[s.bubbleText, { color: item.fromMe ? '#FFFFFF' : colors.text }]}>
+                    {item.text}
+                  </Text>
+                  <Text style={[s.bubbleTime, { color: item.fromMe ? 'rgba(255,255,255,0.6)' : colors.textSecondary }]}>
+                    {item.time}
+                  </Text>
+                </View>
+              </Animated.View>
+            );
+          }}
         />
 
         {/* Quick replies */}
@@ -172,6 +241,14 @@ export default function ChatScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      <Toast
+        message="Appel vidéo bientôt disponible"
+        type="success"
+        visible={showVideoTip}
+        onHide={() => setShowVideoTip(false)}
+        duration={1800}
+      />
     </View>
   );
 }
@@ -191,11 +268,22 @@ const s = StyleSheet.create({
   },
   backBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   headerAvatar: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerAvatarImg: { width: 36, height: 36, borderRadius: 18 },
   headerAvatarText: { fontFamily: 'Poppins_600SemiBold', fontSize: 14 },
   headerInfo: { flex: 1 },
   headerName: { ...Typography.bodyMedium },
   headerRole: { ...Typography.caption, fontSize: 11 },
-  callBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  headerAction: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center' },
+
+  callSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: Spacing.sm,
+    alignSelf: 'center',
+  },
+  callSummaryText: { ...Typography.caption },
 
   // Messages
   messageList: { padding: Spacing.lg, gap: Spacing.sm },

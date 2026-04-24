@@ -61,9 +61,9 @@ export default function EditRouteScreen() {
         {/* Mission lock banner */}
         {hasMission && (
           <View style={[s.lockBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="alert-circle" size={16} color={colors.warning} /><Text style={[s.lockTitle, { color: colors.warning }]}>Mission en cours — modifications limitées</Text></View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="alert-circle" size={16} color={colors.warning} /><Text style={[s.lockTitle, { color: colors.warning }]}>Livraison en cours — modifications limitées</Text></View>
             <Text style={[s.lockDesc, { color: colors.textSecondary }]}>
-              Les hubs et horaires ne peuvent pas être modifiés pendant une mission active.
+              Les hubs et horaires ne peuvent pas être modifiés pendant une livraison active.
             </Text>
           </View>
         )}

@@ -1,25 +1,22 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import MapLibreGL from '@maplibre/maplibre-react-native';
+import { Image } from 'expo-image';
 import { Icon } from '@/components/ui/Icon';
-import { NavigationView } from '@/components/navigation/NavigationView';
+import { MapboxNavigation } from '@/components/navigation/MapboxNavigation';
 import { RouteOverview } from '@/components/navigation/RouteOverview';
 import { Button } from '@/components/ui/Button';
 
-MapLibreGL.setAccessToken(null);
+const MAPBOX_PUBLIC_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
 import { getRoute, type RouteResult } from '@/services/routing';
-import { announceStep, speakArrival, speakRouteStart, announceReroute, resetAnnouncements, stopSpeech, setVoiceEnabled, isVoiceEnabled } from '@/services/voiceGuidance';
-import { isNearManeuver, isOffRoute, distanceBetween } from '@/utils/navigationHelpers';
-import { startSimulation, stopSimulation } from '@/services/mock/navigationSimulator';
+import { isVoiceEnabled, setVoiceEnabled } from '@/services/voiceGuidance';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Typography } from '@/constants/Typography';
-import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { Spacing } from '@/constants/Spacing';
 
 type NavState = 'loading' | 'overview' | 'navigating' | 'arrived' | 'error';
 
@@ -32,14 +29,10 @@ const HUB_COORDS: Record<string, { lat: number; lng: number }> = {
   'hub-antibes-gare': { lat: 43.5844, lng: 7.1197 },
 };
 
-const REROUTE_THRESHOLD = 50;
-const REROUTE_DELAY = 5000;
-
 export default function NavigateScreen() {
   const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const router = useRouter();
   const { colors } = useColorScheme();
-  const insets = useSafeAreaInsets();
   const { getMissionById } = useMissionStore();
 
   const isDemo = missionId === 'demo';
@@ -47,18 +40,13 @@ export default function NavigateScreen() {
 
   const [state, setState] = useState<NavState>('loading');
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
-  const [currentStepIdx, setCurrentStepIdx] = useState(0);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [userBearing, setUserBearing] = useState(0);
-  const [voiceOn, setVoiceOn] = useState(isVoiceEnabled());
+  const [origin, setOrigin] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [voiceOn] = useState(isVoiceEnabled());
   const [error, setError] = useState('');
+  const [navigatingAway, setNavigatingAway] = useState(false);
 
-  const locationSub = useRef<Location.LocationSubscription | null>(null);
-  const offRouteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isRerouting = useRef(false);
-  const stepIdxRef = useRef(0);
+  const pendingNavRef = useRef<null | (() => void)>(null);
 
-  // Destination
   const destHub = isDemo
     ? { id: 'hub-cannes-gare', name: 'Gare de Cannes', city: 'Cannes', scheduledTime: '', toleranceMinutes: 10 }
     : mission
@@ -69,188 +57,125 @@ export default function NavigateScreen() {
 
   // ─── INIT ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!isDemo && !mission) { setError('Mission introuvable'); setState('error'); return; }
+    if (!isDemo && !mission) { setError('Livraison introuvable'); setState('error'); return; }
     if (!destCoords) { setError('Destination non trouvée'); setState('error'); return; }
 
     if (isDemo) {
-      // Demo: use the detailed Nice → Cannes route
-      const route = getDemoRoute();
-      setRouteData(route);
-      setUserLocation({ latitude: route.geometry[0][1], longitude: route.geometry[0][0] });
+      const demoOrigin = { latitude: 43.7046, longitude: 7.2620 };
+      setOrigin(demoOrigin);
+      setRouteData(getDemoRoute());
       setState('overview');
-    } else {
-      // Real mode: get GPS + route
-      (async () => {
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status !== 'granted') { setError('Permission de localisation requise.'); setState('error'); return; }
-          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-          setUserLocation({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
-          try {
-            const route = await getRoute(
-              { latitude: loc.coords.latitude, longitude: loc.coords.longitude },
-              { latitude: destCoords.lat, longitude: destCoords.lng },
-            );
-            setRouteData(route);
-          } catch {
-            setRouteData(getDemoRoute());
-          }
-          setState('overview');
-        } catch (e: any) {
-          setError(e.message ?? 'Erreur de localisation');
-          setState('error');
-        }
-      })();
+      return;
     }
 
-    return () => {
-      locationSub.current?.remove();
-      stopSimulation();
-      stopSpeech();
-      if (offRouteTimer.current) clearTimeout(offRouteTimer.current);
-    };
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') { setError('Permission de localisation requise.'); setState('error'); return; }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const here = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        setOrigin(here);
+        try {
+          const route = await getRoute(here, { latitude: destCoords.lat, longitude: destCoords.lng });
+          setRouteData(route);
+        } catch {
+          // Overview falls back to a straight-line approximation; Mapbox
+          // Navigation will compute its own route when we hit Start.
+          setRouteData(buildFallbackRoute(here, destCoords, destHub?.name ?? 'Destination'));
+        }
+        setState('overview');
+      } catch (e: any) {
+        setError(e.message ?? 'Erreur de localisation');
+        setState('error');
+      }
+    })();
   }, []);
 
   // ─── START NAVIGATION ──────────────────────────────────────
   const startNavigation = useCallback(() => {
-    if (!routeData || !destCoords) return;
+    if (!origin || !destCoords) return;
     setState('navigating');
-    resetAnnouncements();
-    stepIdxRef.current = 0;
-    setCurrentStepIdx(0);
+  }, [origin, destCoords]);
 
-    const durationMins = Math.round(routeData.duration / 60);
-    speakRouteStart(hubName, durationMins);
+  // Stable JS identities for the native MapboxNavigationView. Without these,
+  // every parent re-render hands the native bridge a fresh coordinates array,
+  // which restarts the routing session and produces "Two simultaneous active
+  // navigation sessions" + a frozen UI.
+  const navOrigin = useMemo(
+    () => (origin ? { latitude: origin.latitude, longitude: origin.longitude } : null),
+    [origin?.latitude, origin?.longitude],
+  );
+  const navDestination = useMemo(
+    () => (destCoords ? { latitude: destCoords.lat, longitude: destCoords.lng } : null),
+    [destCoords?.lat, destCoords?.lng],
+  );
 
-    if (isDemo) {
-      // Demo: use simulator instead of real GPS
-      startSimulation({
-        geometry: routeData.geometry,
-        speedKmh: 80,
-        onLocationUpdate: (lat, lng, b) => {
-          setUserBearing(b);
-          handleLocationUpdate(lat, lng);
-        },
-        onComplete: () => {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          speakArrival(hubName);
-          setState('arrived');
-        },
-      });
-    } else {
-      // Real GPS tracking
-      (async () => {
-        locationSub.current = await Location.watchPositionAsync(
-          { accuracy: Location.Accuracy.High, distanceInterval: 5, timeInterval: 1000 },
-          (loc) => {
-            if (loc.coords.heading != null && loc.coords.heading >= 0) {
-              setUserBearing(loc.coords.heading);
-            }
-            handleLocationUpdate(loc.coords.latitude, loc.coords.longitude);
-          },
-        );
-      })();
-    }
-
-    if (routeData.steps.length > 0) {
-      announceStep(routeData.steps[0], routeData.steps[0].distance);
-    }
-  }, [routeData, destCoords, isDemo, hubName]);
-
-  // ─── LOCATION UPDATE ───────────────────────────────────────
-  const handleLocationUpdate = useCallback((lat: number, lng: number) => {
-    setUserLocation({ latitude: lat, longitude: lng });
-    const route = routeData;
-    if (!route || !destCoords) return;
-
-    const stepIdx = stepIdxRef.current;
-    const step = route.steps[stepIdx];
-    if (!step) return;
-
-    const [mLon, mLat] = step.maneuver.location;
-    const distToManeuver = distanceBetween(lat, lng, mLat, mLon);
-
-    announceStep(step, distToManeuver);
-
-    // Check arrival
-    const distToHub = distanceBetween(lat, lng, destCoords.lat, destCoords.lng);
-    if (distToHub < 80) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      speakArrival(hubName);
-      setState('arrived');
-      locationSub.current?.remove();
-      stopSimulation();
-      return;
-    }
-
-    // Step advancement
-    if (isNearManeuver(lat, lng, step.maneuver.location, 50)) {
-      if (stepIdx < route.steps.length - 1) {
-        const nextIdx = stepIdx + 1;
-        stepIdxRef.current = nextIdx;
-        setCurrentStepIdx(nextIdx);
-        const nextStep = route.steps[nextIdx];
-        if (nextStep && nextStep.maneuver.type !== 'arrive') {
-          announceStep(nextStep, nextStep.distance);
-        }
-      }
-    }
-
-    // Off-route detection (real mode only)
-    if (!isDemo && !isRerouting.current && isOffRoute(lat, lng, route.geometry, REROUTE_THRESHOLD)) {
-      if (!offRouteTimer.current) {
-        offRouteTimer.current = setTimeout(() => {
-          handleReroute(lat, lng);
-          offRouteTimer.current = null;
-        }, REROUTE_DELAY);
-      }
-    } else if (offRouteTimer.current) {
-      clearTimeout(offRouteTimer.current);
-      offRouteTimer.current = null;
-    }
-  }, [routeData, destCoords, isDemo, hubName]);
-
-  // ─── REROUTE ───────────────────────────────────────────────
-  const handleReroute = useCallback(async (lat: number, lng: number) => {
-    if (!destCoords || isRerouting.current) return;
-    isRerouting.current = true;
-    announceReroute();
-    try {
-      const newRoute = await getRoute({ latitude: lat, longitude: lng }, { latitude: destCoords.lat, longitude: destCoords.lng });
-      setRouteData(newRoute);
-      stepIdxRef.current = 0;
-      setCurrentStepIdx(0);
-      resetAnnouncements();
-    } catch { /* keep current */ }
-    isRerouting.current = false;
-  }, [destCoords]);
-
-  // ─── STOP ──────────────────────────────────────────────────
-  const stopNavigation = useCallback(() => {
-    Alert.alert('Arrêter la navigation ?', 'Vous pouvez la reprendre à tout moment.', [
-      { text: 'Continuer', style: 'cancel' },
-      {
-        text: 'Arrêter',
-        onPress: () => {
-          locationSub.current?.remove();
-          stopSimulation();
-          stopSpeech();
-          router.back();
-        },
-      },
-    ]);
+  // ─── ARRIVAL (from Mapbox SDK) ─────────────────────────────
+  const handleArrived = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setState('arrived');
   }, []);
 
-  const toggleVoice = useCallback(() => {
-    const v = !voiceOn;
-    setVoiceOn(v);
-    setVoiceEnabled(v);
-  }, [voiceOn]);
+  // Schedule navigation-away (same pattern as before, for MapLibre cleanup).
+  const scheduleNavigation = useCallback((action: () => void) => {
+    pendingNavRef.current = action;
+    setNavigatingAway(true);
+  }, []);
+
+  useEffect(() => {
+    if (!navigatingAway || !pendingNavRef.current) return;
+    const nav = pendingNavRef.current;
+    const raf = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        nav();
+        pendingNavRef.current = null;
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [navigatingAway]);
+
+  // ─── CANCEL FROM SDK ───────────────────────────────────────
+  const handleCancelFromSDK = useCallback(() => {
+    if (isDemo) {
+      scheduleNavigation(() => router.back());
+      return;
+    }
+    // In real mode, ask the transporter whether they actually arrived so
+    // we can flow directly into the pickup/delivery scan.
+    const phaseLabel = destHub === mission?.pickupHub ? 'prise en charge' : 'remise';
+    const nextPath =
+      mission && destHub === mission.pickupHub ? '/mission/pickup' : '/mission/delivery';
+
+    Alert.alert(
+      'Êtes-vous arrivé ?',
+      `Si oui, nous enchaînons sur l'étape de ${phaseLabel}.`,
+      [
+        { text: 'Pas encore', style: 'cancel' },
+        { text: 'Retour au suivi', onPress: () => scheduleNavigation(() => router.back()) },
+        {
+          text: 'Oui, je suis arrivé',
+          style: 'default',
+          onPress: () =>
+            scheduleNavigation(() => {
+              if (mission) {
+                router.replace({ pathname: nextPath as any, params: { id: mission.id } });
+              } else {
+                router.back();
+              }
+            }),
+        },
+      ],
+    );
+  }, [isDemo, mission, destHub, scheduleNavigation, router]);
 
   // ─── RENDER ────────────────────────────────────────────────
 
+  if (navigatingAway) {
+    return <View style={[s.screen, { backgroundColor: colors.background }]} />;
+  }
+
   if (!isDemo && !mission) {
-    return <ErrorView message="Mission introuvable" colors={colors} />;
+    return <ErrorView message="Livraison introuvable" colors={colors} />;
   }
 
   if (state === 'loading') {
@@ -266,13 +191,12 @@ export default function NavigateScreen() {
     return <ErrorView message={error} colors={colors} />;
   }
 
-  if (state === 'overview' && routeData) {
+  if (state === 'overview' && routeData && origin) {
     return (
       <View style={[s.screen, { backgroundColor: colors.background }]}>
-        {/* Real MapLibre map preview */}
         <MapPreview
           routeGeometry={routeData.geometry}
-          userLocation={userLocation}
+          userLocation={origin}
           destinationCoords={destCoords}
           isDark={colors.background === '#1A1A1E'}
         />
@@ -297,8 +221,18 @@ export default function NavigateScreen() {
           <Text style={s.arrivalHub}>{hubName}</Text>
           <Text style={s.arrivalWarm}>Tout est prêt pour la remise. Bonne continuation !</Text>
           <Button
-            title={isDemo ? 'Terminer la démo' : 'Continuer vers la mission'}
-            onPress={() => router.back()}
+            title={isDemo ? 'Terminer la démo' : 'Continuer vers la livraison'}
+            onPress={() => {
+              if (isDemo || !mission) {
+                scheduleNavigation(() => router.back());
+                return;
+              }
+              const nextPath =
+                destHub === mission.pickupHub ? '/mission/pickup' : '/mission/delivery';
+              scheduleNavigation(() =>
+                router.replace({ pathname: nextPath as any, params: { id: mission.id } }),
+              );
+            }}
             variant="gradient"
             style={{ minHeight: 52, marginTop: Spacing.xl }}
           />
@@ -307,36 +241,20 @@ export default function NavigateScreen() {
     );
   }
 
-  // ─── NAVIGATING ────────────────────────────────────────────
-  const currentStep = routeData?.steps[currentStepIdx] ?? null;
-  const nextStep = routeData?.steps[currentStepIdx + 1] ?? null;
-  const remainingSteps = routeData?.steps.slice(currentStepIdx) ?? [];
-  const remainingDist = remainingSteps.reduce((acc, st) => acc + st.distance, 0);
-  const remainingDur = remainingSteps.reduce((acc, st) => acc + st.duration, 0);
-
-  let distToNext = currentStep?.distance ?? 0;
-  if (userLocation && currentStep) {
-    const [mLon, mLat] = currentStep.maneuver.location;
-    distToNext = distanceBetween(userLocation.latitude, userLocation.longitude, mLat, mLon);
+  // ─── NAVIGATING: real Mapbox Navigation SDK ────────────────
+  if (state === 'navigating' && navOrigin && navDestination) {
+    return (
+      <MapboxNavigation
+        origin={navOrigin}
+        destination={navDestination}
+        voiceEnabled={voiceOn}
+        onArrived={handleArrived}
+        onCancel={handleCancelFromSDK}
+      />
+    );
   }
 
-  return (
-    <NavigationView
-      currentStep={currentStep}
-      nextStep={nextStep}
-      distanceToNext={distToNext}
-      remainingDistance={remainingDist}
-      remainingDuration={remainingDur}
-      hubName={hubName}
-      voiceEnabled={voiceOn}
-      onToggleVoice={toggleVoice}
-      onStop={stopNavigation}
-      userLocation={userLocation}
-      routeGeometry={routeData?.geometry}
-      destinationCoords={destCoords ?? undefined}
-      bearing={userBearing}
-    />
-  );
+  return null;
 }
 
 function ErrorView({ message, colors }: { message: string; colors: any }) {
@@ -350,103 +268,110 @@ function ErrorView({ message, colors }: { message: string; colors: any }) {
   );
 }
 
-// ─── DETAILED DEMO ROUTE: Nice → Cannes via A8 ─────────────
+// ─── Fallback route for the PREVIEW only — SDK recomputes at Start ──
+function buildFallbackRoute(
+  origin: { latitude: number; longitude: number },
+  destination: { lat: number; lng: number },
+  destinationName: string,
+): RouteResult {
+  const steps = 24;
+  const geometry: [number, number][] = [];
+  const dLng = destination.lng - origin.longitude;
+  const dLat = destination.lat - origin.latitude;
+  const norm = Math.sqrt(dLng * dLng + dLat * dLat) || 1;
+  const perpLng = -dLat / norm;
+  const perpLat = dLng / norm;
+  const amplitude = norm * 0.015;
 
-function getDemoRoute(): RouteResult {
-  // Realistic Nice → Cannes route with ~15 points and 8 steps
-  const geometry: [number, number][] = [
-    [7.2620, 43.7046],   // Nice Gare
-    [7.2580, 43.7030],   // Av Thiers heading west
-    [7.2500, 43.7010],   // Bd Gambetta
-    [7.2400, 43.6980],   // Near A8 on-ramp
-    [7.2200, 43.6920],   // A8 Nice Ouest
-    [7.1800, 43.6750],   // A8 passing St-Laurent
-    [7.1400, 43.6600],   // A8 Cagnes-sur-Mer
-    [7.1100, 43.6450],   // A8 Villeneuve-Loubet
-    [7.0800, 43.6280],   // A8 Antibes area
-    [7.0600, 43.6100],   // A8 passing Biot
-    [7.0400, 43.5900],   // A8 Mougins
-    [7.0250, 43.5700],   // A8 exit Cannes
-    [7.0200, 43.5600],   // Bd Carnot
-    [7.0170, 43.5524],   // Cannes Gare
-  ];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const wobble = Math.sin(t * Math.PI * 2) * amplitude;
+    geometry.push([
+      origin.longitude + dLng * t + perpLng * wobble,
+      origin.latitude + dLat * t + perpLat * wobble,
+    ]);
+  }
 
-  const steps: RouteResult['steps'] = [
-    {
-      instruction: 'Dirigez-vous vers Avenue Thiers en direction de l\'ouest',
-      distance: 400,
-      duration: 60,
-      maneuver: { type: 'depart', location: [7.2620, 43.7046], bearing_after: 270 },
-      name: 'Avenue Thiers',
-      geometry: [geometry[0], geometry[1]],
-    },
-    {
-      instruction: 'Tournez à gauche sur Boulevard Gambetta',
-      distance: 600,
-      duration: 90,
-      maneuver: { type: 'turn', modifier: 'left', location: [7.2580, 43.7030], bearing_after: 220 },
-      name: 'Boulevard Gambetta',
-      geometry: [geometry[1], geometry[2]],
-    },
-    {
-      instruction: 'Prenez la sortie vers A8 direction Cannes / Aix-en-Provence',
-      distance: 800,
-      duration: 60,
-      maneuver: { type: 'fork', modifier: 'right', location: [7.2500, 43.7010], bearing_after: 240 },
-      name: 'A8 - La Provençale',
-      geometry: [geometry[2], geometry[3], geometry[4]],
-    },
-    {
-      instruction: 'Continuez sur l\'A8 direction Cannes',
-      distance: 8000,
-      duration: 300,
-      maneuver: { type: 'continue', modifier: 'straight', location: [7.2200, 43.6920], bearing_after: 240 },
-      name: 'A8 - La Provençale',
-      geometry: [geometry[4], geometry[5], geometry[6], geometry[7], geometry[8]],
-    },
-    {
-      instruction: 'Restez sur l\'A8',
-      distance: 6000,
-      duration: 240,
-      maneuver: { type: 'new name', location: [7.0800, 43.6280], bearing_after: 230 },
-      name: 'A8 - La Provençale',
-      geometry: [geometry[8], geometry[9], geometry[10]],
-    },
-    {
-      instruction: 'Prenez la sortie 42 vers Cannes Centre',
-      distance: 2000,
-      duration: 120,
-      maneuver: { type: 'fork', modifier: 'right', location: [7.0400, 43.5900], bearing_after: 200 },
-      name: 'Sortie 42 - Cannes',
-      geometry: [geometry[10], geometry[11]],
-    },
-    {
-      instruction: 'Tournez à droite sur Boulevard Carnot',
-      distance: 1500,
-      duration: 180,
-      maneuver: { type: 'turn', modifier: 'right', location: [7.0250, 43.5700], bearing_after: 180 },
-      name: 'Boulevard Carnot',
-      geometry: [geometry[11], geometry[12]],
-    },
-    {
-      instruction: 'Vous êtes arrivé à la Gare de Cannes',
-      distance: 0,
-      duration: 0,
-      maneuver: { type: 'arrive', location: [7.0170, 43.5524], bearing_after: 0 },
-      name: 'Gare de Cannes',
-      geometry: [geometry[12], geometry[13]],
-    },
-  ];
+  const R = 6371000;
+  const hLat = ((destination.lat - origin.latitude) * Math.PI) / 180;
+  const hLon = ((destination.lng - origin.longitude) * Math.PI) / 180;
+  const a =
+    Math.sin(hLat / 2) ** 2 +
+    Math.cos((origin.latitude * Math.PI) / 180) *
+      Math.cos((destination.lat * Math.PI) / 180) *
+      Math.sin(hLon / 2) ** 2;
+  const distM = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const durS = Math.max(60, Math.round((distM / 1000 / 50) * 3600));
 
   return {
-    distance: 28000,
-    duration: 1350,
+    distance: distM,
+    duration: durS,
     geometry,
-    steps,
+    steps: [
+      {
+        instruction: `Dirigez-vous vers ${destinationName}`,
+        distance: Math.max(1, Math.round(distM)),
+        duration: Math.max(1, durS),
+        maneuver: { type: 'depart', location: geometry[0], bearing_after: 0 },
+        name: 'Itinéraire',
+        geometry,
+      },
+      {
+        instruction: `Vous êtes arrivé à ${destinationName}`,
+        distance: 0,
+        duration: 0,
+        maneuver: { type: 'arrive', location: geometry[geometry.length - 1], bearing_after: 0 },
+        name: destinationName,
+        geometry: [geometry[geometry.length - 1]],
+      },
+    ],
   };
 }
 
-// ─── Map Preview for Route Overview ──────────────────────────
+// ─── Detailed demo route: Nice → Cannes via A8 ─────────────
+function getDemoRoute(): RouteResult {
+  const geometry: [number, number][] = [
+    [7.2620, 43.7046], [7.2580, 43.7030], [7.2500, 43.7010], [7.2400, 43.6980],
+    [7.2200, 43.6920], [7.1800, 43.6750], [7.1400, 43.6600], [7.1100, 43.6450],
+    [7.0800, 43.6280], [7.0600, 43.6100], [7.0400, 43.5900], [7.0250, 43.5700],
+    [7.0200, 43.5600], [7.0170, 43.5524],
+  ];
+  const steps: RouteResult['steps'] = [
+    { instruction: 'Dirigez-vous vers A8', distance: 400, duration: 60, maneuver: { type: 'depart', location: geometry[0], bearing_after: 270 }, name: 'Avenue Thiers', geometry: [geometry[0], geometry[1]] },
+    { instruction: 'Continuez sur A8 direction Cannes', distance: 22000, duration: 900, maneuver: { type: 'continue', modifier: 'straight', location: geometry[3], bearing_after: 240 }, name: 'A8', geometry: geometry.slice(3, 11) },
+    { instruction: 'Vous êtes arrivé', distance: 0, duration: 0, maneuver: { type: 'arrive', location: geometry[13], bearing_after: 0 }, name: 'Gare de Cannes', geometry: [geometry[13]] },
+  ];
+  return { distance: 28000, duration: 1350, geometry, steps };
+}
+
+// ─── Map preview via Mapbox Static Images API ──
+// Pure HTTP — no native module. Renders a single image with the route
+// polyline and origin/destination pins. Falls back to a plain card when
+// the public access token is missing.
+function encodePolyline(coords: [number, number][]): string {
+  let lastLat = 0;
+  let lastLng = 0;
+  let out = '';
+  const encodeNumber = (n: number): string => {
+    n = n < 0 ? ~(n << 1) : n << 1;
+    let chunk = '';
+    while (n >= 0x20) {
+      chunk += String.fromCharCode((0x20 | (n & 0x1f)) + 63);
+      n >>= 5;
+    }
+    chunk += String.fromCharCode(n + 63);
+    return chunk;
+  };
+  for (const [lng, lat] of coords) {
+    const lat5 = Math.round(lat * 1e5);
+    const lng5 = Math.round(lng * 1e5);
+    out += encodeNumber(lat5 - lastLat);
+    out += encodeNumber(lng5 - lastLng);
+    lastLat = lat5;
+    lastLng = lng5;
+  }
+  return out;
+}
 
 function MapPreview({
   routeGeometry,
@@ -459,78 +384,66 @@ function MapPreview({
   destinationCoords: { lat: number; lng: number } | null;
   isDark: boolean;
 }) {
-  const mapStyle = isDark
-    ? 'https://tiles.openfreemap.org/styles/dark'
-    : 'https://tiles.openfreemap.org/styles/liberty';
+  const [failed, setFailed] = useState(false);
 
-  // Center between user and destination
-  const centerLng = userLocation && destinationCoords
-    ? (userLocation.longitude + destinationCoords.lng) / 2
-    : routeGeometry[Math.floor(routeGeometry.length / 2)]?.[0] ?? 7.15;
-  const centerLat = userLocation && destinationCoords
-    ? (userLocation.latitude + destinationCoords.lat) / 2
-    : routeGeometry[Math.floor(routeGeometry.length / 2)]?.[1] ?? 43.63;
+  if (!MAPBOX_PUBLIC_TOKEN || failed) {
+    return (
+      <View style={[s.previewFallback, { backgroundColor: isDark ? '#1A1A1E' : '#F3F4F6' }]}>
+        <Icon name="map-overview" size={32} color={isDark ? '#6B7280' : '#9CA3AF'} />
+      </View>
+    );
+  }
 
-  const routeGeoJSON = {
-    type: 'FeatureCollection' as const,
-    features: [{
-      type: 'Feature' as const,
-      properties: {},
-      geometry: { type: 'LineString' as const, coordinates: routeGeometry },
-    }],
-  };
+  // Downsample geometry so the URL stays short (URL length cap ~8KB).
+  const target = 60;
+  const step = Math.max(1, Math.floor(routeGeometry.length / target));
+  const sampled: [number, number][] = [];
+  for (let i = 0; i < routeGeometry.length; i += step) sampled.push(routeGeometry[i]);
+  const last = routeGeometry[routeGeometry.length - 1];
+  if (last && sampled[sampled.length - 1] !== last) sampled.push(last);
+
+  const encoded = encodePolyline(sampled);
+  const style = isDark ? 'dark-v11' : 'streets-v12';
+  const pathLayer = `path-5+14248A-0.9(${encodeURIComponent(encoded)})`;
+  const pins: string[] = [];
+  if (userLocation) {
+    pins.push(`pin-s+14248A(${userLocation.longitude},${userLocation.latitude})`);
+  }
+  if (destinationCoords) {
+    pins.push(`pin-s+10B981(${destinationCoords.lng},${destinationCoords.lat})`);
+  }
+  const overlay = [pathLayer, ...pins].join(',');
+  const url =
+    `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${overlay}` +
+    `/auto/600x400@2x?padding=40&access_token=${MAPBOX_PUBLIC_TOKEN}`;
 
   return (
-    <MapLibreGL.MapView
-      style={{ flex: 1 }}
-      mapStyle={mapStyle}
-      compassEnabled={false}
-      logoEnabled={false}
-      attributionEnabled={false}
-    >
-      <MapLibreGL.Camera
-        defaultSettings={{
-          centerCoordinate: [centerLng, centerLat],
-          zoomLevel: 10,
+    <View style={[s.previewFallback, { backgroundColor: isDark ? '#1A1A1E' : '#F3F4F6' }]}>
+      <Image
+        source={{ uri: url }}
+        style={{ flex: 1, alignSelf: 'stretch' }}
+        contentFit="cover"
+        onError={(e) => {
+          console.warn('[MapPreview] Mapbox Static image failed:', url, e);
+          setFailed(true);
         }}
       />
-      {/* Route line */}
-      <MapLibreGL.ShapeSource id="previewRoute" shape={routeGeoJSON}>
-        <MapLibreGL.LineLayer
-          id="previewRouteShadow"
-          style={{ lineColor: '#00000020', lineWidth: 8, lineBlur: 3, lineCap: 'round', lineJoin: 'round' }}
-        />
-        <MapLibreGL.LineLayer
-          id="previewRouteMain"
-          style={{ lineColor: '#14248A', lineWidth: 5, lineCap: 'round', lineJoin: 'round' }}
-        />
-      </MapLibreGL.ShapeSource>
-      {/* Origin dot */}
-      {userLocation && (
-        <MapLibreGL.PointAnnotation id="previewOrigin" coordinate={[userLocation.longitude, userLocation.latitude]}>
-          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#14248A', borderWidth: 2.5, borderColor: '#FFFFFF' }} />
-        </MapLibreGL.PointAnnotation>
-      )}
-      {/* Destination dot */}
-      {destinationCoords && (
-        <MapLibreGL.PointAnnotation id="previewDest" coordinate={[destinationCoords.lng, destinationCoords.lat]}>
-          <View style={{ width: 16, height: 16, borderRadius: 8, backgroundColor: '#10B981', borderWidth: 2.5, borderColor: '#FFFFFF' }} />
-        </MapLibreGL.PointAnnotation>
-      )}
-    </MapLibreGL.MapView>
+    </View>
   );
 }
+
+// Silence unused voice-toggle import (kept so header stub stays stable)
+void setVoiceEnabled;
 
 const s = StyleSheet.create({
   screen: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.lg, padding: Spacing.xxl },
   loadingText: { ...Typography.body },
   errorText: { ...Typography.body, textAlign: 'center' },
-  mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: Spacing.md },
-  mapText: { ...Typography.body },
   arrivalOverlay: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   arrivalContent: { alignItems: 'center', paddingHorizontal: Spacing.xxxl, gap: Spacing.md },
   arrivalTitle: { fontFamily: 'Poppins_700Bold', fontSize: 24, color: '#FFFFFF', textAlign: 'center' },
   arrivalHub: { fontFamily: 'Poppins_500Medium', fontSize: 16, color: 'rgba(255,255,255,0.8)', textAlign: 'center' },
   arrivalWarm: { fontFamily: 'Poppins_400Regular', fontSize: 14, color: 'rgba(255,255,255,0.6)', textAlign: 'center', fontStyle: 'italic' },
+  previewFallback: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

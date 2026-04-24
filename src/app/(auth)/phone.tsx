@@ -8,15 +8,28 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/Button';
+import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
+
+function FrenchFlag({ width = 22, height = 15 }: { width?: number; height?: number }) {
+  const stripe = width / 3;
+  return (
+    <Svg width={width} height={height} accessibilityLabel="Drapeau français">
+      <Rect x={0} y={0} width={stripe} height={height} fill="#002395" />
+      <Rect x={stripe} y={0} width={stripe} height={height} fill="#FFFFFF" />
+      <Rect x={stripe * 2} y={0} width={stripe} height={height} fill="#ED2939" />
+    </Svg>
+  );
+}
 
 function formatFrenchPhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
@@ -91,10 +104,14 @@ export default function PhoneScreen() {
                 },
               ]}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Indicatif pays France, plus 33"
             >
-              <Text style={styles.flag}>🇫🇷</Text>
+              <View style={styles.flagWrap}>
+                <FrenchFlag />
+              </View>
               <Text style={[styles.countryCode, { color: colors.text }]}>+33</Text>
-              <Text style={[styles.chevron, { color: colors.textSecondary }]}>▾</Text>
+              <Icon name="chevron-down" size={14} color={colors.textSecondary} />
             </TouchableOpacity>
 
             {/* Phone input */}
@@ -185,15 +202,14 @@ const styles = StyleSheet.create({
     height: 52,
     gap: Spacing.xs,
   },
-  flag: {
-    fontSize: 20,
+  flagWrap: {
+    borderRadius: 2,
+    overflow: 'hidden',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.1)',
   },
   countryCode: {
     ...Typography.bodyMedium,
-  },
-  chevron: {
-    fontSize: 10,
-    marginLeft: 2,
   },
   phoneInputWrapper: {
     flex: 1,

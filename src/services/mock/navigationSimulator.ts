@@ -16,23 +16,27 @@ interface SimulatorOptions {
 }
 
 let timer: ReturnType<typeof setInterval> | null = null;
+// Mutable so setSimulationSpeed() can update it live without restarting.
+let currentSpeedKmh = DEFAULT_SPEED_KMH;
 
 /**
  * Start simulating movement along the route.
  */
 export function startSimulation({ geometry, speedKmh = DEFAULT_SPEED_KMH, onLocationUpdate, onComplete }: SimulatorOptions): void {
   stopSimulation();
+  currentSpeedKmh = speedKmh;
 
   if (geometry.length < 2) {
     onComplete();
     return;
   }
 
-  const metersPerTick = (speedKmh * 1000) / 3600; // meters per second at TICK_MS=1000
   let currentIndex = 0;
   let progressAlongSegment = 0; // 0..1 within current segment
 
   timer = setInterval(() => {
+    const metersPerTick = (currentSpeedKmh * 1000) / 3600; // meters per second at TICK_MS=1000
+
     if (currentIndex >= geometry.length - 1) {
       stopSimulation();
       // Final position
@@ -69,6 +73,14 @@ export function startSimulation({ geometry, speedKmh = DEFAULT_SPEED_KMH, onLoca
       onLocationUpdate(lat, lng, bearing);
     }
   }, TICK_MS);
+}
+
+/**
+ * Adjust the simulation speed while it's running.
+ * Takes effect on the next tick (max ~1s lag).
+ */
+export function setSimulationSpeed(speedKmh: number): void {
+  currentSpeedKmh = Math.max(1, speedKmh);
 }
 
 /**

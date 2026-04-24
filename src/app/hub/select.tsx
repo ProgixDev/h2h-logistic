@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
+import { View, FlatList, Alert, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
@@ -25,6 +25,21 @@ export default function HubSelectScreen() {
     router.back();
   };
 
+  const handleLongPress = (hub: Hub) => {
+    Alert.alert(hub.name, undefined, [
+      { text: 'Voir détails', onPress: () => handleSelect(hub) },
+      {
+        text: 'Signaler',
+        onPress: () =>
+          router.push({
+            pathname: '/hub/report' as any,
+            params: { hubId: hub.id, hubName: hub.name, hubAddress: `${hub.address}, ${hub.city}` },
+          }),
+      },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
+  };
+
   return (
     <SafeAreaWrapper>
       <Header title={t('hub.selectHub')} showBack />
@@ -36,7 +51,9 @@ export default function HubSelectScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <HubCard hub={item} onPress={handleSelect} />}
+        renderItem={({ item }) => (
+          <HubCard hub={item} onPress={handleSelect} onLongPress={handleLongPress} />
+        )}
         contentContainerStyle={styles.list}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
       />

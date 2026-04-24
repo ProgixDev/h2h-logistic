@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
 import { ParticipantsCard } from '@/components/mission/ParticipantsCard';
+import { BonEnvoiRow } from '@/components/mission/BonEnvoiRow';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -45,26 +46,17 @@ export default function MissionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useColorScheme();
   const router = useRouter();
-  const { getMissionById } = useMissionStore();
 
-  const [mission, setMission] = useState<Mission | undefined>(getMissionById(id ?? ''));
-
-  // Poll for status changes (seller auto-confirm)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const latest = getMissionById(id ?? '');
-      if (latest && latest.status !== mission?.status) {
-        setMission(latest);
-      }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [id, mission?.status]);
+  // Subscribe directly to the store so every mutation triggers a re-render
+  // (was a polled local useState in v4 — zustand v5 made the no-selector
+  // subscription pattern unreliable, which caused the timeline to freeze).
+  const mission = useMissionStore((s) => s.missions.find((m) => m.id === (id ?? '')));
 
   if (!mission) {
     return (
       <SafeAreaWrapper>
-        <Header title="Mission" showBack />
-        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Mission introuvable</Text>
+        <Header title="Livraison" showBack />
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
       </SafeAreaWrapper>
     );
   }
@@ -115,6 +107,8 @@ export default function MissionDetailScreen() {
           buyer={mission.buyer}
           transporter={mission.transporter}
         />
+
+        <BonEnvoiRow mission={mission} />
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -152,7 +146,7 @@ function SellerWaitingScreen({ mission, colors, router }: { mission: Mission; co
   return (
     <View style={[sw.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Mission" showBack />
+        <Header title="Livraison" showBack />
       </View>
 
       <View style={sw.content}>
@@ -192,23 +186,23 @@ function ExpiredScreen({ mission, colors, router }: { mission: Mission; colors: 
   return (
     <View style={[sw.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Mission" showBack />
+        <Header title="Livraison" showBack />
       </View>
 
       <View style={sw.content}>
         <Text style={sw.expiredEmoji}>⏰</Text>
-        <Text style={[sw.expiredTitle, { color: colors.text }]}>Mission annulée</Text>
+        <Text style={[sw.expiredTitle, { color: colors.text }]}>Livraison annulée</Text>
         <Text style={[sw.expiredSub, { color: colors.textSecondary }]}>
           Le vendeur n'a pas confirmé à temps.
         </Text>
         <Text style={[sw.warmText, { color: colors.textSecondary }]}>
-          Pas d'inquiétude, de nouvelles missions arrivent régulièrement.
+          Pas d'inquiétude, de nouvelles livraisons arrivent régulièrement.
         </Text>
       </View>
 
       <View style={[sw.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Retour aux missions"
+          title="Retour aux livraisons"
           onPress={() => router.replace('/(tabs)/missions')}
           variant="gradient"
         />

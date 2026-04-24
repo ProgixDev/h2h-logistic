@@ -25,14 +25,17 @@ export const useEarningsStore = create<EarningsState>((set, get) => ({
   entries: [],
   isLoading: false,
 
-  loadMockData: () =>
+  loadMockData: () => {
+    // Idempotent: don't clobber live transactions/summary on every tab mount.
+    if (get().transactions.length > 0 || get().summary) return;
     set({
       transactions: mockTransactions,
       stats: mockStats,
       dailyEarnings: mockDailyEarnings,
       summary: mockEarningsSummary,
       entries: mockEarnings,
-    }),
+    });
+  },
 
   getEarningsForPeriod: (period) => {
     const s = get().summary;

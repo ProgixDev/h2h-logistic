@@ -16,13 +16,51 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
+export type ScannerMode = 'seller-qr' | 'buyer-qr' | 'package';
+
 interface QRScannerProps {
   onScan: (data: string) => void;
   onManualEntry?: (code: string) => void;
+  mode?: ScannerMode;
   instruction?: string;
+  resetSignal?: number;
+  /**
+   * TODO(backend): remove before production.
+   * Dev-only shortcut that fires the expected valid payload for the current
+   * scanner mode, letting the team run through the flow without a physical
+   * QR code. Only rendered when `__DEV__` is true AND this prop is provided.
+   */
+  onDevBypass?: () => void;
 }
 
-export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps) {
+const COPY: Record<ScannerMode, { instruction: string; subtitle: string; manualTitle: string; manualSub: string; manualLabel: string; manualPlaceholder: string }> = {
+  'seller-qr': {
+    instruction: 'Scannez le QR code du vendeur',
+    subtitle: "Votre vendeur vous présente son code à l'écran",
+    manualTitle: 'Code vendeur',
+    manualSub: 'Entrez le code communiqué par le vendeur',
+    manualLabel: 'Code vendeur',
+    manualPlaceholder: 'HTH-XXXXX',
+  },
+  'buyer-qr': {
+    instruction: "Scannez le QR code de l'acheteur",
+    subtitle: "Votre acheteur vous présente son code à l'écran",
+    manualTitle: 'Code acheteur',
+    manualSub: "Entrez le code communiqué par l'acheteur",
+    manualLabel: 'Code acheteur',
+    manualPlaceholder: 'HTH-XXXXX',
+  },
+  'package': {
+    instruction: "Scannez le bon d'envoi",
+    subtitle: "Code-barres ou QR sur l'étiquette collée sur le colis",
+    manualTitle: 'Numéro de colis',
+    manualSub: 'Entrez le numéro inscrit sur le bon d\'envoi',
+    manualLabel: 'Numéro de colis',
+    manualPlaceholder: 'HTH-XXXXX',
+  },
+};
+
+export function QRScanner({ onScan, onManualEntry, mode = 'seller-qr', instruction, resetSignal, onDevBypass }: QRScannerProps) {
   const { colors } = useColorScheme();
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
@@ -30,6 +68,16 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
   const [showManual, setShowManual] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [flashColor, setFlashColor] = useState<string | null>(null);
+
+  const copy = COPY[mode];
+
+  // External reset
+  useEffect(() => {
+    if (resetSignal !== undefined) {
+      setScanned(false);
+      setManualCode('');
+    }
+  }, [resetSignal]);
 
   // Scanning line animation
   const scanLineY = useSharedValue(0);
@@ -61,16 +109,12 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
     }
   };
 
-  // Flash overlay
   useEffect(() => {
     if (flashColor) {
       const timer = setTimeout(() => setFlashColor(null), 400);
       return () => clearTimeout(timer);
     }
   }, [flashColor]);
-
-  const triggerSuccess = () => setFlashColor('#10B98140');
-  const triggerError = () => setFlashColor('#EF444440');
 
   if (!permission) return null;
 
@@ -89,18 +133,29 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
   if (showManual) {
     return (
       <View style={[styles.manualContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.manualTitle, { color: colors.text }]}>Saisie manuelle</Text>
-        <Text style={[styles.manualSub, { color: colors.textSecondary }]}>
-          Entrez le code du QR code du vendeur
+        <Text
+          style={[styles.manualTitle, { color: colors.text }]}
+          accessibilityRole="header"
+        >
+          {copy.manualTitle}
+        </Text>
+        <Text style={[styles.manualSub, { color: colors.textSecondary }]}>{copy.manualSub}</Text>
+        <Text
+          style={[styles.manualFieldLabel, { color: colors.textSecondary }]}
+          nativeID="manualCodeLabel"
+        >
+          {copy.manualLabel}
         </Text>
         <TextInput
           style={[styles.manualInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.surface }]}
           value={manualCode}
           onChangeText={setManualCode}
-          placeholder="HTH-2024-0001"
+          placeholder={copy.manualPlaceholder}
           placeholderTextColor={colors.textSecondary}
           autoFocus
           autoCapitalize="characters"
+          accessibilityLabel={copy.manualLabel}
+          accessibilityLabelledBy="manualCodeLabel"
         />
         <Button title="Valider" onPress={handleManualSubmit} variant="gradient" disabled={!manualCode.trim()} />
         <TouchableOpacity onPress={() => { setShowManual(false); setScanned(false); }}>
@@ -114,7 +169,7 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
     <View style={styles.container}>
       <CameraView
         style={styles.camera}
-        barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+        barcodeScannerSettings={{ barcodeTypes: ['qr', 'ean13', 'ean8', 'code128', 'code39', 'upc_a', 'upc_e'] }}
         onBarcodeScanned={scanned ? undefined : handleBarcode}
         enableTorch={flashOn}
       />
@@ -125,24 +180,20 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
         <View style={styles.overlayMiddle}>
           <View style={styles.overlaySide} />
           <View style={styles.scanArea}>
-            {/* Corner markers */}
             <View style={[styles.corner, styles.cornerTL, { borderColor: colors.primary }]} />
             <View style={[styles.corner, styles.cornerTR, { borderColor: colors.primary }]} />
             <View style={[styles.corner, styles.cornerBL, { borderColor: colors.primary }]} />
             <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
-            {/* Scanning line */}
             <Animated.View style={[styles.scanLine, { backgroundColor: colors.primary }, scanLineStyle]} />
           </View>
           <View style={styles.overlaySide} />
         </View>
         <View style={styles.overlayBottom}>
-          <Text style={styles.instruction}>
-            {instruction ?? 'Scannez le QR code du vendeur'}
-          </Text>
+          <Text style={styles.instruction}>{instruction ?? copy.instruction}</Text>
+          <Text style={styles.subtitle}>{copy.subtitle}</Text>
         </View>
       </View>
 
-      {/* Flash overlay */}
       {flashColor && <View style={[styles.flashOverlay, { backgroundColor: flashColor }]} />}
 
       {/* Bottom controls */}
@@ -150,6 +201,7 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
         <TouchableOpacity
           onPress={() => setFlashOn(!flashOn)}
           style={[styles.flashBtn, { backgroundColor: flashOn ? colors.warning : 'rgba(255,255,255,0.2)' }]}
+          accessibilityLabel={flashOn ? 'Éteindre la lampe torche' : 'Allumer la lampe torche'}
         >
           <Icon name={flashOn ? 'flashlight-on' : 'flashlight'} size={22} color="#FFFFFF" />
         </TouchableOpacity>
@@ -167,6 +219,21 @@ export function QRScanner({ onScan, onManualEntry, instruction }: QRScannerProps
         <TouchableOpacity onPress={() => setShowManual(true)}>
           <Text style={styles.manualLink}>Entrer le code manuellement</Text>
         </TouchableOpacity>
+
+        {/* TODO(backend): remove before production — dev-only bypass */}
+        {__DEV__ && onDevBypass && (
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onDevBypass();
+            }}
+            style={styles.devBypassBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Dev bypass scan (à retirer en production)"
+          >
+            <Text style={styles.devBypassText}>DEV · Bypass scan</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -178,44 +245,53 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   camera: { flex: 1 },
 
-  // Overlay
   overlay: { ...StyleSheet.absoluteFillObject },
   overlayTop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   overlayMiddle: { flexDirection: 'row' },
   overlaySide: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
   scanArea: { width: SCAN_SIZE, height: SCAN_SIZE },
-  overlayBottom: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: Spacing.xxl },
+  overlayBottom: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', alignItems: 'center', paddingTop: Spacing.xxl, paddingHorizontal: Spacing.xxl, gap: 6 },
 
-  // Corners
   corner: { position: 'absolute', width: 28, height: 28, borderWidth: 3 },
   cornerTL: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: BorderRadius.sm },
   cornerTR: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: BorderRadius.sm },
   cornerBL: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: BorderRadius.sm },
   cornerBR: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: BorderRadius.sm },
 
-  // Scan line
   scanLine: { width: '100%', height: 2, opacity: 0.8 },
 
-  instruction: { ...Typography.bodyMedium, color: '#FFFFFF', textAlign: 'center', paddingHorizontal: Spacing.xxl },
+  instruction: { ...Typography.bodyMedium, color: '#FFFFFF', textAlign: 'center' },
+  subtitle: { ...Typography.caption, color: 'rgba(255,255,255,0.8)', textAlign: 'center' },
 
-  // Flash
   flashOverlay: { ...StyleSheet.absoluteFillObject },
 
-  // Controls
   controls: { position: 'absolute', bottom: 40, left: 0, right: 0, alignItems: 'center', gap: Spacing.lg },
   flashBtn: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
-  flashIcon: { fontSize: 22 },
   manualLink: { ...Typography.captionMedium, color: 'rgba(255,255,255,0.7)', textDecorationLine: 'underline' },
 
-  // Permission
+  // Dev-only bypass — remove before production.
+  devBypassBtn: {
+    marginTop: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: '#F5A623',
+    backgroundColor: 'rgba(245, 166, 35, 0.18)',
+  },
+  devBypassText: {
+    ...Typography.captionMedium,
+    color: '#F5A623',
+    letterSpacing: 1,
+  },
+
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.lg },
-  permissionEmoji: { fontSize: 56 },
   permissionText: { ...Typography.body, textAlign: 'center', lineHeight: 22 },
 
-  // Manual
-  manualContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.xl },
+  manualContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xxl, gap: Spacing.lg },
   manualTitle: { ...Typography.h2 },
   manualSub: { ...Typography.body, textAlign: 'center' },
+  manualFieldLabel: { ...Typography.captionMedium, alignSelf: 'flex-start', marginTop: Spacing.md },
   manualInput: { width: '100%', borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, textAlign: 'center', ...Typography.h3, letterSpacing: 2 },
   backToScan: { ...Typography.bodyMedium, textDecorationLine: 'underline' },
 });

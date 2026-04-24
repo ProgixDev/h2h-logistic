@@ -19,7 +19,7 @@ export const fr = {
   tabs: {
     home: 'Accueil',
     routes: 'Trajets',
-    missions: 'Missions',
+    missions: 'Livraisons',
     profile: 'Profil',
   },
   auth: {
@@ -40,8 +40,8 @@ export const fr = {
   },
   onboarding: {
     slide1Title: 'Publiez vos trajets',
-    slide1Desc: 'Indiquez vos itinéraires entre les hubs et recevez des missions de livraison.',
-    slide2Title: 'Gérez vos missions',
+    slide1Desc: 'Indiquez vos itinéraires entre les hubs et recevez des livraisons.',
+    slide2Title: 'Gérez vos livraisons',
     slide2Desc: 'Acceptez, scannez et livrez — tout depuis votre téléphone.',
     slide3Title: 'Gagnez à chaque livraison',
     slide3Desc: 'Suivez vos gains et retirez votre argent facilement.',
@@ -51,7 +51,7 @@ export const fr = {
   home: {
     greeting: 'Bonjour',
     dashboard: 'Tableau de bord',
-    activeMissions: 'Missions actives',
+    activeMissions: 'Livraisons en cours',
     todayEarnings: "Gains aujourd'hui",
     activeRoutes: 'Trajets actifs',
     status: 'Statut',
@@ -59,7 +59,7 @@ export const fr = {
     offline: 'Hors ligne',
     quickActions: 'Actions rapides',
     publishRoute: 'Publier un trajet',
-    viewMissions: 'Voir les missions',
+    viewMissions: 'Voir les livraisons',
     viewEarnings: 'Voir les gains',
   },
   routes: {
@@ -69,7 +69,7 @@ export const fr = {
     paused: 'En pause',
     expired: 'Expirés',
     noRoutes: 'Aucun trajet publié',
-    noRoutesDesc: 'Publiez votre premier trajet pour recevoir des missions.',
+    noRoutesDesc: 'Publiez votre premier trajet pour recevoir des livraisons.',
   },
   publish: {
     title: 'Publier un trajet',
@@ -100,11 +100,11 @@ export const fr = {
     publish: 'Publier',
   },
   missions: {
-    title: 'Missions',
+    title: 'Livraisons',
     active: 'En cours',
     completed: 'Terminées',
-    noMissions: 'Aucune mission',
-    noMissionsDesc: 'Vos missions apparaîtront ici.',
+    noMissions: 'Aucune livraison',
+    noMissionsDesc: 'Vos livraisons apparaîtront ici.',
     accept: 'Accepter',
     decline: 'Refuser',
     pickup: 'Collecte',
@@ -123,7 +123,7 @@ export const fr = {
     pending: 'En attente',
     thisMonth: 'Ce mois',
     lastMonth: 'Mois dernier',
-    totalMissions: 'Missions totales',
+    totalMissions: 'Livraisons totales',
     withdraw: 'Retirer',
     history: 'Historique',
   },
