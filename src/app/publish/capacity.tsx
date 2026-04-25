@@ -37,7 +37,7 @@ export default function PublishCapacityScreen() {
 
   const incPackages = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (pkg < 10) setFormField('maxPackages', pkg + 1);
+    if (pkg < 5) setFormField('maxPackages', pkg + 1);
   };
   const decPackages = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -69,7 +69,7 @@ export default function PublishCapacityScreen() {
               <Text style={[styles.stepperIcon, { color: colors.text }]}>−</Text>
             </TouchableOpacity>
             <Text style={[styles.stepperValue, { color: colors.primary }]}>{pkg}</Text>
-            <TouchableOpacity onPress={incPackages} style={[styles.stepperBtn, { borderColor: colors.border, opacity: pkg >= 10 ? 0.3 : 1 }]}>
+            <TouchableOpacity onPress={incPackages} style={[styles.stepperBtn, { borderColor: colors.border, opacity: pkg >= 5 ? 0.3 : 1 }]}>
               <Text style={[styles.stepperIcon, { color: colors.text }]}>+</Text>
             </TouchableOpacity>
           </View>
