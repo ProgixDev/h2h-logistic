@@ -6,6 +6,7 @@ export type MissionStatus =
   | 'pickup_pending'
   | 'picked_up'
   | 'in_transit'
+  | 'deposited'
   | 'delivery_pending'
   | 'delivered'
   | 'completed'
@@ -79,6 +80,7 @@ export interface Mission {
   proposalExpiresAt?: string;
   cancellationReason?: CancellationReason;
   offHubProposal?: OffHubProposal;
+  isReturn?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -92,7 +94,7 @@ export interface MissionGroup {
 
 export const ACTIVE_STATUSES: MissionStatus[] = [
   'accepted', 'seller_pending', 'group_created',
-  'pickup_pending', 'picked_up', 'in_transit', 'delivery_pending',
+  'pickup_pending', 'picked_up', 'in_transit', 'deposited', 'delivery_pending',
 ];
 
 export const COMPLETED_STATUSES: MissionStatus[] = ['delivered', 'completed'];

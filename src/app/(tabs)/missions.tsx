@@ -211,16 +211,19 @@ function CountdownBadge({ expiresAt, colors }: { expiresAt: string; colors: any 
 // ─── Active mission card (En cours tab) ────────────────────
 
 function ActiveMissionCard({ mission, colors, router }: { mission: Mission; colors: any; router: any }) {
-  const statusMap: Record<string, { label: string; variant: 'default' | 'success' | 'warning' }> = {
+  const statusMap: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'error' }> = {
     accepted: { label: 'Acceptée', variant: 'default' },
     seller_pending: { label: 'Attente vendeur', variant: 'warning' },
     group_created: { label: 'Groupe créé', variant: 'success' },
     pickup_pending: { label: 'Collecte', variant: 'warning' },
     picked_up: { label: 'Collecté', variant: 'success' },
     in_transit: { label: 'En transit', variant: 'default' },
-    delivery_pending: { label: 'Livraison', variant: 'warning' },
+    deposited: { label: 'Dépôt', variant: 'success' },
+    delivery_pending: { label: 'Remise', variant: 'warning' },
   };
-  const info = statusMap[mission.status] ?? { label: mission.status, variant: 'default' as const };
+  const info = mission.isReturn
+    ? { label: 'Retour', variant: 'error' as const }
+    : statusMap[mission.status] ?? { label: mission.status, variant: 'default' as const };
 
   return (
     <TouchableOpacity onPress={() => router.push(`/mission/${mission.id}`)} activeOpacity={0.8}>

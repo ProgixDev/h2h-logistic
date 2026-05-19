@@ -96,18 +96,32 @@ export function ResponsibilitiesCard() {
               </View>
             ))}
 
-            <Pressable
-              onPress={(e) => {
-                e.stopPropagation?.();
-                router.push('/responsabilites' as any);
-              }}
-              hitSlop={12}
-              style={styles.linkWrap}
-              accessibilityRole="link"
-              accessibilityLabel="En savoir plus sur vos responsabilités"
-            >
-              <Text style={[styles.link, { color: colors.primary }]}>En savoir plus →</Text>
-            </Pressable>
+            <View style={styles.linkRow}>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  router.push('/responsabilites' as any);
+                }}
+                hitSlop={12}
+                style={styles.linkWrap}
+                accessibilityRole="link"
+                accessibilityLabel="En savoir plus sur vos responsabilités"
+              >
+                <Text style={[styles.link, { color: colors.primary }]}>En savoir plus →</Text>
+              </Pressable>
+              <Pressable
+                onPress={(e) => {
+                  e.stopPropagation?.();
+                  router.push('/incidents-protocol' as any);
+                }}
+                hitSlop={12}
+                style={styles.linkWrap}
+                accessibilityRole="link"
+                accessibilityLabel="Ouvrir le protocole incidents"
+              >
+                <Text style={[styles.link, { color: colors.primary }]}>Protocole incidents →</Text>
+              </Pressable>
+            </View>
           </Animated.View>
         )}
       </Card>
@@ -156,10 +170,15 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     lineHeight: 18,
   },
+  linkRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
+  },
   linkWrap: {
     alignSelf: 'flex-start',
     paddingVertical: Spacing.xs,
-    marginTop: Spacing.xs,
   },
   link: {
     ...Typography.captionMedium,

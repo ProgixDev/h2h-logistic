@@ -33,6 +33,20 @@ function formatHour(iso: string): string {
   return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, '0')}`;
 }
 
+const dayFormatter = new Intl.DateTimeFormat('fr-FR', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+function formatDayLabel(iso: string): string {
+  const d = dayjs(iso);
+  const today = dayjs();
+  if (d.isSame(today, 'day')) return "aujourd'hui";
+  if (d.isSame(today.add(1, 'day'), 'day')) return 'demain';
+  return `le ${dayFormatter.format(d.toDate())}`;
+}
+
 function formatCountdown(ms: number): string {
   if (ms <= 0) return '';
   const totalSec = Math.floor(ms / 1000);
@@ -104,9 +118,11 @@ export function ScheduleReminderCard({
 
   const pickupTimeLabel = formatHour(pickupTime);
   const deliveryTimeLabel = formatHour(deliveryTime);
+  const pickupDayLabel = formatDayLabel(pickupTime);
+  const deliveryDayLabel = formatDayLabel(deliveryTime);
 
-  const pickupLine = `Prise en charge au vendeur à ${pickupTimeLabel} au hub ${pickupHubName}`;
-  const deliveryLine = `Remise prévue à ${deliveryTimeLabel} au hub ${deliveryHubName}`;
+  const pickupLine = `Prise en charge au vendeur ${pickupDayLabel} à ${pickupTimeLabel} au hub ${pickupHubName}`;
+  const deliveryLine = `Remise prévue ${deliveryDayLabel} à ${deliveryTimeLabel} au hub ${deliveryHubName}`;
 
   const countdownLabel = isOverdue ? 'Bientôt' : formatCountdown(remainingMs);
   const lateLabel = `Léger retard — ${formatLate(remainingMs)}`;

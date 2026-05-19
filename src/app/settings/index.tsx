@@ -116,6 +116,8 @@ export default function SettingsScreen() {
     { iconName: 'globe', label: `${t('profile.language')}: ${lang.toUpperCase()}`, onPress: () => changeLanguage(lang === 'fr' ? 'en' : 'fr') },
     { iconName: 'star-outline', label: t('profile.favoriteClients'), onPress: () => router.push('/settings/favorite-clients') },
     { iconName: 'bell', label: t('profile.notifications'), onPress: () => router.push('/notifications') },
+    { iconName: 'clipboard', label: 'Vos responsabilités', onPress: () => router.push('/responsabilites' as any) },
+    { iconName: 'shield', label: 'Protocole incidents', onPress: () => router.push('/incidents-protocol' as any) },
     { iconName: 'help', label: t('profile.help'), onPress: () => {} },
     { iconName: 'info', label: t('profile.about'), onPress: () => {} },
   ];

@@ -23,6 +23,7 @@ export default function ProfileScreen() {
     { iconName: 'wallet' as const, label: t('earnings.title'), route: '/earnings' },
     { iconName: 'star-outline' as const, label: t('profile.favoriteClients'), route: '/settings/favorite-clients' },
     { iconName: 'bell' as const, label: t('profile.notifications'), route: '/notifications' },
+    { iconName: 'shield' as const, label: 'Protocole incidents', route: '/incidents-protocol' },
     { iconName: 'navigate' as const, label: 'Démo Navigation', route: '/navigate/demo' },
     { iconName: 'settings' as const, label: t('profile.settings'), route: '/settings' },
   ];

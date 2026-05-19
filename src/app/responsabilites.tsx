@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
-import { Spacing } from '@/constants/Spacing';
+import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface Section {
@@ -59,6 +60,7 @@ const SECTIONS: Section[] = [
 
 export default function ResponsabilitesScreen() {
   const { colors } = useColorScheme();
+  const router = useRouter();
 
   return (
     <SafeAreaWrapper>
@@ -85,6 +87,33 @@ export default function ResponsabilitesScreen() {
             </View>
           </Card>
         ))}
+
+        <Pressable
+          onPress={() => router.push('/incidents-protocol' as any)}
+          accessibilityRole="link"
+          accessibilityLabel="Ouvrir le protocole incidents"
+          style={({ pressed }) => [
+            styles.protocolCta,
+            {
+              backgroundColor: colors.primary + '08',
+              borderColor: colors.primary + '30',
+              opacity: pressed ? 0.85 : 1,
+            },
+          ]}
+        >
+          <View style={[styles.iconCircle, { backgroundColor: colors.primary + '18' }]}>
+            <Icon name="shield" size={18} color={colors.primary} />
+          </View>
+          <View style={styles.protocolCtaText}>
+            <Text style={[styles.protocolCtaTitle, { color: colors.text }]}>
+              Protocole incidents
+            </Text>
+            <Text style={[styles.protocolCtaHint, { color: colors.textSecondary }]}>
+              Règles, délais et sanctions en cas d’échec de livraison ou de relais indisponible.
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={18} color={colors.textSecondary} />
+        </Pressable>
       </ScrollView>
     </SafeAreaWrapper>
   );
@@ -122,5 +151,24 @@ const styles = StyleSheet.create({
   paragraph: {
     ...Typography.body,
     lineHeight: 22,
+  },
+  protocolCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+  },
+  protocolCtaText: {
+    flex: 1,
+    gap: 2,
+  },
+  protocolCtaTitle: {
+    ...Typography.bodyMedium,
+  },
+  protocolCtaHint: {
+    ...Typography.caption,
+    lineHeight: 18,
   },
 });
