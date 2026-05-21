@@ -11,10 +11,7 @@ import {
   Poppins_600SemiBold,
   Poppins_700Bold,
 } from '@expo-google-fonts/poppins';
-import Mapbox from '@rnmapbox/maps';
 import { useColorScheme } from '@/hooks/useColorScheme';
-
-Mapbox.setAccessToken(process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? null);
 
 SplashScreen.preventAutoHideAsync();
 

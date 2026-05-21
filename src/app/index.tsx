@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Redirect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import Animated, {
@@ -16,28 +16,22 @@ import { useAuthStore } from '@/stores/useAuthStore';
 
 const LOGO = require('@/assets/images/logo.png');
 
+type Target =
+  | '/(onboarding)'
+  | '/(auth)'
+  | '/(auth)/convention'
+  | '/(tabs)';
+
 export default function SplashScreen() {
-  const router = useRouter();
-  const { hydrate, isAuthenticated, isOnboarded } = useAuthStore();
+  const hydrate = useAuthStore((s) => s.hydrate);
+  const [target, setTarget] = useState<Target | null>(null);
 
   const logoOpacity = useSharedValue(0);
   const logoScale = useSharedValue(0.8);
   const subtitleOpacity = useSharedValue(0);
   const subtitleTranslateY = useSharedValue(10);
 
-  const navigate = () => {
-    if (!isOnboarded) {
-      router.replace('/(onboarding)');
-    } else if (!isAuthenticated) {
-      router.replace('/(auth)');
-    } else {
-      router.replace('/(tabs)');
-    }
-  };
-
   useEffect(() => {
-    hydrate();
-
     logoOpacity.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
     logoScale.value = withTiming(1, { duration: 800, easing: Easing.out(Easing.cubic) });
 
@@ -50,11 +44,25 @@ export default function SplashScreen() {
       withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) }),
     );
 
-    const timer = setTimeout(() => {
-      navigate();
-    }, 2000);
+    let cancelled = false;
+    (async () => {
+      // Wait for storage hydration AND a minimum splash duration. Then render
+      // <Redirect> so expo-router handles the transition declaratively — using
+      // imperative router.replace from a useEffect on the root screen triggers
+      // a spurious GO_BACK dispatch warning.
+      const minDelay = new Promise((r) => setTimeout(r, 2000));
+      await Promise.all([hydrate(), minDelay]);
+      if (cancelled) return;
+      const { isOnboarded, isAuthenticated, user } = useAuthStore.getState();
+      if (!isOnboarded) setTarget('/(onboarding)');
+      else if (!isAuthenticated) setTarget('/(auth)');
+      else if (!user?.convention) setTarget('/(auth)/convention');
+      else setTarget('/(tabs)');
+    })();
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const logoAnimatedStyle = useAnimatedStyle(() => ({
@@ -66,6 +74,10 @@ export default function SplashScreen() {
     opacity: subtitleOpacity.value,
     transform: [{ translateY: subtitleTranslateY.value }],
   }));
+
+  if (target) {
+    return <Redirect href={target} />;
+  }
 
   return (
     <LinearGradient

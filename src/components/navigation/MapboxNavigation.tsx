@@ -1,7 +1,7 @@
-import React, { useCallback, useMemo } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { MapboxNavigationView } from '@badatgil/expo-mapbox-navigation';
 import { Icon } from '@/components/ui/Icon';
+import { Button } from '@/components/ui/Button';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
 
@@ -21,76 +21,25 @@ export type MapboxNavigationProps = {
   onReroute?: () => void;
 };
 
-/**
- * Real turn-by-turn navigation powered by Mapbox Navigation SDK v3.
- * Ships with lane guidance, speed-limit signs, junction views, traffic-aware
- * rerouting and French voice guidance — no custom UI to maintain.
- *
- * Requires tokens and a native rebuild; see README-MAPBOX.md.
- */
-export function MapboxNavigation({
-  origin,
-  destination,
-  voiceEnabled,
-  onArrived,
-  onCancel,
-  onProgress,
-  onOffRoute,
-  onReroute,
-}: MapboxNavigationProps) {
-  const hasToken = !!process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN;
-
-  const coordinates = useMemo(
-    () => [origin, destination],
-    [origin.latitude, origin.longitude, destination.latitude, destination.longitude],
-  );
-
-  const handleProgress = useCallback(
-    (event: any) => {
-      if (!onProgress) return;
-      const e = event?.nativeEvent ?? event;
-      onProgress({
-        distanceRemaining: e.distanceRemaining ?? 0,
-        distanceTraveled: e.distanceTraveled ?? 0,
-        durationRemaining: e.durationRemaining ?? 0,
-        fractionTraveled: e.fractionTraveled ?? 0,
-      });
-    },
-    [onProgress],
-  );
-
-  if (!hasToken) {
-    return (
-      <View style={styles.missingToken}>
-        <Icon name="alert-circle" size={44} color="#F59E0B" />
-        <Text style={styles.missingTitle}>Token Mapbox manquant</Text>
-        <Text style={styles.missingBody}>
-          Ajoutez EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN et MAPBOX_DOWNLOADS_TOKEN
-          dans un fichier .env.local puis relancez `npx expo prebuild --clean`
-          et `npx expo run:ios` (ou run:android).
-        </Text>
-      </View>
-    );
-  }
-
+export function MapboxNavigation({ onArrived, onCancel }: MapboxNavigationProps) {
   return (
-    <MapboxNavigationView
-      style={StyleSheet.absoluteFill}
-      coordinates={coordinates}
-      locale="fr"
-      mute={!voiceEnabled}
-      routeProfile="mapbox/driving-traffic"
-      onFinalDestinationArrival={onArrived}
-      onCancelNavigation={onCancel}
-      onUserOffRoute={onOffRoute}
-      onRouteChanged={onReroute}
-      onRouteProgressChanged={handleProgress}
-    />
+    <View style={styles.placeholder}>
+      <Icon name="navigate" size={56} color="#F59E0B" />
+      <Text style={styles.title}>Navigation temporairement indisponible</Text>
+      <Text style={styles.body}>
+        La navigation guidée sera réactivée prochainement. En attendant, utilisez votre
+        application de navigation préférée pour rejoindre la destination.
+      </Text>
+      <View style={styles.actions}>
+        <Button title="Je suis arrivé" onPress={onArrived} variant="gradient" />
+        <Button title="Retour" onPress={onCancel} variant="outline" />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  missingToken: {
+  placeholder: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -98,15 +47,20 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
     backgroundColor: '#1A1A1E',
   },
-  missingTitle: {
+  title: {
     ...Typography.h3,
     color: '#FFFFFF',
     textAlign: 'center',
   },
-  missingBody: {
+  body: {
     ...Typography.body,
     color: '#E5E7EB',
     textAlign: 'center',
     lineHeight: 22,
+  },
+  actions: {
+    marginTop: Spacing.xl,
+    gap: Spacing.md,
+    alignSelf: 'stretch',
   },
 });

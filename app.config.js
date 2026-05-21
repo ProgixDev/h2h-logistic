@@ -1,13 +1,3 @@
-// Dynamic Expo config. Reads Mapbox tokens from environment so they never
-// land in version control. Set in a local `.env` file (not committed) or in
-// EAS secrets. See README-MAPBOX.md for details.
-
-const MAPBOX_PUBLIC_TOKEN =
-  process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
-const MAPBOX_DOWNLOADS_TOKEN =
-  process.env.MAPBOX_DOWNLOADS_TOKEN ?? '';
-const MAPBOX_MAPS_VERSION = '11.11.0';
-
 module.exports = () => ({
   expo: {
     name: 'H2H Logistic',
@@ -59,28 +49,11 @@ module.exports = () => ({
           },
         },
       ],
-      'expo-image',
       'expo-secure-store',
-      'expo-font',
-      'expo-maps',
-      [
-        '@rnmapbox/maps',
-        {
-          RNMapboxMapsVersion: MAPBOX_MAPS_VERSION,
-        },
-      ],
-      [
-        '@badatgil/expo-mapbox-navigation',
-        {
-          accessToken: MAPBOX_PUBLIC_TOKEN,
-          mapboxMapsVersion: MAPBOX_MAPS_VERSION,
-        },
-      ],
       [
         'expo-build-properties',
         {
           ios: {
-            useFrameworks: 'static',
             deploymentTarget: '15.1',
           },
           android: {

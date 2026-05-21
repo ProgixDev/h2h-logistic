@@ -19,6 +19,7 @@ export interface TransporterProfile extends User {
   vehicleInfo?: string;
   documentsVerified: boolean;
   city?: string;
+  convention?: ConventionAcceptance;
 }
 
 export interface ProfileData {
@@ -27,4 +28,22 @@ export interface ProfileData {
   city: string;
   transportType: string;
   avatar?: string;
+}
+
+export interface ConventionAcceptance {
+  version: string;
+  representative: string;
+  iban: string;
+  wantsBankTransfer: boolean;
+  debitAuthorized: boolean;
+  signatureData: string;
+  acceptedAt: string;
+}
+
+export interface ConventionAcceptanceInput {
+  representative: string;
+  iban: string;
+  wantsBankTransfer: boolean;
+  debitAuthorized: boolean;
+  signatureData: string;
 }

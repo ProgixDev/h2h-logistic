@@ -137,7 +137,7 @@ export default function CompleteProfileScreen() {
       transportType: transportType || 'walking',
       avatar,
     });
-    router.replace('/(tabs)');
+    router.replace('/(auth)/convention');
   }, [firstName, lastName, city, transportType, avatar]);
 
   const handleSkip = useCallback(async () => {
@@ -147,7 +147,7 @@ export default function CompleteProfileScreen() {
       city: 'Non renseignée',
       transportType: 'walking',
     });
-    router.replace('/(tabs)');
+    router.replace('/(auth)/convention');
   }, []);
 
   return (
@@ -295,7 +295,7 @@ export default function CompleteProfileScreen() {
         style={[styles.actions, { paddingBottom: insets.bottom + Spacing.lg }]}
       >
         <Button
-          title="Commencer à transporter"
+          title="Continuer"
           onPress={handleSubmit}
           variant="gradient"
           disabled={!isValid}

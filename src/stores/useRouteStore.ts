@@ -14,7 +14,7 @@ interface RouteState {
   currentStep: number;
   isPublishing: boolean;
 
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
 
   // Routes CRUD
   addRoute: (route: PublishedRoute) => void;
@@ -43,7 +43,8 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   currentStep: 1,
   isPublishing: false,
 
-  hydrate: () => {
+  hydrate: async () => {
+    await storage.ready();
     const saved = getStoredJSON<PublishedRoute[]>(ROUTES_KEY);
     if (saved && saved.length > 0) set({ routes: saved });
   },

@@ -1,6 +1,12 @@
 import { create } from 'zustand';
-import type { TransporterProfile, ProfileData } from '@/types/user';
+import type {
+  TransporterProfile,
+  ProfileData,
+  ConventionAcceptance,
+  ConventionAcceptanceInput,
+} from '@/types/user';
 import { storage, StorageKeys, getStoredJSON, setStoredJSON } from '@/services/storage';
+import { CONVENTION_TRANSPORTEUR_VERSION } from '@/constants/ConventionTransporteur';
 
 type TransporterStatus = 'active' | 'offline';
 
@@ -15,11 +21,12 @@ interface AuthState {
   phoneNumber: string | null;
 
   // Actions
-  hydrate: () => void;
+  hydrate: () => Promise<void>;
   setOnboarded: (value: boolean) => void;
   sendOTP: (phone: string) => Promise<void>;
   verifyOTP: (code: string) => Promise<boolean>;
   completeProfile: (data: ProfileData) => Promise<void>;
+  saveConventionAcceptance: (input: ConventionAcceptanceInput) => Promise<void>;
   setTransporterStatus: (status: TransporterStatus) => void;
   toggleOnline: () => void;
   logout: () => void;
@@ -39,18 +46,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   transporterStatus: 'offline',
   phoneNumber: null,
 
-  hydrate: () => {
+  hydrate: async () => {
+    await storage.ready();
     const isOnboarded = storage.getBoolean(StorageKeys.IS_ONBOARDED) ?? false;
     const token = storage.getString(StorageKeys.AUTH_TOKEN) ?? null;
     const user = getStoredJSON<TransporterProfile>(StorageKeys.USER);
     const transporterStatus =
       (storage.getString(StorageKeys.TRANSPORTER_STATUS) as TransporterStatus) ?? 'offline';
+    const convention = getStoredJSON<ConventionAcceptance>(
+      StorageKeys.CONVENTION_ACCEPTANCE,
+    );
+
+    const hydratedUser = user && convention ? { ...user, convention } : user;
 
     set({
       isOnboarded,
       token,
-      user,
-      isAuthenticated: !!token && !!user,
+      user: hydratedUser,
+      isAuthenticated: !!token && !!hydratedUser,
       transporterStatus,
     });
   },
@@ -83,6 +96,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const mockToken = `mock_token_${Date.now()}`;
 
     if (isExisting) {
+      const stubConvention: ConventionAcceptance = {
+        version: CONVENTION_TRANSPORTEUR_VERSION,
+        representative: 'Achraf Arabi',
+        iban: 'FR7612345678901234567890123',
+        wantsBankTransfer: true,
+        debitAuthorized: true,
+        signatureData: 'M0,0 L1,1',
+        acceptedAt: '2026-01-15T10:00:00Z',
+      };
       const existingUser: TransporterProfile = {
         id: 'user-1',
         firstName: 'Achraf',
@@ -98,10 +120,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         favoriteHubs: ['hub-nice-gare', 'hub-cannes-gare'],
         documentsVerified: true,
         city: 'Nice',
+        convention: stubConvention,
       };
 
       storage.set(StorageKeys.AUTH_TOKEN, mockToken);
       setStoredJSON(StorageKeys.USER, existingUser);
+      setStoredJSON(StorageKeys.CONVENTION_ACCEPTANCE, stubConvention);
 
       set({
         isLoading: false,
@@ -155,6 +179,32 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     });
   },
 
+  saveConventionAcceptance: async (input) => {
+    set({ isLoading: true });
+    await delay(MOCK_DELAY);
+
+    const acceptance: ConventionAcceptance = {
+      version: CONVENTION_TRANSPORTEUR_VERSION,
+      representative: input.representative.trim(),
+      iban: input.iban.replace(/\s/g, '').toUpperCase(),
+      wantsBankTransfer: input.wantsBankTransfer,
+      debitAuthorized: input.debitAuthorized,
+      signatureData: input.signatureData,
+      acceptedAt: new Date().toISOString(),
+    };
+
+    setStoredJSON(StorageKeys.CONVENTION_ACCEPTANCE, acceptance);
+
+    const current = get().user;
+    if (current) {
+      const updated: TransporterProfile = { ...current, convention: acceptance };
+      setStoredJSON(StorageKeys.USER, updated);
+      set({ user: updated, isLoading: false });
+    } else {
+      set({ isLoading: false });
+    }
+  },
+
   setTransporterStatus: (status) => {
     storage.set(StorageKeys.TRANSPORTER_STATUS, status);
     set((state) => ({
@@ -174,6 +224,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     storage.remove(StorageKeys.USER);
     storage.remove(StorageKeys.TRANSPORTER_STATUS);
     storage.remove(StorageKeys.PHONE_NUMBER);
+    storage.remove(StorageKeys.CONVENTION_ACCEPTANCE);
     set({
       user: null,
       isAuthenticated: false,

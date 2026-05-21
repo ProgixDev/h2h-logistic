@@ -3,8 +3,26 @@ import { View, Text, TouchableOpacity, Pressable, ScrollView, Linking, StyleShee
 import { useFocusEffect, useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { Camera } from 'expo-camera';
-import * as Notifications from 'expo-notifications';
 import * as Location from 'expo-location';
+
+// Lazy reference — a static `import` of expo-notifications runs its
+// DevicePushTokenAutoRegistration side-effect at module load. Because
+// expo-router scans every file under src/app at startup to build the route
+// table, that side-effect fires on cold start (Expo Go SDK 53+ rejects push,
+// triggering a red LogBox overlay even when the user is on the splash).
+// Requiring lazily defers the load until this screen actually mounts.
+type NotificationsModule = typeof import('expo-notifications');
+let Notifications: NotificationsModule | null = null;
+function loadNotifications(): NotificationsModule | null {
+  if (Notifications) return Notifications;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    Notifications = require('expo-notifications');
+    return Notifications;
+  } catch {
+    return null;
+  }
+}
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
 import { Icon, type IconName } from '@/components/ui/Icon';
@@ -41,10 +59,11 @@ export default function SettingsScreen() {
   const [sheet, setSheet] = useState<PermissionKind | null>(null);
 
   const refreshAll = useCallback(async () => {
+    const notifModule = loadNotifications();
     const [p, c, n, l] = await Promise.all([
       ImagePicker.getMediaLibraryPermissionsAsync(),
       Camera.getCameraPermissionsAsync(),
-      Notifications.getPermissionsAsync(),
+      notifModule ? notifModule.getPermissionsAsync() : Promise.resolve({ status: 'undetermined' }),
       Location.getForegroundPermissionsAsync(),
     ]);
     setPhotos(normalize(p.status));
@@ -93,7 +112,12 @@ export default function SettingsScreen() {
         setSheet('notifications');
         return;
       }
-      const result = await Notifications.requestPermissionsAsync();
+      const notifModule = loadNotifications();
+      if (!notifModule) {
+        setSheet('notifications');
+        return;
+      }
+      const result = await notifModule.requestPermissionsAsync();
       const next = normalize(result.status);
       setNotifs(next);
       if (next !== 'granted') setSheet('notifications');

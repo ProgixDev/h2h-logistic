@@ -54,3 +54,4 @@ android/.cxx/
 android/.kotlin/
 android/local.properties
 android/app/release/
+android/keystore.properties

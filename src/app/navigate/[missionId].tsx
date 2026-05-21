@@ -4,13 +4,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import Animated, { FadeIn } from 'react-native-reanimated';
-import { Image } from 'expo-image';
 import { Icon } from '@/components/ui/Icon';
 import { MapboxNavigation } from '@/components/navigation/MapboxNavigation';
 import { RouteOverview } from '@/components/navigation/RouteOverview';
 import { Button } from '@/components/ui/Button';
 
-const MAPBOX_PUBLIC_TOKEN = process.env.EXPO_PUBLIC_MAPBOX_ACCESS_TOKEN ?? '';
 import { getRoute, type RouteResult } from '@/services/routing';
 import { isVoiceEnabled, setVoiceEnabled } from '@/services/voiceGuidance';
 import { useMissionStore } from '@/stores/useMissionStore';
@@ -344,90 +342,15 @@ function getDemoRoute(): RouteResult {
   return { distance: 28000, duration: 1350, geometry, steps };
 }
 
-// ─── Map preview via Mapbox Static Images API ──
-// Pure HTTP — no native module. Renders a single image with the route
-// polyline and origin/destination pins. Falls back to a plain card when
-// the public access token is missing.
-function encodePolyline(coords: [number, number][]): string {
-  let lastLat = 0;
-  let lastLng = 0;
-  let out = '';
-  const encodeNumber = (n: number): string => {
-    n = n < 0 ? ~(n << 1) : n << 1;
-    let chunk = '';
-    while (n >= 0x20) {
-      chunk += String.fromCharCode((0x20 | (n & 0x1f)) + 63);
-      n >>= 5;
-    }
-    chunk += String.fromCharCode(n + 63);
-    return chunk;
-  };
-  for (const [lng, lat] of coords) {
-    const lat5 = Math.round(lat * 1e5);
-    const lng5 = Math.round(lng * 1e5);
-    out += encodeNumber(lat5 - lastLat);
-    out += encodeNumber(lng5 - lastLng);
-    lastLat = lat5;
-    lastLng = lng5;
-  }
-  return out;
-}
-
-function MapPreview({
-  routeGeometry,
-  userLocation,
-  destinationCoords,
-  isDark,
-}: {
+function MapPreview({ isDark }: {
   routeGeometry: [number, number][];
   userLocation: { latitude: number; longitude: number } | null;
   destinationCoords: { lat: number; lng: number } | null;
   isDark: boolean;
 }) {
-  const [failed, setFailed] = useState(false);
-
-  if (!MAPBOX_PUBLIC_TOKEN || failed) {
-    return (
-      <View style={[s.previewFallback, { backgroundColor: isDark ? '#1A1A1E' : '#F3F4F6' }]}>
-        <Icon name="map-overview" size={32} color={isDark ? '#6B7280' : '#9CA3AF'} />
-      </View>
-    );
-  }
-
-  // Downsample geometry so the URL stays short (URL length cap ~8KB).
-  const target = 60;
-  const step = Math.max(1, Math.floor(routeGeometry.length / target));
-  const sampled: [number, number][] = [];
-  for (let i = 0; i < routeGeometry.length; i += step) sampled.push(routeGeometry[i]);
-  const last = routeGeometry[routeGeometry.length - 1];
-  if (last && sampled[sampled.length - 1] !== last) sampled.push(last);
-
-  const encoded = encodePolyline(sampled);
-  const style = isDark ? 'dark-v11' : 'streets-v12';
-  const pathLayer = `path-5+14248A-0.9(${encodeURIComponent(encoded)})`;
-  const pins: string[] = [];
-  if (userLocation) {
-    pins.push(`pin-s+14248A(${userLocation.longitude},${userLocation.latitude})`);
-  }
-  if (destinationCoords) {
-    pins.push(`pin-s+10B981(${destinationCoords.lng},${destinationCoords.lat})`);
-  }
-  const overlay = [pathLayer, ...pins].join(',');
-  const url =
-    `https://api.mapbox.com/styles/v1/mapbox/${style}/static/${overlay}` +
-    `/auto/600x400@2x?padding=40&access_token=${MAPBOX_PUBLIC_TOKEN}`;
-
   return (
     <View style={[s.previewFallback, { backgroundColor: isDark ? '#1A1A1E' : '#F3F4F6' }]}>
-      <Image
-        source={{ uri: url }}
-        style={{ flex: 1, alignSelf: 'stretch' }}
-        contentFit="cover"
-        onError={(e) => {
-          console.warn('[MapPreview] Mapbox Static image failed:', url, e);
-          setFailed(true);
-        }}
-      />
+      <Icon name="map-overview" size={32} color={isDark ? '#6B7280' : '#9CA3AF'} />
     </View>
   );
 }
