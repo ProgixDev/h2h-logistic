@@ -66,8 +66,10 @@ const ICON_MAP = {
   // ─── Transport ───
   'walk': { set: 'mat', name: 'walk' },
   'bike': { set: 'mat', name: 'bicycle' },
-  'scooter': { set: 'mat', name: 'motorbike' },
+  'scooter': { set: 'mat', name: 'moped' },
+  'moto': { set: 'mat', name: 'motorbike' },
   'car': { set: 'ion', name: 'car-outline' },
+  'utilitaire': { set: 'mat', name: 'van-utility' },
   'bus': { set: 'ion', name: 'bus-outline' },
   'train': { set: 'mat', name: 'train' },
 

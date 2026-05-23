@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Switch, TextInput, StyleSheet, Alert, Image } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -118,7 +118,7 @@ export default function EditRouteScreen() {
                   { backgroundColor: selected ? colors.primary + '10' : colors.surface, borderColor: selected ? colors.primary : colors.border },
                   selected && { borderWidth: 2 },
                 ]}>
-                  <Icon name={t.iconName} size={24} color={selected ? colors.primary : colors.text} />
+                  <Image source={t.image} style={s.gridImage} resizeMode="contain" />
                   <Text style={[s.gridLabel, { color: selected ? colors.primary : colors.text }]}>{t.label}</Text>
                 </View>
               </TouchableOpacity>
@@ -233,7 +233,7 @@ const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   gridItem: { width: '31%' },
   gridCard: { alignItems: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1.5, gap: Spacing.xs },
-  gridIcon: { fontSize: 24 },
+  gridImage: { width: 36, height: 36 },
   gridLabel: { ...Typography.caption },
 
   // Capacity

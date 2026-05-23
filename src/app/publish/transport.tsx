@@ -1,12 +1,11 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Header } from '@/components/layout/Header';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { Button } from '@/components/ui/Button';
-import { Icon } from '@/components/ui/Icon';
 import { TRANSPORT_TYPES, type TransportTypeId } from '@/constants/TransportTypes';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
@@ -58,7 +57,7 @@ export default function PublishTransportScreen() {
                   { backgroundColor: selected ? colors.primary + '10' : colors.surface, borderColor: selected ? colors.primary : colors.border },
                   selected && { borderWidth: 2 },
                 ]}>
-                  <Icon name={t.iconName} size={28} color={selected ? colors.primary : colors.text} />
+                  <Image source={t.image} style={styles.image} resizeMode="contain" />
                   <Text style={[styles.label, { color: selected ? colors.primary : colors.text }]}>{t.label}</Text>
                 </View>
               </TouchableOpacity>
@@ -85,8 +84,8 @@ const styles = StyleSheet.create({
   subtitle: { ...Typography.body, marginTop: -Spacing.lg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.md },
   gridItem: { width: '47%' },
-  card: { alignItems: 'center', justifyContent: 'center', height: 80, borderRadius: BorderRadius.lg, borderWidth: 1.5, gap: Spacing.xs },
-  icon: { fontSize: 28 },
+  card: { alignItems: 'center', justifyContent: 'center', height: 96, borderRadius: BorderRadius.lg, borderWidth: 1.5, gap: Spacing.xs },
+  image: { width: 40, height: 40 },
   label: { ...Typography.captionMedium },
   info: { ...Typography.caption, textAlign: 'center', lineHeight: 18 },
   footer: { paddingHorizontal: Spacing.xxl },

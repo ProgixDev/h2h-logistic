@@ -11,7 +11,9 @@ const ACTUAL_G_PER_KM: Record<TransportTypeId, number> = {
   walking: 0,
   bike: 0,
   scooter: 70,
+  moto: 110,
   car: 90,
+  utilitaire: 180,
   bus: 30,
   train: 15,
 };
