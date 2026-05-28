@@ -39,19 +39,6 @@ yarn-error.*
 app-example
 
 # native build artifacts (track ios/ and android/ sources, ignore generated outputs)
-ios/Pods/
-ios/build/
-ios/DerivedData/
-ios/.xcode.env.local
-ios/*.xcworkspace/xcuserdata/
-ios/*.xcodeproj/xcuserdata/
-ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/
 
-android/build/
-android/app/build/
-android/.gradle/
-android/.cxx/
-android/.kotlin/
-android/local.properties
-android/app/release/
-android/keystore.properties
+android/
