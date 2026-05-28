@@ -141,7 +141,7 @@ export default function EditRouteScreen() {
               </TouchableOpacity>
               <Text style={[s.stepperValue, { color: colors.primary }]}>{maxPackages}</Text>
               <TouchableOpacity
-                onPress={() => maxPackages < 10 && setMaxPackages(maxPackages + 1)}
+                onPress={() => maxPackages < 3 && setMaxPackages(maxPackages + 1)}
                 style={[s.stepperBtn, { borderColor: colors.border }]}
               >
                 <Text style={[s.stepperIcon, { color: colors.text }]}>+</Text>

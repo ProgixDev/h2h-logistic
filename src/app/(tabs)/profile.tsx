@@ -40,7 +40,7 @@ export default function ProfileScreen() {
             </Text>
           </View>
           <Text style={[styles.name, { color: colors.text }]}>
-            {user?.firstName ?? 'Transporteur'} {user?.lastName ?? ''}
+            {user?.firstName ?? 'Cotransporteur particulier'} {user?.lastName ?? ''}
           </Text>
           <Text style={[styles.stats, { color: colors.textSecondary }]}>
             {user?.totalDeliveries ?? 0} livraisons — {user?.rating?.toFixed(1) ?? '4.8'}/5

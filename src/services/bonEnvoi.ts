@@ -240,12 +240,12 @@ export async function generateBonEnvoiHtml(mission: Mission): Promise<string> {
     </div>
 
     <div class="section">
-      <h3>Transporteur assigné</h3>
+      <h3>Cotransporteur particulier assigné</h3>
       <div class="row"><span class="label">Nom</span><span class="value">${esc(mission.transporter.name)}</span></div>
     </div>
 
     <div class="instructions">
-      Collez ce bon sur le colis. Le transporteur scannera le QR code au moment de la prise en charge.
+      Collez ce bon sur le colis. Le cotransporteur particulier scannera le QR code au moment de la prise en charge.
     </div>
 
     <div class="footer">
@@ -293,8 +293,8 @@ export function plainTextSummary(mission: Mission): string {
     `Colis : ${mission.package.description}`,
     `Taille ${mission.package.size} — ${mission.package.weight.toFixed(1)} kg`,
     '',
-    `Transporteur : ${mission.transporter.name}`,
+    `Cotransporteur particulier : ${mission.transporter.name}`,
     '',
-    'Collez ce bon sur le colis. Le transporteur scannera le QR au moment de la prise en charge.',
+    'Collez ce bon sur le colis. Le cotransporteur particulier scannera le QR au moment de la prise en charge.',
   ].join('\n');
 }

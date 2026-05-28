@@ -142,7 +142,7 @@ export default function CompleteProfileScreen() {
 
   const handleSkip = useCallback(async () => {
     await completeProfile({
-      firstName: 'Transporteur',
+      firstName: 'Cotransporteur particulier',
       lastName: '',
       city: 'Non renseignée',
       transportType: 'walking',

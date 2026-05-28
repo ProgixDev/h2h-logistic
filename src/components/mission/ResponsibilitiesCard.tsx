@@ -44,7 +44,7 @@ const ITEMS: Responsibility[] = [
     iconName: 'lock',
     title: 'Votre QR code est personnel',
     helper:
-      "Ne partagez jamais votre QR code transporteur avec un tiers. Il sert uniquement à vous identifier auprès du vendeur et de l'acheteur.",
+      "Ne partagez jamais votre QR code cotransporteur particulier avec un tiers. Il sert uniquement à vous identifier auprès du vendeur et de l'acheteur.",
   },
 ];
 

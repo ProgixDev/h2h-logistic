@@ -61,7 +61,7 @@ export default function IncidentsProtocolScreen() {
           <View style={styles.legendList}>
             <LegendRow
               dotColor={colors.error}
-              label="Faute imputée au transporteur"
+              label="Faute imputée au cotransporteur particulier"
             />
             <LegendRow
               dotColor={colors.warningDark}
@@ -73,7 +73,7 @@ export default function IncidentsProtocolScreen() {
             />
             <LegendRow
               dotColor={colors.success}
-              label="Effet positif (acheteur, vendeur, transporteur)"
+              label="Effet positif (acheteur, vendeur, cotransporteur particulier)"
             />
           </View>
         </Card>

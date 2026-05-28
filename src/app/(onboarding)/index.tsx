@@ -47,7 +47,7 @@ const SLIDES: Slide[] = [
     image: require('@/assets/images/3d-emojis/Shield.png'),
     title: 'Construisez votre réputation',
     subtitle:
-      'Évaluations, clients fidèles, transporteurs favoris. Plus vous livrez, plus vous êtes sollicité.',
+      'Évaluations, clients fidèles, cotransporteurs particuliers favoris. Plus vous livrez, plus vous êtes sollicité.',
   },
 ];
 

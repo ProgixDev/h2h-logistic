@@ -24,7 +24,7 @@ export const fr = {
   },
   auth: {
     welcome: 'Bienvenue sur H2H Logistic',
-    subtitle: "L'app dédiée aux transporteurs Hand to Hand",
+    subtitle: "L'app dédiée aux cotransporteurs particuliers Hand to Hand",
     phoneTitle: 'Votre numéro de téléphone',
     phonePlaceholder: '+33 6 12 34 56 78',
     sendCode: 'Envoyer le code',
@@ -114,7 +114,7 @@ export const fr = {
     participants: 'Participants',
     seller: 'Vendeur',
     buyer: 'Acheteur',
-    transporter: 'Transporteur',
+    transporter: 'Cotransporteur particulier',
     timeline: 'Chronologie',
   },
   earnings: {

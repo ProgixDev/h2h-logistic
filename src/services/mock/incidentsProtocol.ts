@@ -41,7 +41,7 @@ export interface IncidentPrinciple {
 }
 
 export const RESPONSIBILITY_LABEL: Record<ResponsibleParty, string> = {
-  transporter: 'Transporteur',
+  transporter: 'Cotransporteur particulier',
   relay: 'Relais',
   shared: 'Partagée',
 };
@@ -51,25 +51,25 @@ export const INCIDENT_SCENARIOS: IncidentScenario[] = [
     id: 'transporter_disappearance',
     number: 1,
     iconName: 'alert-circle',
-    title: 'Échec première livraison + disparition transporteur',
+    title: 'Échec première livraison + disparition cotransporteur particulier',
     situation: [
       'Acheteur absent au point de livraison.',
-      "Aucun relais choisi par le transporteur dans les 12 h.",
+      "Aucun relais choisi par le cotransporteur particulier dans les 12 h.",
       'Aucun dépôt relais tenté.',
-      'Disparition transporteur ou colis introuvable.',
+      'Disparition cotransporteur particulier ou colis introuvable.',
     ],
     consequence:
-      'Le transporteur est présumé responsable de la disparition du colis.',
+      'Le cotransporteur particulier est présumé responsable de la disparition du colis.',
     responsible: 'transporter',
     effects: [
       { severity: 'positive', label: 'Remboursement intégral de l’acheteur.' },
-      { severity: 'critical', label: 'Valeur du produit imputée au transporteur.' },
+      { severity: 'critical', label: 'Valeur du produit imputée au cotransporteur particulier.' },
       { severity: 'info', label: 'Aucun retour expéditeur requis.' },
       {
         severity: 'critical',
-        label: 'Suspension immédiate du compte transporteur pour faute grave.',
+        label: 'Suspension immédiate du compte cotransporteur particulier pour faute grave.',
       },
-      { severity: 'warning', label: 'Blocage des paiements transporteur.' },
+      { severity: 'warning', label: 'Blocage des paiements cotransporteur particulier.' },
       { severity: 'info', label: 'Revue sécurité possible.' },
     ],
   },
@@ -80,7 +80,7 @@ export const INCIDENT_SCENARIOS: IncidentScenario[] = [
     title: 'Échec livraison + relais indisponible',
     situation: [
       'Acheteur absent au point de livraison.',
-      'Transporteur sélectionne un relais.',
+      'Cotransporteur particulier sélectionne un relais.',
       'Relais affiché comme disponible.',
       'Relais fermé, absent ou refuse sans motif légitime.',
     ],
@@ -88,26 +88,26 @@ export const INCIDENT_SCENARIOS: IncidentScenario[] = [
     responsible: 'relay',
     effects: [
       { severity: 'warning', label: 'Retour expéditeur obligatoire sous 48 h.' },
-      { severity: 'info', label: 'Retour effectué par le transporteur.' },
+      { severity: 'info', label: 'Retour effectué par le cotransporteur particulier.' },
       { severity: 'critical', label: 'Remboursement acheteur imputé au relais.' },
       {
         severity: 'positive',
-        label: 'Compensation dépôt locker versée au transporteur.',
+        label: 'Compensation dépôt locker versée au cotransporteur particulier.',
       },
       { severity: 'warning', label: 'Avertissement relais.' },
       { severity: 'critical', label: 'Suspension après 2 avertissements.' },
     ],
     subCase: {
-      title: 'Si le transporteur échoue également le retour',
+      title: 'Si le cotransporteur particulier échoue également le retour',
       description:
-        'Lorsque le transporteur n’assure pas le retour expéditeur dans les 48 h, la responsabilité devient partagée entre le relais et le transporteur.',
+        'Lorsque le cotransporteur particulier n’assure pas le retour expéditeur dans les 48 h, la responsabilité devient partagée entre le relais et le cotransporteur particulier.',
       effects: [
         {
           severity: 'critical',
-          label: 'Remboursement acheteur partagé entre relais et transporteur.',
+          label: 'Remboursement acheteur partagé entre relais et cotransporteur particulier.',
         },
         { severity: 'critical', label: 'Suspension relais.' },
-        { severity: 'critical', label: 'Suspension transporteur.' },
+        { severity: 'critical', label: 'Suspension cotransporteur particulier.' },
       ],
     },
   },

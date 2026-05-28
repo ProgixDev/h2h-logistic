@@ -52,7 +52,7 @@ const SECTIONS: Section[] = [
     iconName: 'lock',
     title: 'Votre QR code est personnel',
     body: [
-      "Votre QR code transporteur vous identifie auprès du vendeur et de l'acheteur.",
+      "Votre QR code cotransporteur particulier vous identifie auprès du vendeur et de l'acheteur.",
       "Ne le partagez jamais avec un tiers, même dans l'entourage. En cas de soupçon, ouvrez les paramètres et régénérez-le.",
     ],
   },

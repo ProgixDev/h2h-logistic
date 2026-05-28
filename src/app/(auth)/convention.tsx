@@ -130,7 +130,7 @@ export default function ConventionScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-        <Header title="Convention transporteur" />
+        <Header title="Convention cotransporteur particulier" />
       </View>
 
       <ScrollView
