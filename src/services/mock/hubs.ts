@@ -49,7 +49,10 @@ export const mockHubs: Hub[] = [
 ];
 
 export function getHubsByCity(city: string): Hub[] {
-  return mockHubs.filter((h) => h.city.toLowerCase() === city.toLowerCase());
+  // Exclude e-commerce partner shops — out of scope for C2C cotransportage.
+  return mockHubs.filter(
+    (h) => h.city.toLowerCase() === city.toLowerCase() && h.type !== 'partner_shop',
+  );
 }
 
 import type { IconName } from '@/components/ui/Icon';

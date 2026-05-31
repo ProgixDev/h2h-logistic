@@ -27,6 +27,8 @@ interface AuthState {
   verifyOTP: (code: string) => Promise<boolean>;
   completeProfile: (data: ProfileData) => Promise<void>;
   saveConventionAcceptance: (input: ConventionAcceptanceInput) => Promise<void>;
+  saveIban: (iban: string) => Promise<void>;
+  validateAccount: () => Promise<void>;
   setTransporterStatus: (status: TransporterStatus) => void;
   toggleOnline: () => void;
   logout: () => void;
@@ -205,6 +207,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
+  // Bank details — collected on a dedicated screen after the convention.
+  saveIban: async (iban) => {
+    set({ isLoading: true });
+    await delay(MOCK_DELAY);
+    const current = get().user;
+    const cleanIban = iban.replace(/\s/g, '').toUpperCase();
+    if (current?.convention) {
+      const convention: ConventionAcceptance = {
+        ...current.convention,
+        iban: cleanIban,
+        wantsBankTransfer: true,
+      };
+      const updated: TransporterProfile = { ...current, convention };
+      setStoredJSON(StorageKeys.USER, updated);
+      setStoredJSON(StorageKeys.CONVENTION_ACCEPTANCE, convention);
+      set({ user: updated, isLoading: false });
+    } else {
+      set({ isLoading: false });
+    }
+  },
+
+  // Platform review — no real backend, so the pending screen calls this to
+  // approve the account (auto after a short delay in the demo).
+  validateAccount: async () => {
+    const current = get().user;
+    if (!current) return;
+    const updated: TransporterProfile = { ...current, documentsVerified: true };
+    setStoredJSON(StorageKeys.USER, updated);
+    set({ user: updated });
+  },
+
   setTransporterStatus: (status) => {
     storage.set(StorageKeys.TRANSPORTER_STATUS, status);
     set((state) => ({
@@ -225,9 +258,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     storage.remove(StorageKeys.TRANSPORTER_STATUS);
     storage.remove(StorageKeys.PHONE_NUMBER);
     storage.remove(StorageKeys.CONVENTION_ACCEPTANCE);
+    // Full restart: also reset onboarding so the intro is shown again.
+    storage.remove(StorageKeys.IS_ONBOARDED);
     set({
       user: null,
       isAuthenticated: false,
+      isOnboarded: false,
       token: null,
       isNewUser: true,
       transporterStatus: 'offline',

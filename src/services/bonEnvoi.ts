@@ -64,7 +64,7 @@ export async function generateBonEnvoiHtml(mission: Mission): Promise<string> {
   <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <title>Bon d'envoi ${esc(code)}</title>
+    <title>Fiche colis ${esc(code)}</title>
     <style>
       @page { size: A5 portrait; margin: 12mm; }
       * { box-sizing: border-box; }
@@ -199,7 +199,7 @@ export async function generateBonEnvoiHtml(mission: Mission): Promise<string> {
     <div class="code-block">
       <div>
         <div class="code">${esc(code)}</div>
-        <div class="code-sub">Référence livraison — Numéro de colis&nbsp;: ${esc(trackingCode)}</div>
+        <div class="code-sub">Référence co-livraison — Numéro de colis&nbsp;: ${esc(trackingCode)}</div>
       </div>
       <div class="qr">
         ${qr ? `<img src="${qr}" alt="QR code colis" />` : `<div style="font-size:10px;color:#6B7280;">QR indisponible</div>`}
@@ -236,7 +236,7 @@ export async function generateBonEnvoiHtml(mission: Mission): Promise<string> {
       <div class="row"><span class="label">Prise en charge</span><span class="value">${formatDateTime(mission.pickupHub.scheduledTime)}</span></div>
       <div class="row"><span class="label">Hub collecte</span><span class="value">${pickupAddress}</span></div>
       <div class="row"><span class="label">Remise prévue</span><span class="value">${formatDateTime(mission.deliveryHub.scheduledTime)}</span></div>
-      <div class="row"><span class="label">Hub livraison</span><span class="value">${deliveryAddress}</span></div>
+      <div class="row"><span class="label">Hub co-livraison</span><span class="value">${deliveryAddress}</span></div>
     </div>
 
     <div class="section">
@@ -249,7 +249,7 @@ export async function generateBonEnvoiHtml(mission: Mission): Promise<string> {
     </div>
 
     <div class="footer">
-      <span>Hand to Hand Logistic · Bon d'envoi</span>
+      <span>Hand to Hand Logistic · Fiche colis</span>
       <span>Généré le ${esc(generatedAt)}</span>
     </div>
   </body>
@@ -263,7 +263,7 @@ export async function generateAndSharePdf(mission: Mission): Promise<void> {
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(uri, {
       mimeType: 'application/pdf',
-      dialogTitle: "Bon d'envoi",
+      dialogTitle: "Fiche colis",
       UTI: 'com.adobe.pdf',
     });
   }
@@ -287,7 +287,7 @@ export function plainTextSummary(mission: Mission): string {
     `Prise en charge : ${formatDateTime(mission.pickupHub.scheduledTime)}`,
     '',
     `Acheteur : ${mission.buyer.name}`,
-    `Hub livraison : ${mission.deliveryHub.name} (${mission.deliveryHub.city})`,
+    `Hub co-livraison : ${mission.deliveryHub.name} (${mission.deliveryHub.city})`,
     `Remise prévue : ${formatDateTime(mission.deliveryHub.scheduledTime)}`,
     '',
     `Colis : ${mission.package.description}`,

@@ -33,7 +33,7 @@ export default function PublishTypeScreen() {
   };
 
   const options: { type: RouteType; iconName: IconName; title: string; sub: string; hint: string }[] = [
-    { type: 'recurring', iconName: 'repeat', title: 'Trajet récurrent', sub: 'Domicile-travail, études, déplacement habituel', hint: 'Idéal pour des revenus réguliers' },
+    { type: 'recurring', iconName: 'repeat', title: 'Trajet récurrent', sub: 'Domicile-travail, études, déplacement habituel', hint: 'Idéal pour proposer un trajet habituel' },
     { type: 'one_time', iconName: 'location-filled', title: 'Trajet ponctuel', sub: 'Voyage, déplacement exceptionnel ou unique', hint: 'Parfait pour un trajet occasionnel' },
   ];
 
@@ -41,7 +41,7 @@ export default function PublishTypeScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={1} total={9} label={STEP_LABELS[0]} />
+        <ProgressSteps current={1} total={8} label={STEP_LABELS[0]} />
       </View>
 
       <View style={styles.content}>

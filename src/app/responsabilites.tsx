@@ -20,7 +20,7 @@ const SECTIONS: Section[] = [
     iconName: 'battery',
     title: 'Batterie téléphone',
     body: [
-      "Votre téléphone est votre outil principal : scan QR, chat, navigation, code de remise. Sans batterie, la livraison est bloquée.",
+      "Votre téléphone est votre outil principal : scan QR, chat, navigation, code de remise. Sans batterie, la co-livraison est bloquée.",
       "Nous vous conseillons d'arriver au hub avec au moins 50% de batterie. Une batterie externe est un bon compagnon sur les longs trajets.",
     ],
   },
@@ -67,7 +67,7 @@ export default function ResponsabilitesScreen() {
       <Header title="Vos responsabilités" showBack />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.intro, { color: colors.textSecondary }]}>
-          Quelques repères pour des livraisons sereines. Rien ici n'est une sanction — juste des
+          Quelques repères pour des co-livraisons sereines. Rien ici n'est une sanction — juste des
           habitudes qui rendent l'expérience meilleure pour tout le monde.
         </Text>
         {SECTIONS.map((section, idx) => (
@@ -109,7 +109,7 @@ export default function ResponsabilitesScreen() {
               Protocole incidents
             </Text>
             <Text style={[styles.protocolCtaHint, { color: colors.textSecondary }]}>
-              Règles, délais et sanctions en cas d’échec de livraison ou de relais indisponible.
+              Règles, délais et sanctions en cas d’échec de co-livraison ou de relais indisponible.
             </Text>
           </View>
           <Icon name="chevron-right" size={18} color={colors.textSecondary} />

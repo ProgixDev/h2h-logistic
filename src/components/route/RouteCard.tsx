@@ -6,6 +6,7 @@ import type { PublishedRoute } from '@/types/route';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
+import { LiveDot } from '@/components/ui/LiveDot';
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -57,7 +58,7 @@ export function RouteCard({ route }: RouteCardProps) {
           text: isActive ? 'Mettre hors ligne' : 'Activer',
           onPress: () => {
             if (hasMission && isActive) {
-              Alert.alert('Livraison en cours', 'Ce trajet a une livraison active. Il restera visible jusqu\'à la fin de la livraison.');
+              Alert.alert('Co-livraison en cours', 'Ce trajet a une co-livraison active. Il restera visible jusqu\'à la fin de la co-livraison.');
             }
             toggleRouteStatus(route.id);
           },
@@ -67,7 +68,7 @@ export function RouteCard({ route }: RouteCardProps) {
           style: 'destructive',
           onPress: () => {
             if (hasMission) {
-              Alert.alert('Impossible', 'Ce trajet a une livraison en cours. Terminez la livraison avant de supprimer.');
+              Alert.alert('Impossible', 'Ce trajet a une co-livraison en cours. Terminez la co-livraison avant de supprimer.');
               return;
             }
             Alert.alert('Supprimer ce trajet ?', 'Cette action est irréversible.', [
@@ -91,7 +92,7 @@ export function RouteCard({ route }: RouteCardProps) {
         {/* Status + route */}
         <View style={styles.topRow}>
           <View style={styles.routeRow}>
-            <View style={[styles.statusDot, { backgroundColor: isActive ? colors.online : colors.offline }]} />
+            <LiveDot pulsing={isActive} size={8} color={isActive ? colors.online : colors.offline} />
             <Text style={[styles.cities, { color: colors.text }]}>
               {route.departureCity} → {route.arrivalCity}
             </Text>
@@ -119,12 +120,12 @@ export function RouteCard({ route }: RouteCardProps) {
         {/* Capacity + Missions */}
         <View style={styles.bottomRow}>
           <Text style={[styles.capacity, { color: colors.textSecondary }]}>
-            {route.maxPackages} colis, taille {route.maxSize} max
+            Capacité déclarée : {route.maxPackages} colis, taille {route.maxSize} max
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name="package" size={14} color={colors.primary} />
             <Text style={[styles.missions, { color: colors.primary }]}>
-              {route.missionsCount} livraisons
+              {route.missionsCount} co-livraisons
             </Text>
           </View>
         </View>
@@ -135,7 +136,7 @@ export function RouteCard({ route }: RouteCardProps) {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <Icon name="alert-circle" size={14} color={colors.warning} />
               <Text style={[styles.missionBannerText, { color: colors.warning }]}>
-                Livraison en cours
+                Co-livraison en cours
               </Text>
             </View>
           </View>
@@ -148,7 +149,6 @@ export function RouteCard({ route }: RouteCardProps) {
 const styles = StyleSheet.create({
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   routeRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
   cities: { ...Typography.h3 },
   hubs: { ...Typography.caption, lineHeight: 18, flex: 1 },
   metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   transportLabel: { ...Typography.caption },
   schedule: { ...Typography.caption },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  capacity: { ...Typography.caption },
+  capacity: { ...Typography.caption, flexShrink: 1, paddingRight: Spacing.sm },
   missions: { ...Typography.captionMedium },
   missionBanner: { marginTop: Spacing.sm, paddingVertical: Spacing.xs, paddingHorizontal: Spacing.sm, borderRadius: BorderRadius.sm, alignSelf: 'flex-start' },
   missionBannerText: { ...Typography.caption, fontWeight: '600' },

@@ -32,10 +32,16 @@ interface Slide {
 
 const SLIDES: Slide[] = [
   {
+    image: require('@/assets/images/3d-emojis/Handshake.png'),
+    title: 'Le cotransportage entre particuliers',
+    subtitle:
+      'H2H Logistic permet aux cotransporteurs de proposer leurs trajets déjà prévus et d\'accepter uniquement les missions compatibles, en contrepartie d\'une participation aux frais.',
+  },
+  {
     image: require('@/assets/images/3d-emojis/Scooter.png'),
     title: 'Publiez vos trajets existants',
     subtitle:
-      'Vous vous déplacez déjà ? Transformez vos trajets quotidiens en revenus complémentaires.',
+      'Vous vous déplacez déjà ? Proposez vos trajets quotidiens et partagez vos frais de route.',
   },
   {
     image: require('@/assets/images/3d-emojis/Package-box.png'),

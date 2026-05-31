@@ -224,6 +224,17 @@ export default function SettingsScreen() {
             Vos appels se font directement dans l'application. Vos numéros de téléphone ne sont jamais partagés avec les autres utilisateurs.
           </Text>
         </View>
+
+        {/* À propos */}
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>À propos</Text>
+        </View>
+        <View style={[styles.note, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '20' }]}>
+          <Icon name="info" size={18} color={colors.primary} />
+          <Text style={[styles.noteText, { color: colors.textSecondary }]}>
+            Application de cotransportage de colis entre particuliers sur trajets déjà prévus.
+          </Text>
+        </View>
       </ScrollView>
 
       {sheet && (

@@ -33,7 +33,7 @@ export function formatCo2(kg: number): string {
     const grams = Math.round(kg * 1000);
     return `${grams} g CO₂`;
   }
-  return `${kg.toFixed(kg < 10 ? 1 : 0)} kg CO₂`;
+  return `${kg.toFixed(kg < 10 ? 1 : 0).replace('.', ',')} kg CO₂`;
 }
 
 /**

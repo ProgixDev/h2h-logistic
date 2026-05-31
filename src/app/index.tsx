@@ -20,6 +20,8 @@ type Target =
   | '/(onboarding)'
   | '/(auth)'
   | '/(auth)/convention'
+  | '/(auth)/iban'
+  | '/(auth)/pending-validation'
   | '/(tabs)';
 
 export default function SplashScreen() {
@@ -57,6 +59,8 @@ export default function SplashScreen() {
       if (!isOnboarded) setTarget('/(onboarding)');
       else if (!isAuthenticated) setTarget('/(auth)');
       else if (!user?.convention) setTarget('/(auth)/convention');
+      else if (!user.convention.iban) setTarget('/(auth)/iban');
+      else if (!user.documentsVerified) setTarget('/(auth)/pending-validation');
       else setTarget('/(tabs)');
     })();
 
@@ -76,7 +80,7 @@ export default function SplashScreen() {
   }));
 
   if (target) {
-    return <Redirect href={target} />;
+    return <Redirect href={target as never} />;
   }
 
   return (

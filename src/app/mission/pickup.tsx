@@ -52,7 +52,7 @@ export default function PickupScreen() {
         <View style={{ paddingHorizontal: Spacing.lg }}>
           <Header title="Récupération" showBack />
         </View>
-        <Text style={[s.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
+        <Text style={[s.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
       </View>
     );
   }
@@ -106,7 +106,7 @@ export default function PickupScreen() {
         setLocked(true);
         showToast("Merci de contacter le support via le chat.", 'error');
       } else {
-        showToast("Ce colis ne correspond pas à la livraison. Pouvez-vous vérifier avec le vendeur ?", 'error');
+        showToast("Ce colis ne correspond pas à la co-livraison. Pouvez-vous vérifier avec le vendeur ?", 'error');
         resetScanner();
       }
     }
@@ -246,7 +246,7 @@ export default function PickupScreen() {
             <Icon name="chat" size={56} color={colors.primary} />
             <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d'aide ?</Text>
             <Text style={[s.lockedSub, { color: colors.textSecondary }]}>
-              Merci de contacter le support via le chat. Nous allons vous aider à résoudre cette livraison.
+              Merci de contacter le support via le chat. Nous allons vous aider à résoudre cette co-livraison.
             </Text>
             <Button
               title="Ouvrir le chat support"
@@ -358,7 +358,7 @@ export default function PickupScreen() {
 
       <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Continuer vers la livraison"
+          title="Continuer vers la co-livraison"
           onPress={() => {
             updateMissionStatus(mission.id, 'in_transit');
             router.back();

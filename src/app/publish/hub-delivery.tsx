@@ -53,16 +53,16 @@ export default function HubDeliveryScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={4} total={9} label={STEP_LABELS[3]} />
+        <ProgressSteps current={4} total={8} label={STEP_LABELS[3]} />
       </View>
 
       <View style={styles.content}>
-        <Text style={[styles.title, { color: colors.text }]}>Hubs de livraison</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Hubs de remise</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Où livrerez-vous les colis ? (1 à {MAX_HUBS} hubs)
+          Où pourrez-vous remettre les colis ? (1 à {MAX_HUBS} hubs)
         </Text>
         <Text style={[styles.info, { color: colors.textSecondary }]}>
-          Plus vous sélectionnez de hubs, plus vous avez de chances d'être choisi par un acheteur.
+          Sélectionnez uniquement les hubs compatibles avec votre trajet prévu.
         </Text>
 
         {/* Selected chips */}

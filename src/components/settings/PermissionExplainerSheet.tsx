@@ -35,7 +35,7 @@ const COPY: Record<
   },
   notifications: {
     title: 'Notifications',
-    body: "Les notifications vous informent d'une nouvelle livraison ou d'un message. Vous restez maître de ce que vous recevez.",
+    body: "Les notifications vous informent d'une nouvelle co-livraison ou d'un message. Vous restez maître de ce que vous recevez.",
     icon: 'bell',
     accent: 'primary',
   },

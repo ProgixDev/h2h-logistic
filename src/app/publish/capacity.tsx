@@ -47,7 +47,7 @@ export default function PublishCapacityScreen() {
   const canNext = !!maxSize && maxWeight > 0;
 
   const handleNext = () => {
-    setStep(8);
+    setStep(7);
     router.push('/publish/options');
   };
 
@@ -55,11 +55,11 @@ export default function PublishCapacityScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={7} total={9} label={STEP_LABELS[6]} />
+        <ProgressSteps current={6} total={8} label={STEP_LABELS[5]} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: colors.text }]}>Votre capacité de transport</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Capacité disponible sur ce trajet</Text>
 
         {/* Stepper */}
         <View style={styles.section}>
@@ -129,7 +129,7 @@ export default function PublishCapacityScreen() {
         {canNext && (
           <Card style={{ ...styles.summaryCard, backgroundColor: colors.primary + '08' }}>
             <Text style={[styles.summaryText, { color: colors.primary }]}>
-              Vous acceptez jusqu'à {pkg} colis de taille {maxSize} max, {maxWeight} kg max
+              Capacité déclarée : jusqu'à {pkg} colis, taille {maxSize}, {maxWeight} kg maximum.
             </Text>
           </Card>
         )}

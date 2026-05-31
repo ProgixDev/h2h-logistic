@@ -51,9 +51,9 @@ export const INCIDENT_SCENARIOS: IncidentScenario[] = [
     id: 'transporter_disappearance',
     number: 1,
     iconName: 'alert-circle',
-    title: 'Échec première livraison + disparition cotransporteur particulier',
+    title: 'Échec première co-livraison + disparition cotransporteur particulier',
     situation: [
-      'Acheteur absent au point de livraison.',
+      'Acheteur absent au point de co-livraison.',
       "Aucun relais choisi par le cotransporteur particulier dans les 12 h.",
       'Aucun dépôt relais tenté.',
       'Disparition cotransporteur particulier ou colis introuvable.',
@@ -77,9 +77,9 @@ export const INCIDENT_SCENARIOS: IncidentScenario[] = [
     id: 'relay_unavailable',
     number: 2,
     iconName: 'hub-relay',
-    title: 'Échec livraison + relais indisponible',
+    title: 'Échec co-livraison + relais indisponible',
     situation: [
-      'Acheteur absent au point de livraison.',
+      'Acheteur absent au point de co-livraison.',
       'Cotransporteur particulier sélectionne un relais.',
       'Relais affiché comme disponible.',
       'Relais fermé, absent ou refuse sans motif légitime.',

@@ -40,7 +40,7 @@ export default function HistoryScreen() {
   return (
     <View style={[s.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Historique des livraisons" showBack />
+        <Header title="Historique des co-livraisons" showBack />
       </View>
 
       <FlatList
@@ -61,7 +61,7 @@ export default function HistoryScreen() {
               <View style={s.statsRow}>
                 <StatMetric label="Total" value={`${stats.totalDeliveries}`} iconName="package" colors={colors} />
                 <StatMetric label="Réussite" value={`${stats.successRate}%`} iconName="checkmark-circle" colors={colors} />
-                <StatMetric label="Gains" value={formatCurrency(stats.totalEarnings)} iconName="cash" colors={colors} />
+                <StatMetric label="Participations" value={formatCurrency(stats.totalEarnings)} iconName="cash" colors={colors} />
                 <StatMetric label="Note" value={stats.averageRating.toFixed(1)} iconName="star" colors={colors} />
               </View>
             </LinearGradient>
@@ -92,8 +92,8 @@ export default function HistoryScreen() {
           <View style={{ paddingHorizontal: Spacing.lg }}>
             <EmptyState
               iconName="document"
-              title="Aucune livraison pour le moment."
-              description="Publiez un trajet et acceptez votre première livraison !"
+              title="Aucune co-livraison pour le moment."
+              description="Publiez un trajet et acceptez votre première co-livraison !"
               actionLabel="Publier un trajet"
               onAction={() => router.push('/publish/type')}
             />
@@ -166,7 +166,7 @@ function DeliveryHistoryCard({ transaction: tx, colors }: { transaction: Transac
             <DetailRow label="Vendeur" value={tx.sellerName} colors={colors} />
             <DetailRow label="Acheteur" value={tx.buyerName} colors={colors} />
             {tx.pickupTime && <DetailRow label="Collecte" value={tx.pickupTime} colors={colors} />}
-            {tx.deliveryTime && <DetailRow label="Livraison" value={tx.deliveryTime} colors={colors} />}
+            {tx.deliveryTime && <DetailRow label="Co-livraison" value={tx.deliveryTime} colors={colors} />}
             <DetailRow label="Référence" value={tx.reference} colors={colors} />
           </View>
         )}

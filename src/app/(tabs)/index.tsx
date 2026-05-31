@@ -23,6 +23,7 @@ import { StatusToggle } from '@/components/logistics/StatusToggle';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Icon, type IconName } from '@/components/ui/Icon';
+import { LiveDot } from '@/components/ui/LiveDot';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -137,7 +138,12 @@ export default function HomeScreen() {
           },
         ]}
       >
-        <Text style={[styles.headerLogo, { color: colors.primary }]}>H2H Logistic</Text>
+        <View style={styles.headerBrand}>
+          <Text style={[styles.headerLogo, { color: colors.primary }]}>H2H Logistic</Text>
+          <Text style={[styles.headerTagline, { color: colors.textSecondary }]} numberOfLines={1}>
+            Cotransportage entre particuliers
+          </Text>
+        </View>
 
         <StatusToggle isOnline={isOnline} onToggle={toggleOnline} />
 
@@ -188,7 +194,7 @@ export default function HomeScreen() {
               style={styles.earningsCard}
             >
               <View style={styles.earningsHeader}>
-                <Text style={styles.earningsTitle}>Vos gains</Text>
+                <Text style={styles.earningsTitle}>Vos participations</Text>
                 {/* Period selector */}
                 <TouchableOpacity
                   onPress={() => {
@@ -206,7 +212,7 @@ export default function HomeScreen() {
               <Text style={styles.earningsAmount}>{formatCurrency(earningsAmount)}</Text>
 
               <Text style={styles.earningsMeta}>
-                {earningsDeliveries} livraisons • {user?.rating?.toFixed(1) ?? '4.9'} note
+                {earningsDeliveries} co-livraisons • {user?.rating?.toFixed(1) ?? '4.9'} note
                 moyenne
               </Text>
             </LinearGradient>
@@ -227,7 +233,7 @@ export default function HomeScreen() {
         {/* ─── 2. ACTIVE MISSIONS ─── */}
         <Animated.View entering={FadeInDown.delay(200).duration(400)}>
           <SectionHeader
-            title="Livraisons en cours"
+            title="Co-livraisons en cours"
             count={activeMissions.length}
             onViewAll={() => router.push('/(tabs)/missions')}
             colors={colors}
@@ -248,7 +254,7 @@ export default function HomeScreen() {
             <Card style={styles.emptyCard}>
               <Icon name="package" size={32} color={colors.textSecondary} />
               <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                Aucune livraison en cours.{'\n'}Vos prochaines livraisons apparaîtront ici.
+                Aucune co-livraison en cours.{'\n'}Vos prochaines co-livraisons apparaîtront ici.
               </Text>
             </Card>
           )}
@@ -291,7 +297,7 @@ export default function HomeScreen() {
                 <Card style={styles.emptyRouteCard}>
                   <Icon name="tab-routes" size={32} color={colors.textSecondary} />
                   <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                    Publiez votre premier trajet{'\n'}pour recevoir des livraisons.
+                    Publiez votre premier trajet{'\n'}pour recevoir des co-livraisons.
                   </Text>
                 </Card>
               }
@@ -303,7 +309,7 @@ export default function HomeScreen() {
         <Animated.View entering={FadeInDown.delay(400).duration(400)}>
           <View style={styles.statsRow}>
             <StatBox
-              label="Livraisons"
+              label="Co-livraisons"
               value={String(totalDeliveries)}
               sub={summary && summary.thisMonth > summary.lastMonth ? '↑' : '↓'}
               subColor={
@@ -421,10 +427,10 @@ function CompactMissionCard({
     accepted: 'Acceptée',
     seller_pending: 'Attente vendeur',
     group_created: 'Groupe créé',
-    pickup_pending: 'Collecte',
+    pickup_pending: 'Récupération',
     picked_up: 'Collecté',
-    in_transit: 'En transit',
-    delivery_pending: 'Livraison',
+    in_transit: 'En trajet',
+    delivery_pending: 'Remise prévue',
   };
   const statusVariant =
     mission.status === 'proposal' || mission.status === 'seller_pending'
@@ -489,11 +495,10 @@ function CompactRouteCard({
         </Text>
         <View style={styles.compactRouteBottom}>
           <View style={styles.compactRouteDot}>
-            <View
-              style={[
-                styles.routeStatusDot,
-                { backgroundColor: route.status === 'active' ? colors.online : colors.offline },
-              ]}
+            <LiveDot
+              pulsing={route.status === 'active'}
+              size={6}
+              color={route.status === 'active' ? colors.online : colors.offline}
             />
             <Text style={[styles.compactRouteStatus, { color: colors.textSecondary }]}>
               {route.status === 'active' ? 'Actif' : 'Pause'}
@@ -591,10 +596,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     zIndex: 10,
   },
+  headerBrand: {
+    flexShrink: 1,
+  },
   headerLogo: {
     fontFamily: 'Poppins_600SemiBold',
     fontSize: 18,
     lineHeight: 24,
+  },
+  headerTagline: {
+    fontFamily: 'Poppins_400Regular',
+    fontSize: 9,
+    lineHeight: 12,
   },
   headerRight: {
     flexDirection: 'row',
@@ -788,11 +801,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-  },
-  routeStatusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
   },
   compactRouteStatus: {
     ...Typography.caption,

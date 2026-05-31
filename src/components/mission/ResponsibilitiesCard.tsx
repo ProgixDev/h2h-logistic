@@ -20,7 +20,7 @@ const ITEMS: Responsibility[] = [
     iconName: 'battery',
     title: 'Batterie téléphone',
     helper:
-      "Chargez votre téléphone avant la livraison (50% minimum recommandé). Une panne de batterie peut bloquer le scan à l'arrivée.",
+      "Chargez votre téléphone avant la co-livraison (50% minimum recommandé). Une panne de batterie peut bloquer le scan à l'arrivée.",
   },
   {
     iconName: 'time',

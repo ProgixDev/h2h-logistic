@@ -1,9 +1,11 @@
 import { create } from 'zustand';
 import type { PublishedRoute, PublishFormData } from '@/types/route';
 import { INITIAL_FORM } from '@/types/route';
+import type { TransportTypeId } from '@/constants/TransportTypes';
 import { mockRoutes } from '@/services/mock/routes';
 import { storage, getStoredJSON, setStoredJSON } from '@/services/storage';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { ACTIVE_STATUSES } from '@/types/mission';
 
 const ROUTES_KEY = 'published_routes';
@@ -88,7 +90,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     set((state) => ({ form: { ...state.form, [key]: value } })),
 
   setStep: (step) => set({ currentStep: step }),
-  nextStep: () => set((s) => ({ currentStep: Math.min(s.currentStep + 1, 9) })),
+  nextStep: () => set((s) => ({ currentStep: Math.min(s.currentStep + 1, 8) })),
   prevStep: () => set((s) => ({ currentStep: Math.max(s.currentStep - 1, 1) })),
   resetForm: () => set({ form: { ...INITIAL_FORM }, currentStep: 1 }),
 
@@ -97,6 +99,11 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     await new Promise((r) => setTimeout(r, 800));
 
     const f = get().form;
+    // Transport is no longer asked during publish — inherit the carrier's
+    // declared profile transport (falls back to 'car'), still editable later.
+    const profileTransport = useAuthStore.getState().user?.transportTypes?.[0] as
+      | TransportTypeId
+      | undefined;
     const route: PublishedRoute = {
       id: `route-${Date.now()}`,
       transporterId,
@@ -105,7 +112,7 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       arrivalCity: f.arrivalCity!,
       pickupHub: f.pickupHub!,
       deliveryHubs: f.deliveryHubs,
-      transportType: f.transportType!,
+      transportType: f.transportType ?? profileTransport ?? 'car',
       maxPackages: f.maxPackages,
       maxSize: f.maxSize!,
       maxWeight: f.maxWeight,

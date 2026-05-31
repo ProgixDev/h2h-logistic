@@ -29,10 +29,10 @@ const STATUS_LABELS: Record<string, string> = {
   accepted: 'Acceptée',
   seller_pending: 'Attente vendeur',
   group_created: 'Groupe créé',
-  pickup_pending: 'Collecte',
+  pickup_pending: 'Récupération',
   picked_up: 'Collecté',
-  in_transit: 'En transit',
-  delivery_pending: 'Livraison',
+  in_transit: 'En trajet',
+  delivery_pending: 'Remise prévue',
   delivered: 'Livré',
   completed: 'Terminé',
   cancelled: 'Annulée',
@@ -55,8 +55,8 @@ export default function MissionDetailScreen() {
   if (!mission) {
     return (
       <SafeAreaWrapper>
-        <Header title="Livraison" showBack />
-        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
+        <Header title="Co-livraison" showBack />
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
       </SafeAreaWrapper>
     );
   }
@@ -86,9 +86,12 @@ export default function MissionDetailScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         <View style={styles.statusRow}>
           <Badge label={STATUS_LABELS[mission.status] ?? mission.status} variant={mission.status === 'delivered' || mission.status === 'completed' ? 'success' : 'error'} />
-          <Text style={[styles.earning, { color: colors.success }]}>
-            {formatCurrency(mission.transporterEarning)}
-          </Text>
+          <View style={styles.earningCol}>
+            <Text style={[styles.earningLabel, { color: colors.textSecondary }]}>Participation aux frais</Text>
+            <Text style={[styles.earning, { color: colors.success }]}>
+              {formatCurrency(mission.transporterEarning)}
+            </Text>
+          </View>
         </View>
 
         <Card>
@@ -146,7 +149,7 @@ function SellerWaitingScreen({ mission, colors, router }: { mission: Mission; co
   return (
     <View style={[sw.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Livraison" showBack />
+        <Header title="Co-livraison" showBack />
       </View>
 
       <View style={sw.content}>
@@ -186,23 +189,23 @@ function ExpiredScreen({ mission, colors, router }: { mission: Mission; colors: 
   return (
     <View style={[sw.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Livraison" showBack />
+        <Header title="Co-livraison" showBack />
       </View>
 
       <View style={sw.content}>
         <Text style={sw.expiredEmoji}>⏰</Text>
-        <Text style={[sw.expiredTitle, { color: colors.text }]}>Livraison annulée</Text>
+        <Text style={[sw.expiredTitle, { color: colors.text }]}>Co-livraison annulée</Text>
         <Text style={[sw.expiredSub, { color: colors.textSecondary }]}>
           Le vendeur n'a pas confirmé à temps.
         </Text>
         <Text style={[sw.warmText, { color: colors.textSecondary }]}>
-          Pas d'inquiétude, de nouvelles livraisons arrivent régulièrement.
+          Pas d'inquiétude, de nouvelles co-livraisons arrivent régulièrement.
         </Text>
       </View>
 
       <View style={[sw.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Retour aux livraisons"
+          title="Retour aux co-livraisons"
           onPress={() => router.replace('/(tabs)/missions')}
           variant="gradient"
         />
@@ -236,6 +239,8 @@ const sw = StyleSheet.create({
 const styles = StyleSheet.create({
   scroll: { gap: Spacing.lg, paddingBottom: Spacing.section },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  earningCol: { alignItems: 'flex-end' },
+  earningLabel: { ...Typography.caption },
   earning: { ...Typography.h2 },
   sectionTitle: { ...Typography.h3 },
   packageDesc: { ...Typography.body, marginTop: Spacing.xs },

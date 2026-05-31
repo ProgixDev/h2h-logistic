@@ -43,7 +43,7 @@ export default function ProfileScreen() {
             {user?.firstName ?? 'Cotransporteur particulier'} {user?.lastName ?? ''}
           </Text>
           <Text style={[styles.stats, { color: colors.textSecondary }]}>
-            {user?.totalDeliveries ?? 0} livraisons — {user?.rating?.toFixed(1) ?? '4.8'}/5
+            {user?.totalDeliveries ?? 0} co-livraisons — {user?.rating?.toFixed(1) ?? '4.8'}/5
           </Text>
         </Card>
 
@@ -65,7 +65,10 @@ export default function ProfileScreen() {
 
         <TouchableOpacity
           style={[styles.logoutButton, { borderColor: colors.error }]}
-          onPress={logout}
+          onPress={() => {
+            logout();
+            router.replace('/');
+          }}
         >
           <Text style={[styles.logoutText, { color: colors.error }]}>{t('profile.logout')}</Text>
         </TouchableOpacity>

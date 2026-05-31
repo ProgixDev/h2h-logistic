@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
-import { equivalence, formatCo2 } from '@/utils/carbon';
+import { formatCo2 } from '@/utils/carbon';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -15,7 +15,6 @@ interface EcoImpactCardProps {
 
 export function EcoImpactCard({ kgSaved, variant = 'standard', style }: EcoImpactCardProps) {
   const { colors } = useColorScheme();
-  const eq = equivalence(kgSaved);
   const compact = variant === 'compact';
 
   return (
@@ -43,15 +42,11 @@ export function EcoImpactCard({ kgSaved, variant = 'standard', style }: EcoImpac
         </View>
         <View style={styles.text}>
           <Text style={[compact ? styles.titleCompact : styles.title, { color: colors.text }]}>
-            Impact écologique
+            Impact estimé
           </Text>
           <Text style={[styles.amount, { color: colors.success }]}>
-            Vous évitez environ {formatCo2(kgSaved)}
-            {compact ? '' : ' avec cette livraison'}
+            Environ {formatCo2(kgSaved)} évités
           </Text>
-          {!!eq && (
-            <Text style={[styles.eq, { color: colors.textSecondary }]}>{eq}</Text>
-          )}
         </View>
       </View>
     </Card>

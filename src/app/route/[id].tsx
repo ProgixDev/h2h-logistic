@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
+import { LiveDot } from '@/components/ui/LiveDot';
 import { HubParticipantChip, type HubParticipantInfo } from '@/components/route/HubParticipantChip';
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
@@ -16,7 +17,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { ACTIVE_STATUSES } from '@/types/mission';
-import { formatDate } from '@/utils/formatting';
+import { formatCurrency, formatDate } from '@/utils/formatting';
 
 const DAYS_SHORT: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' };
 
@@ -90,7 +91,7 @@ export default function RouteDetailScreen() {
 
   const handleDelete = () => {
     if (hasMission) {
-      Alert.alert('Impossible', 'Ce trajet a une livraison en cours. Terminez-la d\'abord.');
+      Alert.alert('Impossible', 'Ce trajet a une co-livraison en cours. Terminez-la d\'abord.');
       return;
     }
     Alert.alert('Supprimer ce trajet ?', 'Cette action est irréversible.', [
@@ -115,7 +116,7 @@ export default function RouteDetailScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Icon name="alert-circle" size={16} color={colors.warning} />
               <Text style={[styles.warningText, { color: colors.warning, flex: 1 }]}>
-                Ce trajet a une livraison en cours. Certaines modifications sont limitées.
+                Ce trajet a une co-livraison en cours. Certaines modifications sont limitées.
               </Text>
             </View>
           </View>
@@ -124,7 +125,7 @@ export default function RouteDetailScreen() {
         {/* Status + transport */}
         <View style={styles.statusRow}>
           <View style={styles.statusLeft}>
-            <View style={[styles.statusDot, { backgroundColor: isActive ? colors.online : colors.offline }]} />
+            <LiveDot pulsing={isActive} size={8} color={isActive ? colors.online : colors.offline} />
             <Badge label={isActive ? 'Actif' : 'Hors ligne'} variant={isActive ? 'success' : 'default'} />
           </View>
           <View style={styles.transportBadge}>
@@ -142,7 +143,7 @@ export default function RouteDetailScreen() {
           <InfoRow label="Horaire collecte" value={route.schedule.pickupTime} colors={colors} />
           {Object.entries(route.schedule.deliveryTimes).map(([hubId, time]) => {
             const hub = route.deliveryHubs.find((h) => h.hubId === hubId);
-            return <InfoRow key={hubId} label={`Livraison ${hub?.hubName ?? ''}`} value={time} colors={colors} />;
+            return <InfoRow key={hubId} label={`Remise au hub ${hub?.hubName ?? ''}`} value={time} colors={colors} />;
           })}
           <InfoRow label="Créé le" value={formatDate(route.createdAt)} colors={colors} />
         </Card>
@@ -151,11 +152,11 @@ export default function RouteDetailScreen() {
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
             <Text style={[styles.statValue, { color: colors.primary }]}>{route.missionsCount}</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Livraisons</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Co-livraisons</Text>
           </Card>
           <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.success }]}>{avgEarnings.toFixed(1)}€</Text>
-            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Moy./livraison</Text>
+            <Text style={[styles.statValue, { color: colors.success }]}>{formatCurrency(avgEarnings)}</Text>
+            <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Participation moyenne</Text>
           </Card>
         </View>
 
@@ -182,7 +183,7 @@ export default function RouteDetailScreen() {
               <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                 {route.pickupHub.city} — {route.schedule.pickupTime}
               </Text>
-              {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — livraison en cours</Text></View>}
+              {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — co-livraison en cours</Text></View>}
             </View>
             {participantsByHubId[route.pickupHub.hubId]?.length > 0 && (
               <HubParticipantChip
@@ -220,8 +221,8 @@ export default function RouteDetailScreen() {
                   <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                     {hub.city} — {time}
                   </Text>
-                  {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — livraison en cours</Text></View>}
-                  {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la livraison</Text>}
+                  {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — co-livraison en cours</Text></View>}
+                  {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la co-livraison</Text>}
                 </View>
                 {hubParticipants.length > 0 && (
                   <HubParticipantChip
@@ -280,7 +281,6 @@ const styles = StyleSheet.create({
   // Status
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   statusLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
   transportBadge: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   transportIcon: { fontSize: 18 },
   transportLabel: { ...Typography.bodyMedium },

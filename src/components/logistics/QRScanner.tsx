@@ -51,10 +51,10 @@ const COPY: Record<ScannerMode, { instruction: string; subtitle: string; manualT
     manualPlaceholder: 'HTH-XXXXX',
   },
   'package': {
-    instruction: "Scannez le bon d'envoi",
+    instruction: "Scannez la fiche colis",
     subtitle: "Code-barres ou QR sur l'étiquette collée sur le colis",
     manualTitle: 'Numéro de colis',
-    manualSub: 'Entrez le numéro inscrit sur le bon d\'envoi',
+    manualSub: 'Entrez le numéro inscrit sur la fiche colis',
     manualLabel: 'Numéro de colis',
     manualPlaceholder: 'HTH-XXXXX',
   },

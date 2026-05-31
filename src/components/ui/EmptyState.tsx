@@ -37,28 +37,28 @@ export function EmptyState({ iconName, title, description, actionLabel, onAction
 /** Pre-defined warm empty state messages */
 export const EMPTY_MESSAGES = {
   missions: {
-    title: 'Aucune livraison pour le moment',
-    description: 'Restez actif pour recevoir des propositions ! De nouvelles livraisons arrivent régulièrement.',
+    title: 'Aucune co-livraison pour le moment',
+    description: 'Restez actif pour recevoir des propositions ! De nouvelles co-livraisons arrivent régulièrement.',
   },
   routes: {
     title: 'Publiez votre premier trajet',
     description: 'Transformez vos déplacements quotidiens en revenus complémentaires.',
   },
   history: {
-    title: 'Aucune livraison effectuée',
-    description: 'Votre historique apparaîtra ici après votre première livraison.',
+    title: 'Aucune co-livraison effectuée',
+    description: 'Votre historique apparaîtra ici après votre première co-livraison.',
   },
   notifications: {
     title: 'Tout est calme pour le moment',
-    description: 'Vous serez notifié dès qu\'une nouvelle livraison correspond à vos trajets.',
+    description: 'Vous serez notifié dès qu\'une nouvelle co-livraison correspond à vos trajets.',
   },
   favorites: {
     title: 'Aucun client favori',
-    description: 'Vos clients favoris apparaîtront ici après vos premières livraisons.',
+    description: 'Vos contacts favoris apparaîtront ici après vos premières co-livraisons.',
   },
   earnings: {
-    title: 'Pas encore de gains',
-    description: 'Acceptez votre première livraison pour commencer à gagner !',
+    title: 'Pas encore de participations',
+    description: 'Acceptez votre première co-livraison pour commencer à gagner !',
   },
 } as const;
 

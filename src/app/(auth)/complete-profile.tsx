@@ -23,7 +23,6 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { Icon } from '@/components/ui/Icon';
-import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 
 const CITIES = [
   'Nice',
@@ -45,7 +44,6 @@ export default function CompleteProfileScreen() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [city, setCity] = useState('');
-  const [transportType, setTransportType] = useState('');
   const [showCityPicker, setShowCityPicker] = useState(false);
 
   const isValid = firstName.trim().length > 0 && lastName.trim().length > 0;
@@ -134,18 +132,18 @@ export default function CompleteProfileScreen() {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       city: city || 'Non renseignée',
-      transportType: transportType || 'walking',
+      transportType: 'car',
       avatar,
     });
     router.replace('/(auth)/convention');
-  }, [firstName, lastName, city, transportType, avatar]);
+  }, [firstName, lastName, city, avatar]);
 
   const handleSkip = useCallback(async () => {
     await completeProfile({
       firstName: 'Cotransporteur particulier',
       lastName: '',
       city: 'Non renseignée',
-      transportType: 'walking',
+      transportType: 'car',
     });
     router.replace('/(auth)/convention');
   }, []);
@@ -250,43 +248,6 @@ export default function CompleteProfileScreen() {
           )}
         </Animated.View>
 
-        {/* Transport type chips */}
-        <Animated.View entering={FadeInDown.delay(500).duration(400)}>
-          <Text style={[styles.fieldLabel, { color: colors.text }]}>
-            Moyen de transport principal
-          </Text>
-          <View style={styles.chipsRow}>
-            {TRANSPORT_TYPES.map((type) => {
-              const isSelected = transportType === type.id;
-              return (
-                <TouchableOpacity
-                  key={type.id}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setTransportType(type.id);
-                  }}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: isSelected ? colors.primary : colors.surface,
-                      borderColor: isSelected ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Icon name={type.iconName} size={18} color={isSelected ? '#FFFFFF' : colors.text} />
-                  <Text
-                    style={[
-                      styles.chipLabel,
-                      { color: isSelected ? '#FFFFFF' : colors.text },
-                    ]}
-                  >
-                    {type.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
       </ScrollView>
 
       {/* Bottom actions */}
@@ -404,26 +365,6 @@ const styles = StyleSheet.create({
   },
   cityItemText: {
     ...Typography.body,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1.5,
-  },
-  chipIcon: {
-    fontSize: 18,
-  },
-  chipLabel: {
-    ...Typography.captionMedium,
   },
   actions: {
     paddingHorizontal: Spacing.xxl,

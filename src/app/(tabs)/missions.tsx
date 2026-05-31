@@ -47,7 +47,7 @@ export default function MissionsScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Livraisons</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Co-livraisons</Text>
       </View>
 
       {/* Segmented control */}
@@ -92,11 +92,11 @@ export default function MissionsScreen() {
         )}
         ListEmptyComponent={
           tab === 'new' ? (
-            <EmptyState iconName="package" title="Aucune livraison disponible" description="Restez actif pour recevoir des propositions !" />
+            <EmptyState iconName="package" title="Aucune co-livraison disponible" description="Restez actif pour recevoir des propositions !" />
           ) : tab === 'active' ? (
-            <EmptyState iconName="rocket" title="Aucune livraison en cours" description="Acceptez une proposition pour démarrer." />
+            <EmptyState iconName="rocket" title="Aucune co-livraison en cours" description="Acceptez une proposition pour démarrer." />
           ) : (
-            <EmptyState iconName="document" title="Aucune livraison terminée" description="Vos livraisons terminées apparaîtront ici." />
+            <EmptyState iconName="document" title="Aucune co-livraison terminée" description="Vos co-livraisons terminées apparaîtront ici." />
           )
         }
       />
@@ -140,7 +140,7 @@ function ProposalCard({ mission, colors, router }: { mission: Mission; colors: a
               alignSelf: 'flex-start',
             }}
           >
-            <Text style={{ ...Typography.captionMedium, color: '#1A1A1E' }}>Nouvelle livraison</Text>
+            <Text style={{ ...Typography.captionMedium, color: '#1A1A1E' }}>Nouvelle co-livraison</Text>
           </View>
           {isFavorite && <Badge label="Client favori" variant="default" />}
         </View>
@@ -215,14 +215,14 @@ function ActiveMissionCard({ mission, colors, router }: { mission: Mission; colo
     accepted: { label: 'Acceptée', variant: 'default' },
     seller_pending: { label: 'Attente vendeur', variant: 'warning' },
     group_created: { label: 'Groupe créé', variant: 'success' },
-    pickup_pending: { label: 'Collecte', variant: 'warning' },
+    pickup_pending: { label: 'Récupération', variant: 'warning' },
     picked_up: { label: 'Collecté', variant: 'success' },
-    in_transit: { label: 'En transit', variant: 'default' },
+    in_transit: { label: 'En trajet', variant: 'default' },
     deposited: { label: 'Dépôt', variant: 'success' },
-    delivery_pending: { label: 'Remise', variant: 'warning' },
+    delivery_pending: { label: 'Remise prévue', variant: 'warning' },
   };
   const info = mission.isReturn
-    ? { label: 'Retour', variant: 'error' as const }
+    ? { label: 'Retour à effectuer', variant: 'error' as const }
     : statusMap[mission.status] ?? { label: mission.status, variant: 'default' as const };
 
   return (

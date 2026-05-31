@@ -40,8 +40,8 @@ const STEPS: StepConfig[] = [
   {
     status: 'accepted',
     iconName: 'checkmark-circle',
-    label: 'Livraison acceptée',
-    getDesc: () => 'Vous avez accepté cette livraison',
+    label: 'Co-livraison acceptée',
+    getDesc: () => 'Vous avez accepté cette co-livraison',
   },
   {
     status: 'group_created',
@@ -61,20 +61,20 @@ const STEPS: StepConfig[] = [
   {
     status: 'picked_up',
     iconName: 'package',
-    label: 'Colis en transit',
+    label: 'Colis en trajet',
     getDesc: (m) => `En route vers ${m.deliveryHub.name}`,
   },
   {
     status: 'in_transit',
     iconName: 'rocket',
-    label: 'En transit',
+    label: 'En trajet',
     getDesc: (m) => `Direction ${m.deliveryHub.city}`,
     showNav: true,
   },
   {
     status: 'delivery_pending',
     iconName: 'location-filled',
-    label: 'Livraison au hub acheteur',
+    label: 'Remise au hub destinataire',
     getDesc: (m) => m.deliveryHub.name,
     showTolerance: 'delivery',
     action: { label: 'Entrer le code acheteur', key: 'delivery' },
@@ -83,7 +83,7 @@ const STEPS: StepConfig[] = [
   {
     status: 'delivered',
     iconName: 'trophy',
-    label: 'Livraison terminée',
+    label: 'Co-livraison terminée',
     getDesc: (m) => `Paiement libéré : ${m.transporterEarning.toFixed(2)}€`,
   },
 ];

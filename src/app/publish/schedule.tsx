@@ -65,14 +65,14 @@ export default function PublishScheduleScreen() {
     setFormField('deliveryTimes', deliveryTimes);
     if (isRecurring) setFormField('recurringDays', days);
     setStep(6);
-    router.push('/publish/transport');
+    router.push('/publish/capacity');
   };
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={5} total={9} label={STEP_LABELS[4]} />
+        <ProgressSteps current={5} total={8} label={STEP_LABELS[4]} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -106,7 +106,7 @@ export default function PublishScheduleScreen() {
         {/* Delivery hub times */}
         {form.deliveryHubs.map((hub) => (
           <View key={hub.hubId} style={[styles.hubSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Text style={[styles.hubLabel, { color: colors.textSecondary }]}>Hub de livraison</Text>
+            <Text style={[styles.hubLabel, { color: colors.textSecondary }]}>Hub de remise</Text>
             <Text style={[styles.hubName, { color: colors.text }]}>{hub.hubName}</Text>
             <View style={styles.timeRow}>
               <Text style={[styles.timeLabel, { color: colors.text }]}>Heure de passage</Text>

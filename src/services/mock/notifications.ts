@@ -12,7 +12,7 @@ export const mockNotifications: AppNotification[] = [
   {
     id: 'notif-1',
     type: 'mission_new',
-    title: 'Nouvelle livraison disponible',
+    title: 'Nouvelle co-livraison disponible',
     body: 'Un colis à livrer sur votre trajet Paris → Lyon de demain.',
     read: false,
     createdAt: '2026-04-09T06:00:00Z',
@@ -21,7 +21,7 @@ export const mockNotifications: AppNotification[] = [
   {
     id: 'notif-2',
     type: 'mission_update',
-    title: 'Colis prêt à collecter',
+    title: 'Colis prêt à récupérer',
     body: 'Le vendeur a déposé le colis au hub Relais Colis Paris 11.',
     read: false,
     createdAt: '2026-04-09T07:45:00Z',
@@ -30,8 +30,8 @@ export const mockNotifications: AppNotification[] = [
   {
     id: 'notif-3',
     type: 'earning',
-    title: 'Paiement reçu',
-    body: '6,30 € crédités pour la livraison du 07/04.',
+    title: 'Participation reçue',
+    body: '6,30 € crédités pour la co-livraison du 07/04.',
     read: true,
     createdAt: '2026-04-08T10:00:00Z',
     data: { earningId: 'earn-2' },
@@ -48,7 +48,7 @@ export const mockNotifications: AppNotification[] = [
     id: 'notif-5',
     type: 'system',
     title: 'Bienvenue sur H2H Logistic !',
-    body: 'Publiez votre premier trajet pour commencer à recevoir des livraisons.',
+    body: 'Publiez votre premier trajet pour commencer à recevoir des co-livraisons.',
     read: true,
     createdAt: '2026-03-01T10:00:00Z',
   },

@@ -54,8 +54,8 @@ export default function MissionGroupScreen() {
   if (!mission) {
     return (
       <View style={[gs.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Livraison" showBack /></View>
-        <Text style={[gs.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
+        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Co-livraison" showBack /></View>
+        <Text style={[gs.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
       </View>
     );
   }
@@ -115,7 +115,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
     if (!activeParty) return '';
     const targetTime = activeParty === 'seller' ? mission.pickupHub.scheduledTime : mission.deliveryHub.scheduledTime;
     const diffMs = dayjs(targetTime).diff(dayjs());
-    const prefix = activeParty === 'seller' ? 'Prise en charge' : 'Livraison';
+    const prefix = activeParty === 'seller' ? 'Prise en charge' : 'Co-livraison';
 
     if (diffMs <= 0) return `${prefix} — rendez-vous maintenant`;
     const totalMinutes = Math.floor(diffMs / 60000);
@@ -164,16 +164,16 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   };
 
   const handleReportSellerAbsence = () => {
-    Alert.alert('Signaler l\'absence du vendeur', 'La livraison sera annulée sans pénalité pour vous.', [
+    Alert.alert('Signaler l\'absence du vendeur', 'La co-livraison sera annulée sans pénalité pour vous.', [
       { text: 'Annuler', style: 'cancel' },
-      { text: 'Signaler', onPress: () => { reportSellerAbsence(mission.id); toast('Livraison annulée — absence du vendeur.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: 'Signaler', onPress: () => { reportSellerAbsence(mission.id); toast('Co-livraison annulée — absence du vendeur.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
     ]);
   };
 
   const handleReportBuyerAbsence = () => {
     Alert.alert('L\'acheteur ne s\'est pas présenté', 'Que souhaitez-vous faire ?', [
       { text: 'Attendre +5 min', onPress: () => { reportBuyerAbsence(mission.id, true); toast('Tolérance étendue.'); } },
-      { text: 'Annuler', style: 'destructive', onPress: () => { reportBuyerAbsence(mission.id, false); toast('Livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: 'Annuler', style: 'destructive', onPress: () => { reportBuyerAbsence(mission.id, false); toast('Co-livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
       { text: 'Patienter', style: 'cancel' },
     ]);
   };
@@ -185,9 +185,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
       ? 'Vous avez le colis. Veuillez le remettre au hub le plus proche.'
       : 'L\'annulation sera notée sur votre profil.';
 
-    Alert.alert(hasPackage ? 'Vous avez le colis' : 'Annuler la livraison ?', msg, [
+    Alert.alert(hasPackage ? 'Vous avez le colis' : 'Annuler la co-livraison ?', msg, [
       { text: 'Retour', style: 'cancel' },
-      { text: hasPackage ? 'J\'ai remis le colis' : 'Confirmer l\'annulation', style: 'destructive', onPress: () => { cancelMission(mission.id, reason); toast('Livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
+      { text: hasPackage ? 'J\'ai remis le colis' : 'Confirmer l\'annulation', style: 'destructive', onPress: () => { cancelMission(mission.id, reason); toast('Co-livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
     ]);
   };
 
@@ -197,7 +197,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   return (
     <View style={[gs.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-        <Header title={`Livraison #${missionCode}`} showBack />
+        <Header title={`Co-livraison #${missionCode}`} showBack />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[gs.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}>
@@ -286,7 +286,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
 
         {/* Timeline */}
         <Animated.View entering={FadeInDown.delay(200).duration(300)}>
-          <Text style={[gs.section, { color: colors.text }]}>Suivi de livraison</Text>
+          <Text style={[gs.section, { color: colors.text }]}>Suivi de co-livraison</Text>
           <MissionTimeline mission={mission} onPickup={handlePickup} onDelivery={handleDelivery} onNavigate={handleNavigate} />
         </Animated.View>
 
@@ -374,14 +374,14 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
               </View>
               {packageExpanded && (
                 <View style={[gs.pkgD, { borderTopColor: colors.border }]}>
-                  <DR l="Vos gains" v={formatCurrency(mission.transporterEarning)} c={colors} vc={colors.success} />
+                  <DR l="Participation aux frais" v={formatCurrency(mission.transporterEarning)} c={colors} vc={colors.success} />
                 </View>
               )}
             </Card>
           </TouchableOpacity>
         </Animated.View>
 
-        {/* Bon d'envoi */}
+        {/* Fiche colis */}
         <Animated.View entering={FadeInDown.delay(480).duration(300)}>
           <BonEnvoiRow mission={mission} />
         </Animated.View>
@@ -395,7 +395,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
 
         {/* Cancel */}
         <TouchableOpacity onPress={handleCancelMission} hitSlop={12} style={gs.cancelBtn}>
-          <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la livraison</Text>
+          <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la co-livraison</Text>
         </TouchableOpacity>
 
         {/* TODO(backend): remove before production — dev-only phase walker */}

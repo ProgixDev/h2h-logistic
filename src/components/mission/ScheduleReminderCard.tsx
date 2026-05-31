@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import dayjs from 'dayjs';
 import { Icon } from '@/components/ui/Icon';
+import { SandClockAnimation } from '@/components/mission/SandClockAnimation';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -142,9 +143,9 @@ export function ScheduleReminderCard({
       ]}
       accessibilityRole="summary"
     >
-      {/* Left: icon */}
+      {/* Left: animated hourglass */}
       <View style={[styles.iconCircle, { backgroundColor: colors.warning }]}>
-        <Icon name="hourglass" size={22} color="#FFFFFF" />
+        <SandClockAnimation size={52} />
       </View>
 
       {/* Right: text + countdown */}
@@ -215,6 +216,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   textCol: {
     flex: 1,

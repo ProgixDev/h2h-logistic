@@ -58,7 +58,7 @@ export function ConversationGroup({
           opacity: completed ? 0.85 : 1,
         },
       ]}
-      accessibilityLabel={`Conversation de la livraison ${listingTitle}, ${routeSummary}`}
+      accessibilityLabel={`Conversation de la co-livraison ${listingTitle}, ${routeSummary}`}
     >
       {/* Header */}
       <View style={styles.header}>

@@ -57,8 +57,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="missions"
         options={{
-          title: 'Livraisons',
-          tabBarAccessibilityLabel: `Livraisons${proposalCount > 0 ? `, ${proposalCount} nouvelles propositions` : ''}`,
+          title: 'Co-livraisons',
+          tabBarAccessibilityLabel: `Co-livraisons${proposalCount > 0 ? `, ${proposalCount} nouvelles propositions` : ''}`,
           tabBarIcon: ({ focused, color }) => (
             <View>
               <Icon name={focused ? 'tab-missions' : 'tab-missions-outline'} size={24} color={color} />

@@ -33,7 +33,7 @@ export interface PublishedRoute {
   createdAt: string;
 }
 
-// --- Publish form (9 steps) ---
+// --- Publish form (8 steps) ---
 
 export interface PublishFormData {
   // Step 1
@@ -49,13 +49,13 @@ export interface PublishFormData {
   pickupTime?: string;
   deliveryTimes: Record<string, string>; // hubId → "HH:mm"
   recurringDays: number[]; // 1=Mon…7=Sun
-  // Step 6
+  // Defaulted from the carrier's profile transport — no longer a publish step
   transportType?: TransportTypeId;
-  // Step 7
+  // Step 6
   maxPackages: number;
   maxSize?: PackageSize;
   maxWeight: number;
-  // Step 8
+  // Step 7
   horsHub: boolean;
 }
 
@@ -72,9 +72,8 @@ export const STEP_LABELS = [
   'Type',
   'Villes',
   'Hub collecte',
-  'Hub livraison',
+  'Hub remise',
   'Horaires',
-  'Transport',
   'Capacité',
   'Options',
   'Récap',

@@ -61,9 +61,9 @@ export default function EditRouteScreen() {
         {/* Mission lock banner */}
         {hasMission && (
           <View style={[s.lockBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="alert-circle" size={16} color={colors.warning} /><Text style={[s.lockTitle, { color: colors.warning }]}>Livraison en cours — modifications limitées</Text></View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}><Icon name="alert-circle" size={16} color={colors.warning} /><Text style={[s.lockTitle, { color: colors.warning }]}>Co-livraison en cours — modifications limitées</Text></View>
             <Text style={[s.lockDesc, { color: colors.textSecondary }]}>
-              Les hubs et horaires ne peuvent pas être modifiés pendant une livraison active.
+              Les hubs et horaires ne peuvent pas être modifiés pendant une co-livraison active.
             </Text>
           </View>
         )}
@@ -86,7 +86,7 @@ export default function EditRouteScreen() {
           </View>
           {route.deliveryHubs.map((hub) => (
             <View key={hub.hubId} style={s.readonlyRow}>
-              <Text style={[s.readonlyLabel, { color: colors.textSecondary }]}>Hub livraison</Text>
+              <Text style={[s.readonlyLabel, { color: colors.textSecondary }]}>Hub co-livraison</Text>
               <View style={s.readonlyValueRow}>
                 <Text style={[s.readonlyValue, { color: colors.text }]}>{hub.hubName}</Text>
                 {hasMission && <Icon name="lock" size={12} color={colors.warning} />}

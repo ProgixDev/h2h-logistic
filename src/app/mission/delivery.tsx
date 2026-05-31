@@ -57,9 +57,9 @@ export default function DeliveryScreen() {
     return (
       <View style={[s.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={{ paddingHorizontal: Spacing.lg }}>
-          <Header title="Livraison" showBack />
+          <Header title="Co-livraison" showBack />
         </View>
-        <Text style={[s.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
+        <Text style={[s.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
       </View>
     );
   }
@@ -102,7 +102,7 @@ export default function DeliveryScreen() {
       setTimeout(() => setStep('scan-package'), 400);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showToast("Ce n'est pas l'acheteur de cette livraison. Vérifiez le code avec lui.", 'error');
+      showToast("Ce n'est pas l'acheteur de cette co-livraison. Vérifiez le code avec lui.", 'error');
       resetScanner();
     }
   }, [mission.id, mission.buyer.qrCode]);
@@ -118,7 +118,7 @@ export default function DeliveryScreen() {
       const distanceKm = estimateDistanceKm(mission.pickupHub.city, mission.deliveryHub.city);
       const kgSaved = calculateCo2Saved(distanceKm, transportType);
       if (kgSaved > 0) registerDelivery(kgSaved);
-      AccessibilityInfo.announceForAccessibility('Livraison confirmée. Paiement en cours de libération.');
+      AccessibilityInfo.announceForAccessibility('Co-livraison confirmée. Paiement en cours de libération.');
       setStep('confirmed');
       checkScale.value = withSpring(1, { damping: 12, stiffness: 150 });
       runEarningsCounter();
@@ -168,7 +168,7 @@ export default function DeliveryScreen() {
     return (
       <View style={[s.screen, { backgroundColor: colors.background }]}>
         <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-          <Header title="Livraison du colis" showBack />
+          <Header title="Co-livraison du colis" showBack />
           <Text style={[s.missionRef, { color: colors.textSecondary }]}>#{missionCode}</Text>
           <ScanProgressDots partyLabel="Acheteur" partyState="pending" packageState="pending" />
         </View>
@@ -267,14 +267,14 @@ export default function DeliveryScreen() {
       return (
         <View style={[s.screen, { backgroundColor: colors.background }]}>
           <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-            <Header title="Livraison du colis" showBack />
+            <Header title="Co-livraison du colis" showBack />
             <ScanProgressDots partyLabel="Acheteur" partyState="done" packageState="active" />
           </View>
           <View style={s.lockedContent}>
             <Icon name="chat" size={56} color={colors.primary} />
             <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d'aide ?</Text>
             <Text style={[s.lockedSub, { color: colors.textSecondary }]}>
-              Contactez le support via le chat. Nous allons vous aider à finaliser cette livraison.
+              Contactez le support via le chat. Nous allons vous aider à finaliser cette co-livraison.
             </Text>
             <Button
               title="Ouvrir le chat support"
@@ -354,7 +354,7 @@ export default function DeliveryScreen() {
         </Animated.View>
 
         <Animated.View entering={FadeInDown.delay(300).duration(400)} style={s.confirmedText}>
-          <Text style={[s.confirmedTitle, { color: colors.text }]}>Livraison confirmée ✓</Text>
+          <Text style={[s.confirmedTitle, { color: colors.text }]}>Co-livraison confirmée ✓</Text>
           <Text style={[s.confirmedSub, { color: colors.textSecondary }]}>
             Le colis a été remis à {mission.buyer.name} avec succès.
           </Text>
@@ -364,7 +364,7 @@ export default function DeliveryScreen() {
           <Card style={{ backgroundColor: colors.success + '10', borderColor: colors.success + '30' }}>
             <View style={s.earningsCard}>
               <Text style={[s.earningsLabel, { color: colors.textSecondary }]}>
-                Vous avez gagné pour cette livraison
+                Vous avez gagné pour cette co-livraison
               </Text>
               <Text style={[s.earningsAmount, { color: colors.success }]}>
                 {displayedEarnings}€
@@ -378,14 +378,14 @@ export default function DeliveryScreen() {
 
         <Animated.View entering={FadeIn.delay(800)}>
           <Text style={[s.warmMsg, { color: colors.textSecondary }]}>
-            Bravo et merci pour cette livraison !
+            Bravo et merci pour cette co-livraison !
           </Text>
         </Animated.View>
       </View>
 
       <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Retour aux livraisons"
+          title="Retour aux co-livraisons"
           onPress={() => router.replace('/(tabs)/missions')}
           variant="gradient"
           style={{ minHeight: 52 }}

@@ -27,13 +27,13 @@ export function BonEnvoiRow({ mission }: BonEnvoiRowProps) {
     setLoading(true);
     try {
       await generateAndSharePdf(mission);
-      setToast({ msg: "Bon d'envoi généré", type: 'success' });
+      setToast({ msg: "Fiche colis générée", type: 'success' });
     } catch (err) {
       setToast({ msg: "Un souci ? Réessayez dans un instant.", type: 'error' });
       // Offline-safe fallback
       const summary = plainTextSummary(mission);
       Alert.alert(
-        "Bon d'envoi — résumé",
+        "Fiche colis — résumé",
         summary,
         [
           {
@@ -57,7 +57,7 @@ export function BonEnvoiRow({ mission }: BonEnvoiRowProps) {
         onPress={handlePress}
         disabled={loading}
         accessibilityRole="button"
-        accessibilityLabel="Générer le bon d'envoi en PDF"
+        accessibilityLabel="Générer la fiche colis en PDF"
         accessibilityState={{ busy: loading, disabled: loading }}
         style={({ pressed }) => [styles.row, { opacity: pressed ? 0.85 : 1 }]}
       >
@@ -65,7 +65,7 @@ export function BonEnvoiRow({ mission }: BonEnvoiRowProps) {
           <Icon name="document" size={20} color={colors.primary} />
         </View>
         <View style={styles.text}>
-          <Text style={[styles.title, { color: colors.text }]}>Bon d'envoi</Text>
+          <Text style={[styles.title, { color: colors.text }]}>Fiche colis</Text>
           <Text style={[styles.sub, { color: colors.textSecondary }]}>
             Voir / Télécharger le PDF avec le QR à coller sur le colis
           </Text>

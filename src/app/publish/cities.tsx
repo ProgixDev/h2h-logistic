@@ -48,7 +48,7 @@ export default function PublishCitiesScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={2} total={9} label={STEP_LABELS[1]} />
+        <ProgressSteps current={2} total={8} label={STEP_LABELS[1]} />
       </View>
 
       <View style={styles.content}>

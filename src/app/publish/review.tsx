@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
 import { Icon } from '@/components/ui/Icon';
-import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -45,10 +44,8 @@ export default function PublishReviewScreen() {
     opacity: checkOpacity.value,
   }));
 
-  const transport = TRANSPORT_TYPES.find((t) => t.id === form.transportType);
-
   const goToStep = (step: number) => {
-    const routes = ['type', 'cities', 'hub-pickup', 'hub-delivery', 'schedule', 'transport', 'capacity', 'options'];
+    const routes = ['type', 'cities', 'hub-pickup', 'hub-delivery', 'schedule', 'capacity', 'options'];
     const target = routes[step - 1];
     if (target) router.push(`/publish/${target}` as any);
   };
@@ -88,11 +85,11 @@ export default function PublishReviewScreen() {
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>Trajet publié !</Text>
           <Text style={[styles.successSub, { color: colors.textSecondary }]}>
-            Vous serez notifié dès qu'un colis correspond.
+            Vous serez notifié lorsqu'une co-livraison compatible est proposée.
           </Text>
         </Animated.View>
         <Toast
-          message="Trajet publié ! Vous serez notifié dès qu'un colis correspond."
+          message="Trajet publié ! Vous serez notifié lorsqu'une co-livraison compatible est proposée."
           type="success"
           visible={showToast}
           onHide={() => setShowToast(false)}
@@ -106,7 +103,7 @@ export default function PublishReviewScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={9} total={9} label={STEP_LABELS[8]} />
+        <ProgressSteps current={8} total={8} label={STEP_LABELS[7]} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -141,7 +138,7 @@ export default function PublishReviewScreen() {
 
           {/* Delivery hubs */}
           <ReviewRow
-            label={`Hub${form.deliveryHubs.length > 1 ? 's' : ''} livraison`}
+            label={`Hub${form.deliveryHubs.length > 1 ? 's' : ''} co-livraison`}
             value={form.deliveryHubs.map((h) => h.hubName).join('\n')}
             onEdit={() => goToStep(4)}
             colors={colors}
@@ -171,19 +168,11 @@ export default function PublishReviewScreen() {
             />
           )}
 
-          {/* Transport */}
-          <ReviewRow
-            label="Transport"
-            value={transport ? transport.label : '-'}
-            onEdit={() => goToStep(6)}
-            colors={colors}
-          />
-
           {/* Capacity */}
           <ReviewRow
             label="Capacité"
             value={`${form.maxPackages} colis, taille ${form.maxSize ?? '-'}, ${form.maxWeight} kg max`}
-            onEdit={() => goToStep(7)}
+            onEdit={() => goToStep(6)}
             colors={colors}
           />
 
@@ -191,7 +180,7 @@ export default function PublishReviewScreen() {
           <ReviewRow
             label="Hors hub"
             value={form.horsHub ? 'Oui' : 'Non'}
-            onEdit={() => goToStep(8)}
+            onEdit={() => goToStep(7)}
             colors={colors}
             isLast
           />

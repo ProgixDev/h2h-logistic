@@ -24,7 +24,7 @@ export default function PublishOptionsScreen() {
   };
 
   const handleNext = () => {
-    setStep(9);
+    setStep(8);
     router.push('/publish/review');
   };
 
@@ -32,7 +32,7 @@ export default function PublishOptionsScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={8} total={9} label={STEP_LABELS[7]} />
+        <ProgressSteps current={7} total={8} label={STEP_LABELS[6]} />
       </View>
 
       <View style={styles.content}>
@@ -47,9 +47,9 @@ export default function PublishOptionsScreen() {
         ]}>
           <View style={styles.toggleTop}>
             <View style={styles.toggleInfo}>
-              <Text style={[styles.toggleTitle, { color: colors.text }]}>Hors hub possible</Text>
+              <Text style={[styles.toggleTitle, { color: colors.text }]}>Étudier une remise hors hub</Text>
               <Text style={[styles.toggleDesc, { color: colors.textSecondary }]}>
-                Vous acceptez de façon exceptionnelle d'étudier une remise ou prise en charge en dehors d'un hub.
+                Vous acceptez d'étudier, au cas par cas, une récupération ou remise en dehors d'un hub prévu.
               </Text>
             </View>
             <Switch
@@ -60,7 +60,7 @@ export default function PublishOptionsScreen() {
             />
           </View>
           <Text style={[styles.toggleSmall, { color: colors.textSecondary }]}>
-            Cette option reste sous votre contrôle total. Vous pourrez toujours refuser.
+            Vous restez libre de refuser toute demande non compatible avec votre trajet.
           </Text>
         </View>
       </View>

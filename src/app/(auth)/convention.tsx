@@ -6,7 +6,6 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -35,8 +34,6 @@ type ConventionState = {
   scrollProgress: number;
   agreementScrolled: boolean;
   representative: string;
-  wantsBankTransfer: boolean;
-  iban: string;
   agreementRead: boolean;
   agreementAccepted: boolean;
   debitAuthorized: boolean;
@@ -48,18 +45,11 @@ const initialState: ConventionState = {
   scrollProgress: 0,
   agreementScrolled: false,
   representative: '',
-  wantsBankTransfer: false,
-  iban: '',
   agreementRead: false,
   agreementAccepted: false,
   debitAuthorized: false,
   readApprovedMention: '',
   signatureData: '',
-};
-
-const formatIban = (raw: string) => {
-  const clean = raw.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
-  return clean.match(/.{1,4}/g)?.join(' ') ?? clean;
 };
 
 export default function ConventionScreen() {
@@ -91,10 +81,8 @@ export default function ConventionScreen() {
   const mentionOk =
     state.readApprovedMention.trim().toLowerCase() === REQUIRED_MENTION;
   const mentionTouched = state.readApprovedMention.length > 0;
-  const ibanClean = state.iban.replace(/\s/g, '');
-  const ibanFilled = ibanClean.length >= 14;
   const repFilled = state.representative.trim().length > 1;
-  const identityOk = repFilled && (!state.wantsBankTransfer || ibanFilled);
+  const identityOk = repFilled;
   const authOk =
     state.agreementRead && state.agreementAccepted && state.debitAuthorized;
   const signatureOk = state.signatureData.length > 0 && mentionOk;
@@ -107,13 +95,13 @@ export default function ConventionScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     await saveConventionAcceptance({
       representative: state.representative,
-      iban: ibanClean,
-      wantsBankTransfer: state.wantsBankTransfer,
+      iban: '',
+      wantsBankTransfer: false,
       debitAuthorized: state.debitAuthorized,
       signatureData: state.signatureData,
     });
-    router.replace('/(tabs)');
-  }, [allValid, state, ibanClean, saveConventionAcceptance, router]);
+    router.replace('/(auth)/iban' as never);
+  }, [allValid, state, saveConventionAcceptance, router]);
 
   const signedName =
     state.representative.trim() ||
@@ -244,84 +232,22 @@ export default function ConventionScreen() {
           </View>
         </SectionCard>
 
-        {/* ── Section 2 · Identity + IBAN ───────────────────────── */}
+        {/* ── Section 2 · Identity ──────────────────────────────── */}
         <SectionCard
           index={2}
-          title="Identité et paiement"
-          subtitle="Le nom du représentant est obligatoire. L'IBAN n'est requis que pour les virements bancaires."
+          title="Identité"
+          subtitle="Le nom et prénom du représentant qui signe la convention."
           done={identityOk}
         >
-          <View style={{ gap: Spacing.md }}>
-            <Input
-              label="Nom et prénom du représentant"
-              placeholder="Ex. Achraf Arabi"
-              value={state.representative}
-              onChangeText={(v) =>
-                setState((d) => ({ ...d, representative: v }))
-              }
-              autoCapitalize="words"
-            />
-
-            <View
-              style={[
-                styles.toggleRow,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <View style={{ flex: 1, paddingRight: Spacing.md }}>
-                <Text style={[Typography.bodyMedium, { color: colors.text }]}>
-                  Je souhaite être payé par virement bancaire
-                </Text>
-                <Text
-                  style={[
-                    Typography.caption,
-                    { color: colors.textSecondary, marginTop: 2 },
-                  ]}
-                >
-                  Si activé, un IBAN valide est requis. Sinon vous pourrez le
-                  renseigner plus tard depuis votre profil.
-                </Text>
-              </View>
-              <Switch
-                value={state.wantsBankTransfer}
-                onValueChange={(v) =>
-                  setState((d) => ({
-                    ...d,
-                    wantsBankTransfer: v,
-                    iban: v ? d.iban : '',
-                  }))
-                }
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-
-            {state.wantsBankTransfer && (
-              <View>
-                <Input
-                  label="IBAN"
-                  placeholder="FR76 1234 5678 9012 3456 7890 123"
-                  value={state.iban}
-                  onChangeText={(v) =>
-                    setState((d) => ({ ...d, iban: formatIban(v) }))
-                  }
-                  autoCapitalize="characters"
-                  maxLength={34}
-                />
-                <Text
-                  style={[
-                    Typography.caption,
-                    { color: colors.textSecondary, marginTop: 4 },
-                  ]}
-                >
-                  Utilisé uniquement pour vous verser vos compensations.
-                </Text>
-              </View>
-            )}
-          </View>
+          <Input
+            label="Nom et prénom du représentant"
+            placeholder="Ex. Achraf Arabi"
+            value={state.representative}
+            onChangeText={(v) =>
+              setState((d) => ({ ...d, representative: v }))
+            }
+            autoCapitalize="words"
+          />
         </SectionCard>
 
         {/* ── Section 3 · Debit authorization ───────────────────── */}

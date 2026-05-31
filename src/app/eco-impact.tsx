@@ -63,7 +63,7 @@ export default function EcoImpactScreen() {
             <Text style={styles.heroLabel}>Depuis votre inscription</Text>
           </View>
           <Text style={styles.heroAmount}>{formatCo2(totalKgSavedAllTime)}</Text>
-          <Text style={styles.heroSub}>évités sur {deliveriesAllTime} livraisons</Text>
+          <Text style={styles.heroSub}>estimés sur {deliveriesAllTime} co-livraisons</Text>
           <Text style={styles.heroEq}>{equivalence(totalKgSavedAllTime)}</Text>
         </LinearGradient>
 
@@ -124,9 +124,9 @@ export default function EcoImpactScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Comment on calcule</Text>
           </View>
           <Text style={[styles.howBody, { color: colors.textSecondary }]}>
-            Chaque livraison partagée évite un trajet dédié d'un coursier. La différence entre cette
-            émission de référence et votre trajet réel (voiture, vélo, scooter, train) constitue le
-            CO₂ évité. Chaque livraison compte.
+            L'estimation compare une co-livraison effectuée sur un trajet déjà prévu avec un trajet dédié
+            équivalent. Le résultat est indicatif et peut varier selon le mode de déplacement, la distance
+            et les paramètres retenus.
           </Text>
         </Card>
       </ScrollView>

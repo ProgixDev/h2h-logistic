@@ -42,13 +42,13 @@ export default function HubPickupScreen() {
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
         <Header title="Publier un trajet" showBack />
-        <ProgressSteps current={3} total={9} label={STEP_LABELS[2]} />
+        <ProgressSteps current={3} total={8} label={STEP_LABELS[2]} />
       </View>
 
       <View style={styles.content}>
         <Text style={[styles.title, { color: colors.text }]}>Hub de récupération</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Où récupérerez-vous les colis ?
+          Où pourrez-vous récupérer les colis ?
         </Text>
         <Text style={[styles.info, { color: colors.textSecondary }]}>
           Sélectionnez un hub validé dans votre ville de départ ({form.departureCity}).
@@ -111,14 +111,12 @@ export default function HubPickupScreen() {
             }
             renderItem={({ item }) => {
               const selected = item.id === selectedId;
-              const isPartner = item.type === 'partner_shop';
               return (
                 <TouchableOpacity onPress={() => selectHub(item)} activeOpacity={0.8}>
                   <View style={[
                     styles.hubCard,
                     { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border },
                     selected && { borderWidth: 2 },
-                    isPartner && !selected && { borderColor: colors.accent + '60' },
                   ]}>
                     {/* Top row */}
                     <View style={styles.hubTop}>
@@ -138,23 +136,6 @@ export default function HubPickupScreen() {
                     {/* Address + hours */}
                     <Text style={[styles.hubAddress, { color: colors.textSecondary }]}>{item.address}</Text>
                     <Text style={[styles.hubHours, { color: colors.textSecondary }]}>{item.openingHours}</Text>
-
-                    {/* Partner badge + package count */}
-                    {isPartner && (
-                      <View style={styles.partnerRow}>
-                        <Badge label="Partenaire" variant="success" />
-                        {item.availablePackages != null && item.availablePackages > 0 && (
-                          <View style={[styles.packageCount, { backgroundColor: colors.primary + '12' }]}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                              <Icon name="package" size={11} color={colors.primary} />
-                              <Text style={[styles.packageCountText, { color: colors.primary }]}>
-                                {item.availablePackages} colis disponibles
-                              </Text>
-                            </View>
-                          </View>
-                        )}
-                      </View>
-                    )}
                   </View>
                 </TouchableOpacity>
               );

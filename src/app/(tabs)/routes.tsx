@@ -85,7 +85,7 @@ export default function RoutesScreen() {
       {!isOnline && (
         <View style={[styles.offlineBanner, { backgroundColor: colors.warning + '12' }]}>
           <Text style={[styles.offlineText, { color: colors.warning }]}>
-            Vous êtes hors ligne — vos trajets ne sont pas visibles
+            Vous êtes hors ligne, vos trajets ne sont pas proposés aux utilisateurs
           </Text>
         </View>
       )}
@@ -106,7 +106,7 @@ export default function RoutesScreen() {
             iconName="tab-routes"
             title="Aucun trajet publié"
             description={filter === 'active'
-              ? 'Publiez votre premier trajet pour commencer à recevoir des livraisons.'
+              ? 'Publiez votre premier trajet pour commencer à recevoir des co-livraisons.'
               : filter === 'paused'
                 ? 'Aucun trajet hors ligne.'
                 : 'Vous n\'avez pas encore de trajet.'}

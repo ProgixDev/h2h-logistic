@@ -68,7 +68,7 @@ export default function AuthEntryScreen() {
 
         <Text style={[styles.title, { color: colors.text }]}>Rejoindre H2H Logistic</Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-          Commencez à livrer et gagner de l'argent
+          Application de cotransportage de colis entre particuliers sur trajets déjà prévus.
         </Text>
 
         <Button

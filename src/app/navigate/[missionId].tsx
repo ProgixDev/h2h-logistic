@@ -55,7 +55,7 @@ export default function NavigateScreen() {
 
   // ─── INIT ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!isDemo && !mission) { setError('Livraison introuvable'); setState('error'); return; }
+    if (!isDemo && !mission) { setError('Co-livraison introuvable'); setState('error'); return; }
     if (!destCoords) { setError('Destination non trouvée'); setState('error'); return; }
 
     if (isDemo) {
@@ -173,7 +173,7 @@ export default function NavigateScreen() {
   }
 
   if (!isDemo && !mission) {
-    return <ErrorView message="Livraison introuvable" colors={colors} />;
+    return <ErrorView message="Co-livraison introuvable" colors={colors} />;
   }
 
   if (state === 'loading') {
@@ -219,7 +219,7 @@ export default function NavigateScreen() {
           <Text style={s.arrivalHub}>{hubName}</Text>
           <Text style={s.arrivalWarm}>Tout est prêt pour la remise. Bonne continuation !</Text>
           <Button
-            title={isDemo ? 'Terminer la démo' : 'Continuer vers la livraison'}
+            title={isDemo ? 'Terminer la démo' : 'Continuer vers la co-livraison'}
             onPress={() => {
               if (isDemo || !mission) {
                 scheduleNavigation(() => router.back());

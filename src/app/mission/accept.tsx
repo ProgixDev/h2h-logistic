@@ -15,6 +15,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
+import { StarsAnimation } from '@/components/mission/StarsAnimation';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { formatCurrency, formatTime, formatDate } from '@/utils/formatting';
 
@@ -31,8 +32,8 @@ export default function AcceptMissionScreen() {
   if (!mission) {
     return (
       <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Livraison" showBack /></View>
-        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Livraison introuvable</Text>
+        <View style={{ paddingHorizontal: Spacing.lg }}><Header title="Co-livraison" showBack /></View>
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
       </View>
     );
   }
@@ -53,7 +54,7 @@ export default function AcceptMissionScreen() {
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
-        <Header title="Nouvelle livraison" showBack />
+        <Header title="Nouvelle co-livraison" showBack />
       </View>
 
       <LinearGradient
@@ -62,7 +63,8 @@ export default function AcceptMissionScreen() {
         end={{ x: 1, y: 0 }}
         style={styles.goldBanner}
       >
-        <Text style={styles.goldBannerText}>✨  Nouvelle livraison</Text>
+        <StarsAnimation />
+        <Text style={styles.goldBannerText}>Nouvelle co-livraison</Text>
       </LinearGradient>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -146,7 +148,7 @@ export default function AcceptMissionScreen() {
 
         {/* Earnings section */}
         <Card style={{ backgroundColor: colors.primary + '08', borderColor: colors.primary + '20' }}>
-          <Text style={[styles.earningsLabel, { color: colors.textSecondary }]}>Vous gagnerez</Text>
+          <Text style={[styles.earningsLabel, { color: colors.textSecondary }]}>Participation aux frais</Text>
           <Text style={[styles.earningsAmount, { color: colors.primary }]}>
             {formatCurrency(mission.transporterEarning)}
           </Text>
@@ -176,7 +178,7 @@ export default function AcceptMissionScreen() {
       {/* Action buttons */}
       <View style={[styles.actions, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button
-          title="Accepter la livraison"
+          title="Accepter la co-livraison"
           onPress={handleAccept}
           variant="gradient"
           loading={isLoading}
@@ -228,7 +230,7 @@ const sty = StyleSheet.create({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  goldBanner: { height: 48, alignItems: 'center', justifyContent: 'center', marginHorizontal: Spacing.lg, borderRadius: BorderRadius.md, marginTop: Spacing.sm },
+  goldBanner: { height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginHorizontal: Spacing.lg, borderRadius: BorderRadius.md, marginTop: Spacing.sm, overflow: 'hidden' },
   goldBannerText: { fontFamily: 'Poppins_600SemiBold', fontSize: 15, color: '#1A1A1E' },
   scroll: { paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.lg, gap: Spacing.lg },
   notFound: { ...Typography.body, textAlign: 'center', marginTop: Spacing.section },

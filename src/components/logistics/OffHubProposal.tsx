@@ -113,6 +113,14 @@ export function OffHubProposalSheet({
           Doit être avant l'heure prévue au hub
         </Text>
 
+        {/* Consent disclaimer */}
+        <View style={[s.consent, { backgroundColor: colors.primary + '08' }]}>
+          <Icon name="info" size={16} color={colors.primary} />
+          <Text style={[s.consentText, { color: colors.textSecondary }]}>
+            Cette demande reste soumise à l'accord des parties. Vous pouvez refuser toute remise hors hub non compatible avec votre trajet.
+          </Text>
+        </View>
+
         {/* Actions */}
         <Button title="Envoyer la proposition" onPress={handleSend} variant="gradient" disabled={!canSend} />
         <TouchableOpacity onPress={onClose} style={s.cancelBtn}>
@@ -136,6 +144,8 @@ const s = StyleSheet.create({
   input: { borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, ...Typography.body, minHeight: 48 },
   timeInput: { borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, ...Typography.bodyMedium, width: 100, textAlign: 'center' },
   timeHint: { ...Typography.caption, marginTop: -Spacing.sm },
+  consent: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: Spacing.md, borderRadius: BorderRadius.sm },
+  consentText: { ...Typography.caption, lineHeight: 18, flex: 1 },
   cancelBtn: { alignItems: 'center', paddingVertical: Spacing.sm },
   cancelText: { ...Typography.bodyMedium, textDecorationLine: 'underline' },
 });

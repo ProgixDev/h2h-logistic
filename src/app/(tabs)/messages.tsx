@@ -18,9 +18,9 @@ const STATUS_LABELS: Partial<Record<MissionStatus, { label: string; variant: 'de
   seller_pending: { label: 'Attente vendeur', variant: 'warning' },
   group_created: { label: 'Prête', variant: 'success' },
   pickup_pending: { label: 'Prise en charge', variant: 'warning' },
-  picked_up: { label: 'En transit', variant: 'default' },
-  in_transit: { label: 'En transit', variant: 'default' },
-  delivery_pending: { label: 'Remise', variant: 'warning' },
+  picked_up: { label: 'En trajet', variant: 'default' },
+  in_transit: { label: 'En trajet', variant: 'default' },
+  delivery_pending: { label: 'Remise prévue', variant: 'warning' },
 };
 
 interface GroupItem {
@@ -119,7 +119,7 @@ export default function MessagesScreen() {
         <TextInput
           value={search}
           onChangeText={setSearch}
-          placeholder="Rechercher une livraison ou un nom"
+          placeholder="Rechercher une co-livraison ou un nom"
           placeholderTextColor={colors.textSecondary}
           style={[s.searchInput, { color: colors.text }]}
           accessibilityLabel="Rechercher une conversation"
@@ -149,7 +149,7 @@ export default function MessagesScreen() {
           <EmptyState
             iconName="chat"
             title="Aucune conversation pour le moment"
-            description="Vos conversations apparaîtront ici dès qu'une livraison sera active."
+            description="Vos conversations apparaîtront ici dès qu'une co-livraison sera active."
           />
         }
       />

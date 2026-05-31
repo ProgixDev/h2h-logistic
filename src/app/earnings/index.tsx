@@ -53,7 +53,7 @@ export default function EarningsScreen() {
   return (
     <View style={[s.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={{ paddingHorizontal: Spacing.lg }}>
-        <Header title="Mes gains" showBack />
+        <Header title="Mes participations" showBack />
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
@@ -102,7 +102,7 @@ export default function EarningsScreen() {
               onSelectBar={setSelectedBar}
             />
             <Text style={[s.chartTotal, { color: colors.text }]}>
-              Total : {formatCurrency(periodData.amount)} ({periodData.deliveries} livraisons)
+              Total : {formatCurrency(periodData.amount)} ({periodData.deliveries} co-livraisons)
             </Text>
             {periodCo2Kg > 0 && (
               <View style={[s.co2Row, { borderTopColor: colors.border }]}>
@@ -126,7 +126,7 @@ export default function EarningsScreen() {
               <Icon name={tx.type === 'earning' ? 'cash' : tx.type === 'withdrawal' ? 'card' : 'close-circle'} size={20} color={tx.type === 'earning' ? colors.success : tx.type === 'withdrawal' ? colors.primary : colors.error} />
               <View style={s.txInfo}>
                 <Text style={[s.txTitle, { color: colors.text }]} numberOfLines={1}>
-                  {tx.type === 'withdrawal' ? 'Retrait' : `Livraison ${tx.reference}`}
+                  {tx.type === 'withdrawal' ? 'Retrait' : `Co-livraison ${tx.reference}`}
                 </Text>
                 <Text style={[s.txRoute, { color: colors.textSecondary }]}>{tx.route}</Text>
                 <Text style={[s.txDate, { color: colors.textSecondary }]}>{formatDate(tx.date)}</Text>
@@ -146,7 +146,7 @@ export default function EarningsScreen() {
           >
             <Card>
               <View style={s.economyHeader}>
-                <Text style={[s.economyTitle, { color: colors.text }]}>Comment sont calculés vos gains ?</Text>
+                <Text style={[s.economyTitle, { color: colors.text }]}>Comment sont calculées vos participations ?</Text>
                 <Text style={[s.economyChevron, { color: colors.textSecondary }]}>{showEconomy ? '▴' : '▾'}</Text>
               </View>
 
@@ -161,7 +161,7 @@ export default function EarningsScreen() {
                     </Text>
                   </View>
                   <Text style={[s.economyText, { color: colors.textSecondary }]}>
-                    Exemple : sur une livraison à 5€ → Vous recevez 4.00€
+                    Exemple : sur une co-livraison à 5€ → Vous recevez 4.00€
                   </Text>
                   <Text style={[s.economyText, { color: colors.textSecondary }]}>
                     Votre revenu dépend du volume et de la régularité de vos trajets.
@@ -201,7 +201,7 @@ function EarningsChart({
     <View style={s.chartContainer}>
       {selectedBar != null && data[selectedBar] && (
         <Text style={[s.chartTooltip, { color: colors.primary }]}>
-          {formatCurrency(data[selectedBar].amount)} — {data[selectedBar].deliveries} livraison{data[selectedBar].deliveries !== 1 ? 's' : ''}
+          {formatCurrency(data[selectedBar].amount)} — {data[selectedBar].deliveries} co-livraison{data[selectedBar].deliveries !== 1 ? 's' : ''}
         </Text>
       )}
       <Svg width={chartW} height={chartH + 24} viewBox={`0 0 ${chartW} ${chartH + 24}`}>
