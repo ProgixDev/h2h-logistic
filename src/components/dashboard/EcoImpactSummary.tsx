@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
@@ -63,7 +64,7 @@ export function EcoImpactSummary({ kgSavedThisMonth, kgSavedLastMonth, kgSavedAl
               />
             </Svg>
             <View style={styles.ringIcon}>
-              <Icon name="leaf" size={22} color={colors.success} />
+              <Image source={require('@/assets/images/leaf.webp')} style={styles.ringLeaf} contentFit="contain" />
             </View>
           </View>
 
@@ -102,6 +103,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  ringLeaf: {
+    width: 34,
+    height: 34,
   },
   text: {
     flex: 1,

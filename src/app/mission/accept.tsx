@@ -39,6 +39,7 @@ export default function AcceptMissionScreen() {
   }
 
   const isFavorite = mission.buyer.isFavorite;
+  const platformFee = Math.round((mission.price - mission.transporterEarning) * 100) / 100;
 
   const handleAccept = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -148,16 +149,21 @@ export default function AcceptMissionScreen() {
 
         {/* Earnings section */}
         <Card style={{ backgroundColor: colors.primary + '08', borderColor: colors.primary + '20' }}>
-          <Text style={[styles.earningsLabel, { color: colors.textSecondary }]}>Participation aux frais</Text>
+          <Text style={[styles.earningsLabel, { color: colors.textSecondary }]}>Participation aux frais proposée</Text>
           <Text style={[styles.earningsAmount, { color: colors.primary }]}>
             {formatCurrency(mission.transporterEarning)}
           </Text>
-          <Text style={[styles.earningsCaption, { color: colors.textSecondary }]}>
-            80% pour vous • 20% plateforme
-          </Text>
-          <Text style={[styles.earningsSplit, { color: colors.textSecondary }]}>
-            Frais total : {formatCurrency(mission.price)} → Votre part : {formatCurrency(mission.transporterEarning)}
-          </Text>
+
+          <View style={[styles.feeBreakdown, { borderTopColor: colors.border }]}>
+            <View style={styles.feeRow}>
+              <Text style={[styles.feeLabel, { color: colors.textSecondary }]}>Frais de mise en relation plateforme</Text>
+              <Text style={[styles.feeValue, { color: colors.textSecondary }]}>{formatCurrency(platformFee)}</Text>
+            </View>
+            <View style={styles.feeRow}>
+              <Text style={[styles.feeTotalLabel, { color: colors.text }]}>Total facturé au demandeur</Text>
+              <Text style={[styles.feeTotalValue, { color: colors.text }]}>{formatCurrency(mission.price)}</Text>
+            </View>
+          </View>
         </Card>
 
         {/* Eco impact */}
@@ -268,8 +274,12 @@ const styles = StyleSheet.create({
   // Earnings
   earningsLabel: { ...Typography.body, textAlign: 'center' },
   earningsAmount: { fontFamily: 'Poppins_700Bold', fontSize: 28, lineHeight: 36, textAlign: 'center' },
-  earningsCaption: { ...Typography.caption, textAlign: 'center' },
-  earningsSplit: { ...Typography.caption, textAlign: 'center', marginTop: Spacing.xs },
+  feeBreakdown: { borderTopWidth: 0.5, marginTop: Spacing.md, paddingTop: Spacing.md, gap: Spacing.sm },
+  feeRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.md },
+  feeLabel: { ...Typography.caption, flex: 1 },
+  feeValue: { ...Typography.captionMedium },
+  feeTotalLabel: { ...Typography.bodyMedium, flex: 1 },
+  feeTotalValue: { ...Typography.bodyMedium },
 
   // Actions
   actions: { paddingHorizontal: Spacing.lg, gap: Spacing.md, alignItems: 'center' },

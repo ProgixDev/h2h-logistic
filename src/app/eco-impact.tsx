@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -59,7 +60,7 @@ export default function EcoImpactScreen() {
           style={styles.hero}
         >
           <View style={styles.heroHeader}>
-            <Icon name="leaf" size={28} color="#FFFFFF" />
+            <Image source={require('@/assets/images/leaf.webp')} style={styles.heroLeaf} contentFit="contain" />
             <Text style={styles.heroLabel}>Depuis votre inscription</Text>
           </View>
           <Text style={styles.heroAmount}>{formatCo2(totalKgSavedAllTime)}</Text>
@@ -151,6 +152,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     marginBottom: Spacing.sm,
+  },
+  heroLeaf: {
+    width: 34,
+    height: 34,
   },
   heroLabel: {
     fontFamily: 'Poppins_500Medium',

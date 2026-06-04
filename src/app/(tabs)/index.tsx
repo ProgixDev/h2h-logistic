@@ -12,6 +12,8 @@ import {
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Image } from 'expo-image';
+import LottieView from 'lottie-react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -32,7 +34,6 @@ import { useMissionStore } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useEarningsStore } from '@/stores/useEarningsStore';
 import { formatCurrency, formatTime } from '@/utils/formatting';
-import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { mockNotifications, type AppNotification } from '@/services/mock/notifications';
 import { DailyConfirmation } from '@/components/route/DailyConfirmation';
 import { EcoImpactSummary } from '@/components/dashboard/EcoImpactSummary';
@@ -139,10 +140,17 @@ export default function HomeScreen() {
         ]}
       >
         <View style={styles.headerBrand}>
-          <Text style={[styles.headerLogo, { color: colors.primary }]}>H2H Logistic</Text>
-          <Text style={[styles.headerTagline, { color: colors.textSecondary }]} numberOfLines={1}>
-            Cotransportage entre particuliers
-          </Text>
+          <Image
+            source={require('@/assets/images/logo.png')}
+            style={styles.headerLogoMark}
+            contentFit="contain"
+          />
+          <View style={styles.headerBrandText}>
+            <Text style={[styles.headerLogo, { color: colors.primary }]}>H2H Logistic</Text>
+            <Text style={[styles.headerTagline, { color: colors.textSecondary }]} numberOfLines={1}>
+              Cotransportage entre particuliers
+            </Text>
+          </View>
         </View>
 
         <StatusToggle isOnline={isOnline} onToggle={toggleOnline} />
@@ -476,8 +484,6 @@ function CompactRouteCard({
   colors: any;
   router: any;
 }) {
-  const transport = TRANSPORT_TYPES.find((t) => t.id === route.transportType);
-
   return (
     <TouchableOpacity
       onPress={() => router.push(`/route/${route.id}`)}
@@ -485,7 +491,6 @@ function CompactRouteCard({
     >
       <View style={[styles.compactRoute, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.compactRouteTop}>
-          <Icon name={transport?.iconName ?? 'package'} size={20} color={colors.text} />
           <Text style={[styles.compactRouteCities, { color: colors.text }]}>
             {route.departureCity} → {route.arrivalCity}
           </Text>
@@ -557,7 +562,19 @@ function NotificationRow({ notif, colors }: { notif: AppNotification; colors: an
         !notif.read && { backgroundColor: colors.primary + '06' },
       ]}
     >
-      <Icon name={iconMap[notif.type] ?? 'bell'} size={20} color={colors.primary} />
+      {notif.type === 'earning' ? (
+        <View style={styles.notifIconSlot}>
+          <LottieView
+            source={require('@/assets/lottie/coin.json')}
+            autoPlay
+            loop
+            resizeMode="cover"
+            style={styles.notifCoin}
+          />
+        </View>
+      ) : (
+        <Icon name={iconMap[notif.type] ?? 'bell'} size={20} color={colors.primary} />
+      )}
       <View style={styles.notifContent}>
         <Text style={[styles.notifTitle, { color: colors.text }]} numberOfLines={1}>
           {notif.title}
@@ -598,6 +615,16 @@ const styles = StyleSheet.create({
   },
   headerBrand: {
     flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  headerBrandText: {
+    flexShrink: 1,
+  },
+  headerLogoMark: {
+    width: 32,
+    height: 32,
   },
   headerLogo: {
     fontFamily: 'Poppins_600SemiBold',
@@ -783,9 +810,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  compactRouteTransport: {
-    fontSize: 20,
-  },
   compactRouteCities: {
     ...Typography.bodyMedium,
   },
@@ -887,6 +911,17 @@ const styles = StyleSheet.create({
   },
   notifIcon: {
     fontSize: 20,
+  },
+  notifIconSlot: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  notifCoin: {
+    width: 36,
+    height: 36,
   },
   notifContent: {
     flex: 1,

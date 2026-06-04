@@ -153,18 +153,15 @@ export default function EarningsScreen() {
               {showEconomy && (
                 <View style={[s.economyBody, { borderTopColor: colors.border }]}>
                   <Text style={[s.economyText, { color: colors.textSecondary }]}>
-                    Hand to Hand Logistic facture toujours 1€ de moins que la concurrence.
+                    Chaque co-livraison propose une participation aux frais adaptée au trajet concerné.
                   </Text>
                   <View style={[s.economyHighlight, { backgroundColor: colors.primary + '08' }]}>
                     <Text style={[s.economyBold, { color: colors.primary }]}>
-                      Répartition : 80% pour vous, 20% pour la plateforme.
+                      Avant acceptation, vous visualisez clairement la participation proposée ainsi que les frais de mise en relation HandtoHand.
                     </Text>
                   </View>
                   <Text style={[s.economyText, { color: colors.textSecondary }]}>
-                    Exemple : sur une co-livraison à 5€ → Vous recevez 4.00€
-                  </Text>
-                  <Text style={[s.economyText, { color: colors.textSecondary }]}>
-                    Votre revenu dépend du volume et de la régularité de vos trajets.
+                    Le montant affiché dans cette rubrique correspond aux participations aux frais perçues pour les co-livraisons réalisées.
                   </Text>
                 </View>
               )}

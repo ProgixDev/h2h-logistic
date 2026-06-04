@@ -17,7 +17,7 @@ const STATUS_LABELS: Partial<Record<MissionStatus, { label: string; variant: 'de
   accepted: { label: 'Acceptée', variant: 'default' },
   seller_pending: { label: 'Attente vendeur', variant: 'warning' },
   group_created: { label: 'Prête', variant: 'success' },
-  pickup_pending: { label: 'Prise en charge', variant: 'warning' },
+  pickup_pending: { label: 'Récupération', variant: 'warning' },
   picked_up: { label: 'En trajet', variant: 'default' },
   in_transit: { label: 'En trajet', variant: 'default' },
   delivery_pending: { label: 'Remise prévue', variant: 'warning' },
