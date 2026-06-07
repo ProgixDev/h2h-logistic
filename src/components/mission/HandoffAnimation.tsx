@@ -2,8 +2,9 @@
  * HandoffAnimation — the H2H "main à main" gesture.
  *
  * Plays the hand-to-hand delivery Lottie (assets/lottie/handoff.json) on the
- * "ACTION SUIVANTE · Remise" card, in place of the old flag icon. Loops on its
- * own. The source art is square (500×500), so width === height.
+ * "ACTION SUIVANTE" card for both phases (Récupération and Remise), in place of
+ * a static icon. Loops on its own. The source art is square (500×500), so
+ * width === height.
  */
 
 import React from 'react';

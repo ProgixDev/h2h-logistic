@@ -1,131 +1,110 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import LottieView from 'lottie-react-native';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { Card } from '@/components/ui/Card';
-import { Icon, type IconName } from '@/components/ui/Icon';
+import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface Responsibility {
-  iconName: IconName;
+  lottie: any;
   title: string;
   helper: string;
 }
 
 const ITEMS: Responsibility[] = [
   {
-    iconName: 'battery',
+    lottie: require('@/assets/lottie/battery.json'),
     title: 'Batterie téléphone',
     helper:
-      "Chargez votre téléphone avant la co-livraison (50% minimum recommandé). Une panne de batterie peut bloquer le scan à l'arrivée.",
+      "Assurez-vous que votre téléphone est suffisamment chargé avant la co-livraison. Une batterie faible peut empêcher les scans QR nécessaires à la prise en charge et à la remise du colis.",
   },
   {
-    iconName: 'time',
+    lottie: require('@/assets/lottie/clock.json'),
     title: 'Horaires & tolérance',
     helper:
-      "Respectez la fenêtre -10/+10 minutes autour de l'heure prévue. Un petit retard n'est pas grave, mais prévenez l'acheteur via le chat.",
+      "Respectez la fenêtre horaire prévue autour du créneau indiqué. En cas de retard, prévenez immédiatement les personnes concernées via le chat.",
   },
   {
-    iconName: 'traffic',
+    lottie: require('@/assets/lottie/traffic.json'),
     title: 'Imprévus & embouteillages',
     helper:
-      "En cas de trafic ou d'imprévu, informez l'acheteur ou le vendeur dès que possible via le chat. Le chronomètre passe en orange pour vous rappeler.",
+      "En cas de trafic, retard ou imprévu, informez le vendeur ou l'acheteur dès que possible via le chat afin de conserver une trace dans l'application.",
   },
   {
-    iconName: 'package',
+    lottie: require('@/assets/lottie/delivery.json'),
     title: 'Emballage du colis',
     helper:
-      "L'emballage est la responsabilité du vendeur. Vérifiez visuellement que le colis est fermé et intact avant la prise en charge. En cas de doute, prenez une photo.",
+      "L'emballage relève de la responsabilité du vendeur. Avant la prise en charge, vérifiez visuellement que le colis est fermé et ne présente pas de dommage apparent. En cas de doute, signalez-le dans l'application et ajoutez une photo.",
   },
   {
-    iconName: 'lock',
+    lottie: require('@/assets/lottie/padlock.json'),
     title: 'Votre QR code est personnel',
     helper:
-      "Ne partagez jamais votre QR code cotransporteur particulier avec un tiers. Il sert uniquement à vous identifier auprès du vendeur et de l'acheteur.",
+      "Votre QR code cotransporteur est personnel. Ne le partagez pas avec un tiers. Il sert à vous identifier et à sécuriser les étapes de la co-livraison.",
+  },
+  {
+    lottie: require('@/assets/lottie/shield.json'),
+    title: "Ne remettez jamais le colis sans validation dans l'application",
+    helper:
+      "Le colis doit être remis uniquement après validation du protocole HandtoHand. Ne remettez pas le colis sans scan, code ou confirmation prévue par l'application.",
   },
 ];
 
 export function ResponsibilitiesCard() {
   const { colors } = useColorScheme();
   const router = useRouter();
-  const [expanded, setExpanded] = useState(false);
-
-  const toggle = () => {
-    Haptics.selectionAsync();
-    setExpanded((v) => !v);
-  };
 
   return (
-    <Pressable
-      onPress={toggle}
-      accessibilityRole="button"
-      accessibilityState={{ expanded }}
-      accessibilityLabel={`Vos responsabilités, ${expanded ? 'développé' : 'réduit'}`}
-    >
-      <Card style={{ backgroundColor: colors.primary + '06' }}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Icon name="clipboard" size={16} color={colors.text} />
-            <Text style={[styles.title, { color: colors.text }]}>Vos responsabilités</Text>
-          </View>
-          <Icon
-            name={expanded ? 'chevron-down' : 'chevron-right'}
-            size={16}
-            color={colors.textSecondary}
-          />
+    <Card style={{ backgroundColor: colors.primary + '06' }}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Icon name="clipboard" size={16} color={colors.text} />
+          <Text style={[styles.title, { color: colors.text }]}>Bonnes pratiques de co-livraison</Text>
         </View>
+      </View>
 
-        {/* Expanded body */}
-        {expanded && (
-          <Animated.View entering={FadeIn.duration(200)} style={styles.body}>
-            {ITEMS.map((item, idx) => (
-              <View key={idx} style={styles.row}>
-                <View style={[styles.iconCircle, { backgroundColor: colors.accentLight }]}>
-                  <Icon name={item.iconName} size={18} color={colors.primary} />
-                </View>
-                <View style={styles.textCol}>
-                  <Text style={[styles.rowTitle, { color: colors.text }]}>{item.title}</Text>
-                  <Text style={[styles.rowHelper, { color: colors.textSecondary }]}>
-                    {item.helper}
-                  </Text>
-                </View>
-              </View>
-            ))}
-
-            <View style={styles.linkRow}>
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  router.push('/responsabilites' as any);
-                }}
-                hitSlop={12}
-                style={styles.linkWrap}
-                accessibilityRole="link"
-                accessibilityLabel="En savoir plus sur vos responsabilités"
-              >
-                <Text style={[styles.link, { color: colors.primary }]}>En savoir plus →</Text>
-              </Pressable>
-              <Pressable
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  router.push('/incidents-protocol' as any);
-                }}
-                hitSlop={12}
-                style={styles.linkWrap}
-                accessibilityRole="link"
-                accessibilityLabel="Ouvrir le protocole incidents"
-              >
-                <Text style={[styles.link, { color: colors.primary }]}>Protocole incidents →</Text>
-              </Pressable>
+      {/* Body — always visible */}
+      <View style={styles.body}>
+        {ITEMS.map((item, idx) => (
+          <View key={idx} style={styles.row}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.accentLight }]}>
+              <LottieView source={item.lottie} autoPlay loop resizeMode="contain" style={styles.lottie} />
             </View>
-          </Animated.View>
-        )}
-      </Card>
-    </Pressable>
+            <View style={styles.textCol}>
+              <Text style={[styles.rowTitle, { color: colors.text }]}>{item.title}</Text>
+              <Text style={[styles.rowHelper, { color: colors.textSecondary }]}>
+                {item.helper}
+              </Text>
+            </View>
+          </View>
+        ))}
+
+        <View style={styles.linkRow}>
+          <Pressable
+            onPress={() => router.push('/responsabilites' as any)}
+            hitSlop={12}
+            style={styles.linkWrap}
+            accessibilityRole="link"
+            accessibilityLabel="En savoir plus sur vos responsabilités"
+          >
+            <Text style={[styles.link, { color: colors.primary }]}>En savoir plus →</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/incidents-protocol' as any)}
+            hitSlop={12}
+            style={styles.linkWrap}
+            accessibilityRole="link"
+            accessibilityLabel="Ouvrir le protocole incidents"
+          >
+            <Text style={[styles.link, { color: colors.primary }]}>Protocole incidents →</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Card>
   );
 }
 
@@ -158,6 +137,11 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  lottie: {
+    width: 30,
+    height: 30,
   },
   textCol: {
     flex: 1,

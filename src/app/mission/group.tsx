@@ -18,7 +18,6 @@ import { ScheduleReminderCard } from '@/components/mission/ScheduleReminderCard'
 import { DirectionHubButton } from '@/components/mission/DirectionHubButton';
 import { ResponsibilitiesCard } from '@/components/mission/ResponsibilitiesCard';
 import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
-import { BonEnvoiRow } from '@/components/mission/BonEnvoiRow';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { OffHubProposalSheet } from '@/components/logistics/OffHubProposal';
@@ -379,11 +378,6 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
               )}
             </Card>
           </TouchableOpacity>
-        </Animated.View>
-
-        {/* Fiche colis */}
-        <Animated.View entering={FadeInDown.delay(480).duration(300)}>
-          <BonEnvoiRow mission={mission} />
         </Animated.View>
 
         {/* Eco impact */}

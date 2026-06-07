@@ -2,13 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  FadeIn,
-} from 'react-native-reanimated';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
@@ -16,7 +9,6 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
 import { ParticipantsCard } from '@/components/mission/ParticipantsCard';
-import { BonEnvoiRow } from '@/components/mission/BonEnvoiRow';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -110,8 +102,6 @@ export default function MissionDetailScreen() {
           buyer={mission.buyer}
           transporter={mission.transporter}
         />
-
-        <BonEnvoiRow mission={mission} />
       </ScrollView>
     </SafeAreaWrapper>
   );

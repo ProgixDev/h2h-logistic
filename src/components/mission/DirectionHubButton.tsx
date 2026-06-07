@@ -3,7 +3,7 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Icon, type IconName } from '@/components/ui/Icon';
+import { Icon } from '@/components/ui/Icon';
 import { HandoffAnimation } from '@/components/mission/HandoffAnimation';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
@@ -34,7 +34,6 @@ export function DirectionHubButton({
   const { colors } = useColorScheme();
 
   const title = phase === 'pickup' ? 'Valider la récupération' : 'Remise';
-  const iconName: IconName = 'package'; // pickup uses the box; delivery animates the handoff
   const gradientColors: [string, string] =
     phase === 'pickup' ? [colors.primary, '#0C1655'] : [colors.primary, colors.primaryGradientEnd];
 
@@ -76,13 +75,9 @@ export function DirectionHubButton({
           end={{ x: 1, y: 1 }}
           style={styles.card}
         >
-          {/* Left icon — "Remise" plays the hand-to-hand handoff; pickup keeps the box */}
+          {/* Left icon — both phases play the hand-to-hand "main à main" handoff */}
           <View style={styles.iconCircle}>
-            {phase === 'delivery' ? (
-              <HandoffAnimation />
-            ) : (
-              <Icon name={iconName} size={34} color="#FFFFFF" />
-            )}
+            <HandoffAnimation />
           </View>
 
           {/* Center text */}

@@ -544,6 +544,12 @@ function StatBox({
   );
 }
 
+const NOTIF_ANIM: Record<string, any> = {
+  mission_new: require('@/assets/lottie/delivery.json'),
+  mission_update: require('@/assets/lottie/recover.json'),
+  earning: require('@/assets/lottie/coin.json'),
+};
+
 function NotificationRow({ notif, colors }: { notif: AppNotification; colors: any }) {
   const iconMap: Record<string, IconName> = {
     mission_new: 'package',
@@ -562,14 +568,14 @@ function NotificationRow({ notif, colors }: { notif: AppNotification; colors: an
         !notif.read && { backgroundColor: colors.primary + '06' },
       ]}
     >
-      {notif.type === 'earning' ? (
+      {NOTIF_ANIM[notif.type] ? (
         <View style={styles.notifIconSlot}>
           <LottieView
-            source={require('@/assets/lottie/coin.json')}
+            source={NOTIF_ANIM[notif.type]}
             autoPlay
             loop
-            resizeMode="cover"
-            style={styles.notifCoin}
+            resizeMode={notif.type === 'earning' ? 'cover' : 'contain'}
+            style={notif.type === 'mission_new' ? styles.notifAnimLg : styles.notifAnim}
           />
         </View>
       ) : (
@@ -905,7 +911,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.md,
     borderBottomWidth: 0.5,
-    gap: Spacing.md,
+    gap: Spacing.xl,
     paddingHorizontal: Spacing.xs,
     borderRadius: BorderRadius.sm,
   },
@@ -913,15 +919,19 @@ const styles = StyleSheet.create({
     fontSize: 20,
   },
   notifIconSlot: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 24,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'visible',
   },
-  notifCoin: {
-    width: 36,
-    height: 36,
+  notifAnim: {
+    width: 46,
+    height: 46,
+  },
+  notifAnimLg: {
+    width: 70,
+    height: 70,
   },
   notifContent: {
     flex: 1,

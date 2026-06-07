@@ -129,7 +129,6 @@ export default function RouteDetailScreen() {
             <Badge label={isActive ? 'Actif' : 'Hors ligne'} variant={isActive ? 'success' : 'default'} />
           </View>
           <View style={styles.transportBadge}>
-            <Icon name={transport?.iconName ?? 'walk'} size={18} color={colors.textSecondary} />
             <Text style={[styles.transportLabel, { color: colors.textSecondary }]}>{transport?.label}</Text>
           </View>
         </View>

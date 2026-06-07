@@ -111,7 +111,6 @@ export function RouteCard({ route }: RouteCardProps) {
         {/* Transport + Schedule */}
         <View style={styles.metaRow}>
           <View style={styles.transportRow}>
-            <Icon name={transport?.iconName ?? 'package'} size={16} color={colors.textSecondary} />
             <Text style={[styles.transportLabel, { color: colors.textSecondary }]}>{transport?.label}</Text>
           </View>
           <Text style={[styles.schedule, { color: colors.textSecondary }]}>{scheduleText}</Text>
