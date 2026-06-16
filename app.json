@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.handtohand.logistic",
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "backgroundColor": "#14248A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -60,7 +60,8 @@
             "minSdkVersion": 24
           }
         }
-      ]
+      ],
+      "./plugins/withReleaseSigning"
     ],
     "experiments": {
       "typedRoutes": true,
