@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, AccessibilityInfo } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AccessibilityInfo } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -65,6 +65,8 @@ export default function DeliveryScreen() {
   }
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
+  const openIncident = (type: string) =>
+    router.push({ pathname: '/incident/[type]' as any, params: { type, missionId: mission.id } });
   const showToast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => setToast({ msg, type });
   const resetScanner = () => setScannerResetSignal((n) => n + 1);
 
@@ -214,6 +216,16 @@ export default function DeliveryScreen() {
               {mission.buyer.isFavorite && <Icon name="star" size={16} color={colors.warning} />}
             </View>
           </Card>
+
+          {/* Incident entry points (hub de remise) */}
+          <View style={s.incidentLinks}>
+            <TouchableOpacity onPress={() => openIncident('buyer_absent')} hitSlop={8}>
+              <Text style={[s.incidentLink, { color: colors.primary }]}>{"L'acheteur n'est pas présent ?"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openIncident('hub_blocked')} hitSlop={8}>
+              <Text style={[s.incidentLink, { color: colors.textSecondary }]}>Signaler un blocage au hub</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
         <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
@@ -412,6 +424,8 @@ const s = StyleSheet.create({
 
   proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
   proximityText: { ...Typography.bodyMedium },
+  incidentLinks: { alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
+  incidentLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
 
   buyerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   buyerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Toast } from '@/components/ui/Toast';
 import { Icon } from '@/components/ui/Icon';
+import { InterstitialAd } from '@/components/dashboard/InterstitialAd';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -35,6 +36,7 @@ export default function PublishReviewScreen() {
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [showToast, setShowToast] = useState(false);
+  const [showInterstitial, setShowInterstitial] = useState(false);
 
   // Success animation
   const checkScale = useSharedValue(0);
@@ -68,9 +70,11 @@ export default function PublishReviewScreen() {
         setShowToast(true);
       }, 500);
 
+      // Short interstitial after the success beat; we continue to the routes
+      // tab when the user skips or taps through it (see onClose below).
       setTimeout(() => {
-        router.replace('/(tabs)/routes');
-      }, 2500);
+        setShowInterstitial(true);
+      }, 1800);
     } catch {
       Alert.alert('Erreur', 'Impossible de publier le trajet. Veuillez réessayer.');
     }
@@ -95,6 +99,9 @@ export default function PublishReviewScreen() {
           onHide={() => setShowToast(false)}
           duration={2000}
         />
+        {showInterstitial && (
+          <InterstitialAd skipAfter={3} onClose={() => router.replace('/(tabs)/routes')} />
+        )}
       </View>
     );
   }

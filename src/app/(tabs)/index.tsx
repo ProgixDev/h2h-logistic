@@ -37,6 +37,7 @@ import { formatCurrency, formatTime } from '@/utils/formatting';
 import { mockNotifications, type AppNotification } from '@/services/mock/notifications';
 import { DailyConfirmation } from '@/components/route/DailyConfirmation';
 import { EcoImpactSummary } from '@/components/dashboard/EcoImpactSummary';
+import { AdBanner } from '@/components/dashboard/AdBanner';
 import { useEcoImpactStore } from '@/stores/useEcoImpactStore';
 import type { Mission } from '@/types/mission';
 import type { PublishedRoute } from '@/types/route';
@@ -225,6 +226,11 @@ export default function HomeScreen() {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+        </Animated.View>
+
+        {/* ─── AD BANNER ─── */}
+        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+          <AdBanner index={new Date().getDay()} />
         </Animated.View>
 
         {/* ─── DAILY CONFIRMATION ─── */}

@@ -23,7 +23,10 @@ export default function ProfileScreen() {
     { iconName: 'wallet' as const, label: t('earnings.title'), route: '/earnings' },
     { iconName: 'star-outline' as const, label: t('profile.favoriteClients'), route: '/settings/favorite-clients' },
     { iconName: 'bell' as const, label: t('profile.notifications'), route: '/notifications' },
+    { iconName: 'info' as const, label: 'En savoir plus', route: '/responsabilites' },
     { iconName: 'shield' as const, label: 'Protocole incidents', route: '/incidents-protocol' },
+    { iconName: 'time' as const, label: 'Règles de délais', route: '/delays-rules' },
+    { iconName: 'location-filled' as const, label: 'Je suis au hub', route: '/hub-presence' },
     { iconName: 'navigate' as const, label: 'Démo Navigation', route: '/navigate/demo' },
     { iconName: 'settings' as const, label: t('profile.settings'), route: '/settings' },
   ];

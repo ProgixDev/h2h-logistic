@@ -74,6 +74,10 @@ export default function MessagesScreen() {
     });
   };
 
+  const handleOpenMission = (mission: Mission) => {
+    router.push({ pathname: '/mission/[id]', params: { id: mission.id } });
+  };
+
   const renderItem = ({ item, index }: { item: GroupItem; index: number }) => {
     const { mission, completed } = item;
     const sellerPreview = getConversationPreview(mission.id, 'seller');
@@ -101,6 +105,7 @@ export default function MessagesScreen() {
           statusVariant={status?.variant}
           completed={completed}
           onOpenChat={(participant, role) => handleOpenChat(mission, participant, role)}
+          onOpenMission={() => handleOpenMission(mission)}
         />
       </Animated.View>
     );

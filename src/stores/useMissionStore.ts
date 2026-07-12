@@ -1,7 +1,20 @@
 import { create } from 'zustand';
-import type { Mission, MissionStatus, CancellationReason, OffHubProposal } from '@/types/mission';
+import type { Mission, MissionStatus, CancellationReason, OffHubProposal, SupportOutcome } from '@/types/mission';
 import { ACTIVE_STATUSES, COMPLETED_STATUSES } from '@/types/mission';
+import type { DeclarantRole } from '@/types/incident';
 import { mockProposals, mockActiveMissions, mockCompletedMissions } from '@/services/mock/missions';
+import { computeSettlement } from '@/utils/settlement';
+import { canCancelFree } from '@/constants/delaysRules';
+
+/** Unordered pair of user ids that must no longer be matched together (§6). */
+export interface SeparatedPair {
+  a: string;
+  b: string;
+}
+
+function samePair(p: SeparatedPair, a: string, b: string): boolean {
+  return (p.a === a && p.b === b) || (p.a === b && p.b === a);
+}
 
 const MOCK_SELLER_CONFIRM_DELAY = 5000;
 const MOCK_OFFHUB_ACCEPT_DELAY = 3000;
@@ -13,6 +26,10 @@ interface MissionState {
   completedMissions: Mission[];
   isLoading: boolean;
   missions: Mission[];
+  /** Users suspended by a support decision (danger confirmé / signalement abusif). */
+  suspendedUserIds: string[];
+  /** Pairs no longer auto-rematched after a support case (§6). */
+  separatedPairs: SeparatedPair[];
 
   loadMockData: () => void;
   acceptMission: (id: string) => Promise<void>;
@@ -24,12 +41,28 @@ interface MissionState {
   reportSellerAbsence: (id: string) => void;
   reportBuyerAbsence: (id: string, extend?: boolean) => void;
   proposeOffHub: (id: string, proposal: Omit<OffHubProposal, 'status'>) => void;
+  openSupportReview: (missionId: string, reportId: string, reportedUserId?: string) => void;
+  resolveSupportReview: (missionId: string, outcome: SupportOutcome) => void;
+  /** Apply the money + disposition outcome of an incident form (centralized). */
+  applyIncidentOutcome: (missionId: string, type: string) => void;
+  isUserSuspended: (userId: string) => boolean;
+  arePairSeparated: (a: string, b: string) => boolean;
   getMissionById: (id: string) => Mission | undefined;
 
   getProposals: () => Mission[];
   getActiveMissions: () => Mission[];
   getCompletedMissions: () => Mission[];
   getPendingMissions: () => Mission[];
+}
+
+/** A proposal is hidden when this user (the transporter) is separated from
+ *  either counterparty (§6 — « futures demandes non proposées entre eux »). */
+function isProposalSeparated(m: Mission, pairs: SeparatedPair[]): boolean {
+  return pairs.some(
+    (p) =>
+      samePair(p, m.transporter.id, m.buyer.id) ||
+      samePair(p, m.transporter.id, m.seller.id),
+  );
 }
 
 function rebuildMissions(state: { proposals: Mission[]; activeMissions: Mission[]; completedMissions: Mission[] }) {
@@ -51,6 +84,8 @@ export const useMissionStore = create<MissionState>((set, get) => ({
   completedMissions: [],
   isLoading: false,
   missions: [],
+  suspendedUserIds: [],
+  separatedPairs: [],
 
   loadMockData: () => {
     // Idempotent: don't overwrite live state once the store has been seeded.
@@ -147,10 +182,20 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     });
   },
 
+  // F7 — vendeur absent : acheteur remboursé intégral + 4 € au vendeur (3 cotransporteur / 1 H2H).
   reportSellerAbsence: (id) => {
+    set((state) => updateActive(state, id, (m) => ({
+      ...m,
+      buyerRefundStatus: 'refunded',
+      sellerPayStatus: 'unpaid',
+      transporterPayStatus: 'paid',
+      paymentStatus: 'refunded',
+      settlement: computeSettlement('seller_absent') ?? undefined,
+    })));
     get().cancelMission(id, 'seller_no_show');
   },
 
+  // F2 — acheteur absent : vendeur + cotransporteur payés, remboursement acheteur refusé.
   reportBuyerAbsence: (id, extend) => {
     if (extend) {
       // Extend tolerance by 5 min (mock: just update the tolerance)
@@ -158,6 +203,14 @@ export const useMissionStore = create<MissionState>((set, get) => ({
         ...m, deliveryHub: { ...m.deliveryHub, toleranceMinutes: m.deliveryHub.toleranceMinutes + 5 }, updatedAt: new Date().toISOString(),
       })));
     } else {
+      set((state) => updateActive(state, id, (m) => ({
+        ...m,
+        sellerPayStatus: 'paid',
+        transporterPayStatus: 'paid',
+        buyerRefundStatus: 'refused',
+        paymentStatus: 'released',
+        settlement: computeSettlement('buyer_absent') ?? undefined,
+      })));
       get().cancelMission(id, 'buyer_no_show');
     }
   },
@@ -182,13 +235,174 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     }, MOCK_OFFHUB_ACCEPT_DELAY);
   },
 
+  // §4 step 2 — Mise en attente: hold the mission + both payment legs while
+  // support analyses the dossier. The decision (step 4) is NEVER automatic.
+  openSupportReview: (missionId, reportId, reportedUserId) => {
+    const now = new Date().toISOString();
+    set((state) => updateActive(state, missionId, (m) => ({
+      ...m,
+      supportHold: true,
+      paymentStatus: 'held',
+      transporterPayStatus: 'held',
+      reportId,
+      reportedUserId: reportedUserId ?? m.reportedUserId,
+      updatedAt: now,
+    })));
+  },
+
+  // §5/§7 step 4 — Décision: an explicit human support action. Applies the
+  // pay/refund/suspension outcome and separates the pair (§6). Not automatic.
+  resolveSupportReview: (missionId, outcome) => {
+    const now = new Date().toISOString();
+    const m =
+      get().activeMissions.find((x) => x.id === missionId) ??
+      get().completedMissions.find((x) => x.id === missionId);
+    if (!m) return;
+
+    const transporterId = m.transporter.id;
+    const reportedId = m.reportedUserId ?? m.buyer.id;
+
+    let patch: Partial<Mission> = {
+      supportHold: false,
+      supportOutcome: outcome,
+      supportResolvedAt: now,
+      updatedAt: now,
+    };
+    const suspend: string[] = [];
+
+    if (outcome === 'danger_confirmed') {
+      // Faute acheteur : vendeur payé, co-transporteur payé, acheteur suspendu,
+      // remboursement acheteur refusé.
+      patch = {
+        ...patch,
+        sellerPayStatus: 'paid',
+        transporterPayStatus: 'paid',
+        paymentStatus: 'released',
+        buyerRefundStatus: 'refused',
+      };
+      suspend.push(reportedId);
+    } else if (outcome === 'good_faith') {
+      // Erreur de bonne foi : co-transporteur NON suspendu (rappel pédagogique),
+      // acheteur remboursé si non finalisable, vendeur selon CGU.
+      patch = {
+        ...patch,
+        transporterPayStatus: 'paid',
+        pedagogicalReminder: true,
+        paymentStatus: 'refunded',
+        buyerRefundStatus: 'refunded',
+        sellerPayStatus: 'pending',
+      };
+    } else {
+      // Signalement abusif : co-transporteur NON payé + suspendu, acheteur
+      // remboursé si non livré, vendeur payé selon dossier.
+      patch = {
+        ...patch,
+        transporterPayStatus: 'unpaid',
+        paymentStatus: 'refunded',
+        buyerRefundStatus: 'refunded',
+        sellerPayStatus: 'paid',
+      };
+      suspend.push(transporterId);
+    }
+
+    set((state) => {
+      const applyList = (list: Mission[]) =>
+        list.map((x) => (x.id === missionId ? { ...x, ...patch } : x));
+      const newState = {
+        proposals: state.proposals,
+        activeMissions: applyList(state.activeMissions),
+        completedMissions: applyList(state.completedMissions),
+      };
+      const suspendedUserIds = Array.from(new Set([...state.suspendedUserIds, ...suspend]));
+      // Any support case separates the co-transporteur ↔ reported user (§6),
+      // « sauf décision contraire du support ».
+      const alreadySeparated = state.separatedPairs.some((p) =>
+        samePair(p, transporterId, reportedId),
+      );
+      const separatedPairs = alreadySeparated
+        ? state.separatedPairs
+        : [...state.separatedPairs, { a: transporterId, b: reportedId }];
+      return { ...newState, missions: rebuildMissions(newState), suspendedUserIds, separatedPairs };
+    });
+  },
+
+  // Centralized incident → outcome routing. Delegates to the extended
+  // reportSellerAbsence / reportBuyerAbsence / cancelMission / openSupportReview.
+  applyIncidentOutcome: (missionId, type) => {
+    const m =
+      get().activeMissions.find((x) => x.id === missionId) ??
+      get().completedMissions.find((x) => x.id === missionId);
+
+    if (type === 'buyer_absent') {
+      get().reportBuyerAbsence(missionId, false);
+      return;
+    }
+    if (type === 'seller_absent') {
+      get().reportSellerAbsence(missionId);
+      return;
+    }
+    if (type === 'transporter_absent') {
+      // F4 — vendeur payé, cotransporteur non payé, acheteur remboursé, imputé au cotransporteur.
+      set((state) => updateActive(state, missionId, (mm) => ({
+        ...mm,
+        sellerPayStatus: 'paid',
+        transporterPayStatus: 'unpaid',
+        buyerRefundStatus: 'refunded',
+        paymentStatus: 'refunded',
+        settlement: computeSettlement('transporter_absent') ?? undefined,
+      })));
+      get().cancelMission(missionId, 'other');
+      return;
+    }
+    if (type === 'hub_blocked' || type === 'collect_absent') {
+      // F6 (D5) / F13 (D6) — blocage → analyse support.
+      if (type === 'collect_absent') {
+        set((state) => updateActive(state, missionId, (mm) => ({
+          ...mm, settlement: computeSettlement('collect_absent') ?? undefined,
+        })));
+      }
+      get().openSupportReview(missionId, `incident-${type}`);
+      return;
+    }
+    if (type === 'refuse_package') {
+      // F11 — refus colis non conforme → co-livraison annulée, dossier analysable.
+      get().cancelMission(missionId, 'other');
+      return;
+    }
+    if (type === 'cancel_seller' || type === 'cancel_buyer' || type === 'cancel_transporter') {
+      const role: DeclarantRole = type === 'cancel_seller' ? 'seller' : type === 'cancel_buyer' ? 'buyer' : 'transporter';
+      const refIso = m?.pickupHub.scheduledTime ?? new Date().toISOString();
+      const late = !canCancelFree(refIso, role);
+      set((state) => updateActive(state, missionId, (mm) => ({
+        ...mm,
+        settlement: computeSettlement(type, { late }) ?? undefined,
+        transporterPayStatus: type === 'cancel_transporter' && late ? 'unpaid' : mm.transporterPayStatus,
+      })));
+      const reason: CancellationReason =
+        type === 'cancel_transporter'
+          ? (late ? 'transporter_cancelled_after_pickup' : 'transporter_cancelled_before_pickup')
+          : 'other';
+      get().cancelMission(missionId, reason);
+      return;
+    }
+  },
+
+  isUserSuspended: (userId) => get().suspendedUserIds.includes(userId),
+  arePairSeparated: (a, b) => get().separatedPairs.some((p) => samePair(p, a, b)),
+
   getMissionById: (id) => {
     const s = get();
     return s.proposals.find((m) => m.id === id) ?? s.activeMissions.find((m) => m.id === id) ?? s.completedMissions.find((m) => m.id === id);
   },
 
-  getProposals: () => get().proposals.filter((m) => m.status === 'proposal'),
+  getProposals: () => {
+    const { proposals, separatedPairs } = get();
+    return proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, separatedPairs));
+  },
   getActiveMissions: () => get().activeMissions.filter((m) => ACTIVE_STATUSES.includes(m.status)),
   getCompletedMissions: () => get().completedMissions,
-  getPendingMissions: () => get().proposals.filter((m) => m.status === 'proposal'),
+  getPendingMissions: () => {
+    const { proposals, separatedPairs } = get();
+    return proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, separatedPairs));
+  },
 }));

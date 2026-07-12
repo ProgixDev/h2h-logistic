@@ -63,6 +63,9 @@ export interface OffHubProposal {
   status: 'pending' | 'accepted' | 'rejected';
 }
 
+/** Support decision (§5/§7) — always taken by a human, never automatic. */
+export type SupportOutcome = 'danger_confirmed' | 'good_faith' | 'abusive';
+
 export interface Mission {
   id: string;
   routeId: string;
@@ -81,6 +84,28 @@ export interface Mission {
   cancellationReason?: CancellationReason;
   offHubProposal?: OffHubProposal;
   isReturn?: boolean;
+  // ─── Support review / payment hold (danger-grave report routing) ───
+  /** Mission put « en attente » by support after a serious report. */
+  supportHold?: boolean;
+  /** Transaction payment state; 'held' while support reviews. */
+  paymentStatus?: 'pending' | 'held' | 'released' | 'refused' | 'refunded';
+  /** Co-transporteur earning state; 'held' while support reviews. */
+  transporterPayStatus?: 'pending' | 'held' | 'paid' | 'unpaid';
+  /** Seller payment state, set at the support decision. */
+  sellerPayStatus?: 'pending' | 'held' | 'paid' | 'unpaid';
+  /** Buyer refund state, set at the support decision. */
+  buyerRefundStatus?: 'none' | 'refused' | 'limited' | 'refunded';
+  /** Id of the user report that triggered the hold. */
+  reportId?: string;
+  /** Id of the reported user (drives suspension + separation at resolution). */
+  reportedUserId?: string;
+  /** Support decision outcome (§5/§7), once resolved. */
+  supportOutcome?: SupportOutcome;
+  supportResolvedAt?: string;
+  /** « Rappel pédagogique » shown to a good-faith co-transporteur (no sanction). */
+  pedagogicalReminder?: boolean;
+  /** Computed money outcome from an incident form (§ Principe financier). */
+  settlement?: import('@/types/settlement').Settlement;
   createdAt: string;
   updatedAt: string;
 }

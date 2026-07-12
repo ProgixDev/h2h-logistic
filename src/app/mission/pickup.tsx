@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, AccessibilityInfo } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, AccessibilityInfo } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,12 +17,15 @@ import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { QRScanner } from '@/components/logistics/QRScanner';
 import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
+import { HubZoneCheck } from '@/components/logistics/HubZoneCheck';
 import { Icon } from '@/components/ui/Icon';
 import { ScanProgressDots } from '@/components/mission/ScanProgressDots';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { mockHubs } from '@/services/mock/hubs';
 
 type PickupStep = 'approach' | 'scan-seller' | 'scan-package' | 'confirmed';
 
@@ -30,6 +33,7 @@ const MAX_PACKAGE_ATTEMPTS = 3;
 
 export default function PickupScreen() {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -41,7 +45,7 @@ export default function PickupScreen() {
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
   const [packageAttempts, setPackageAttempts] = useState(0);
   const [locked, setLocked] = useState(false);
-  const [proximity] = useState(230);
+  const [presenceConfirmedAt, setPresenceConfirmedAt] = useState<string | null>(null);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -58,6 +62,8 @@ export default function PickupScreen() {
   }
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
+  const openIncident = (type: string) =>
+    router.push({ pathname: '/incident/[type]' as any, params: { type, missionId: mission.id } });
 
   const showToast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToast({ msg, type });
@@ -131,12 +137,23 @@ export default function PickupScreen() {
 
   // ─── STEP: APPROACH ────────────────────────────────────────
   if (step === 'approach') {
-    const proximityColor = proximity > 1000 ? colors.warning : proximity > 500 ? colors.primary : colors.success;
-    const proximityLabel = proximity > 1000
-      ? `Vous êtes à ${(proximity / 1000).toFixed(1)} km du hub`
-      : proximity > 500
-        ? 'Vous approchez du hub'
-        : 'Vous êtes à proximité !';
+    // Resolve the full hub (point central + zone) from the mock dataset.
+    const pickupHub = mockHubs.find((h) => h.id === mission.pickupHub.id) ?? null;
+    // Off-hub rendez-vous → no zone / GPS check (existing bypass, kept intact).
+    const isOffHub = mission.pickupHub.isOffHub === true;
+    const showZoneCheck = !isOffHub && pickupHub !== null;
+
+    const goToSellerScan = () => {
+      AccessibilityInfo.announceForAccessibility('Étape 1 sur 2 : scanner le QR du vendeur.');
+      setStep('scan-seller');
+    };
+
+    const handleConfirmPresence = (ts: string) => {
+      setPresenceConfirmedAt(ts);
+      showToast(t('zone.presenceConfirmed'), 'success');
+      AccessibilityInfo.announceForAccessibility('Présence confirmée dans la zone. Étape 1 sur 2 : scanner le QR du vendeur.');
+      setTimeout(goToSellerScan, 600);
+    };
 
     return (
       <View style={[s.screen, { backgroundColor: colors.background }]}>
@@ -162,12 +179,24 @@ export default function PickupScreen() {
             toleranceMinutes={mission.pickupHub.toleranceMinutes}
           />
 
-          <View style={[s.proximityCard, { backgroundColor: proximityColor + '12' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="location-filled" size={16} color={proximityColor} />
-              <Text style={[s.proximityText, { color: proximityColor }]}>{proximityLabel}</Text>
+          {/* Off-hub: keep the "pas de vérification GPS" bypass. */}
+          {isOffHub && (
+            <View style={[s.offHubBanner, { backgroundColor: colors.warning + '14' }]}>
+              <Icon name="location-filled" size={14} color={colors.warning} />
+              <Text style={[s.offHubText, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text>
             </View>
-          </View>
+          )}
+
+          {/* On-hub: GPS presence in the zone gates approach → scan-seller. */}
+          {showZoneCheck && (
+            <HubZoneCheck
+              hub={pickupHub}
+              scheduledTime={mission.pickupHub.scheduledTime}
+              toleranceMinutes={mission.pickupHub.toleranceMinutes}
+              confirmed={presenceConfirmedAt !== null}
+              onConfirm={handleConfirmPresence}
+            />
+          )}
 
           <Card>
             <View style={s.sellerRow}>
@@ -186,19 +215,33 @@ export default function PickupScreen() {
               </View>
             </View>
           </Card>
+
+          {/* Incident entry points (rendez-vous de collecte) */}
+          <View style={s.incidentLinks}>
+            <TouchableOpacity onPress={() => openIncident('seller_absent')} hitSlop={8}>
+              <Text style={[s.incidentLink, { color: colors.primary }]}>{"Le vendeur n'est pas présent ?"}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openIncident('refuse_package')} hitSlop={8}>
+              <Text style={[s.incidentLink, { color: colors.textSecondary }]}>Refuser le colis (non conforme)</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => openIncident('collect_absent')} hitSlop={8}>
+              <Text style={[s.incidentLink, { color: colors.textSecondary }]}>Signaler un blocage à la collecte</Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
 
-        <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
-          <Button
-            title="Scanner le QR du vendeur"
-            onPress={() => {
-              AccessibilityInfo.announceForAccessibility('Étape 1 sur 2 : scanner le QR du vendeur.');
-              setStep('scan-seller');
-            }}
-            variant="gradient"
-            style={{ minHeight: 52 }}
-          />
-        </View>
+        {/* Off-hub keeps the direct scan button (no zone gate); on-hub advances
+            via the in-zone presence confirmation above. */}
+        {!showZoneCheck && (
+          <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
+            <Button
+              title="Scanner le QR du vendeur"
+              onPress={goToSellerScan}
+              variant="gradient"
+              style={{ minHeight: 52 }}
+            />
+          </View>
+        )}
 
         {toast && (
           <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={2500} />
@@ -386,8 +429,10 @@ const s = StyleSheet.create({
   hubName: { ...Typography.bodyMedium },
   hubCity: { ...Typography.caption },
 
-  proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
-  proximityText: { ...Typography.bodyMedium },
+  offHubBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md },
+  offHubText: { ...Typography.captionMedium },
+  incidentLinks: { alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
+  incidentLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
 
   sellerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   sellerAvatar: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },

@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Header } from '@/components/layout/Header';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { Button } from '@/components/ui/Button';
+import { ResponsibilitiesCard } from '@/components/mission/ResponsibilitiesCard';
 import { Icon, type IconName } from '@/components/ui/Icon';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
@@ -44,7 +45,11 @@ export default function PublishTypeScreen() {
         <ProgressSteps current={1} total={8} label={STEP_LABELS[0]} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={[styles.title, { color: colors.text }]}>Quel type de trajet ?</Text>
 
         <View style={styles.options}>
@@ -68,7 +73,10 @@ export default function PublishTypeScreen() {
             );
           })}
         </View>
-      </View>
+
+        {/* Consignes & responsabilités du cotransporteur particulier */}
+        <ResponsibilitiesCard />
+      </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
         <Button title="Suivant" onPress={handleNext} variant="gradient" disabled={!form.type} />
@@ -79,7 +87,8 @@ export default function PublishTypeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { flex: 1, paddingHorizontal: Spacing.xxl, paddingTop: Spacing.xxxl, gap: Spacing.xxl },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: Spacing.xxl, paddingTop: Spacing.xxxl, paddingBottom: Spacing.xl, gap: Spacing.xxl },
   title: { ...Typography.h1 },
   options: { gap: Spacing.lg },
   optionCard: {

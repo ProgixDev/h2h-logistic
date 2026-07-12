@@ -7,8 +7,10 @@ import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { HubParticipantChip, type HubParticipantInfo } from '@/components/route/HubParticipantChip';
 import { Typography } from '@/constants/Typography';
-import { Spacing } from '@/constants/Spacing';
+import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
+import { hubZoneDiameterM } from '@/constants/hubZone';
 import { HUB_TYPE_ICON_NAMES, HUB_TYPE_LABELS } from '@/services/mock/hubs';
 
 interface HubCardProps {
@@ -34,9 +36,11 @@ export function HubCard({
   reportable,
 }: HubCardProps) {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const router = useRouter();
 
   const typeLabel = HUB_TYPE_LABELS[hub.type] ?? hub.type;
+  const zoneChipLabel = t('zone.sizeChip').replace('{diameter}', String(hubZoneDiameterM(hub)));
 
   const openReport = () => {
     router.push({
@@ -65,6 +69,12 @@ export function HubCard({
         <Text style={[styles.address, { color: colors.textSecondary }]}>
           {hub.address}, {hub.city}
         </Text>
+        <View style={styles.metaRow}>
+          <View style={[styles.zoneChip, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
+            <Icon name="location-filled" size={11} color={colors.primary} />
+            <Text style={[styles.zoneChipText, { color: colors.primary }]}>{zoneChipLabel}</Text>
+          </View>
+        </View>
         <View style={styles.footer}>
           <Text style={[styles.hours, { color: colors.textSecondary }]}>
             {hub.openingHours}
@@ -107,6 +117,23 @@ const styles = StyleSheet.create({
   address: {
     ...Typography.caption,
     marginBottom: Spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    marginBottom: Spacing.sm,
+  },
+  zoneChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+  },
+  zoneChipText: {
+    ...Typography.caption,
+    fontSize: 11,
   },
   footer: {
     flexDirection: 'row',

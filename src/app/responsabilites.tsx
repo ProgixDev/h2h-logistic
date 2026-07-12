@@ -28,16 +28,18 @@ const SECTIONS: Section[] = [
     iconName: 'time',
     title: 'Horaires & tolérance',
     body: [
-      "Chaque point de rendez-vous a une fenêtre de tolérance de -10 / +10 minutes autour de l'heure prévue.",
-      "Arriver un peu en avance est apprécié ; arriver un peu en retard est humain. Prévenez simplement l'autre partie via le chat pour éviter l'attente.",
+      "Il est recommandé d'arriver 10 minutes avant l'heure du rendez-vous afin d'être prêt pour la validation dans l'application.",
+      "Une tolérance maximale de 10 minutes après l'heure prévue peut être appliquée. Passé ce délai, la personne peut être considérée comme absente selon le protocole HandtoHand.",
+      "Les horaires indiqués doivent être respectés afin de sécuriser la prise en charge ou la remise du colis.",
     ],
   },
   {
     iconName: 'traffic',
     title: 'Imprévus & embouteillages',
     body: [
-      "La route est imprévisible. Si vous sentez que vous allez être en retard, ouvrez le chat et envoyez un message rapide — les utilisateurs apprécient la transparence.",
-      "Le chronomètre passe en orange pour vous rappeler de prévenir. Aucun retard raisonnable n'est sanctionné.",
+      "Les horaires de passage indiqués par le cotransporteur doivent tenir compte des imprévus prévisibles, notamment le trafic, les embouteillages, le stationnement et le temps nécessaire pour rejoindre chaque hub.",
+      "Le cotransporteur doit prévoir une marge de sécurité suffisante afin de respecter les heures de passage prévues dans les différents hubs.",
+      "Un trajet ne doit pas être proposé avec des horaires trop serrés ou impossibles à tenir.",
     ],
   },
   {

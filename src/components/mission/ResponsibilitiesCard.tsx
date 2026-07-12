@@ -25,13 +25,13 @@ const ITEMS: Responsibility[] = [
     lottie: require('@/assets/lottie/clock.json'),
     title: 'Horaires & tolérance',
     helper:
-      "Respectez la fenêtre horaire prévue autour du créneau indiqué. En cas de retard, prévenez immédiatement les personnes concernées via le chat.",
+      "Il est recommandé d'arriver 10 minutes avant l'heure du rendez-vous afin d'être prêt pour la validation dans l'application.\n\nUne tolérance maximale de 10 minutes après l'heure prévue peut être appliquée. Passé ce délai, la personne peut être considérée comme absente selon le protocole HandtoHand.\n\nLes horaires indiqués doivent être respectés afin de sécuriser la prise en charge ou la remise du colis.",
   },
   {
     lottie: require('@/assets/lottie/traffic.json'),
     title: 'Imprévus & embouteillages',
     helper:
-      "En cas de trafic, retard ou imprévu, informez le vendeur ou l'acheteur dès que possible via le chat afin de conserver une trace dans l'application.",
+      "Les horaires de passage indiqués par le cotransporteur doivent tenir compte des imprévus prévisibles, notamment le trafic, les embouteillages, le stationnement et le temps nécessaire pour rejoindre chaque hub.\n\nLe cotransporteur doit prévoir une marge de sécurité suffisante afin de respecter les heures de passage prévues dans les différents hubs.\n\nUn trajet ne doit pas être proposé avec des horaires trop serrés ou impossibles à tenir.",
   },
   {
     lottie: require('@/assets/lottie/delivery.json'),
@@ -101,6 +101,15 @@ export function ResponsibilitiesCard() {
             accessibilityLabel="Ouvrir le protocole incidents"
           >
             <Text style={[styles.link, { color: colors.primary }]}>Protocole incidents →</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/hub-presence' as any)}
+            hitSlop={12}
+            style={styles.linkWrap}
+            accessibilityRole="link"
+            accessibilityLabel="Comprendre « Je suis au hub »"
+          >
+            <Text style={[styles.link, { color: colors.primary }]}>Je suis au hub →</Text>
           </Pressable>
         </View>
       </View>

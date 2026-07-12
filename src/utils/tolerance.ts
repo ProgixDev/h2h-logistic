@@ -1,6 +1,6 @@
 import dayjs from 'dayjs';
 
-const DEFAULT_TOLERANCE_MINUTES = 10;
+export const DEFAULT_TOLERANCE_MINUTES = 10;
 
 export function getToleranceWindow(
   scheduledTime: string,

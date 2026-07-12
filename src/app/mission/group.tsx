@@ -18,13 +18,18 @@ import { ScheduleReminderCard } from '@/components/mission/ScheduleReminderCard'
 import { DirectionHubButton } from '@/components/mission/DirectionHubButton';
 import { ResponsibilitiesCard } from '@/components/mission/ResponsibilitiesCard';
 import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
+import { AdBanner } from '@/components/dashboard/AdBanner';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { OffHubProposalSheet } from '@/components/logistics/OffHubProposal';
+import { HubZoneCheck } from '@/components/logistics/HubZoneCheck';
+import { SupportDecisionCard } from '@/components/mission/SupportDecisionCard';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { mockHubs } from '@/services/mock/hubs';
 import { formatCurrency } from '@/utils/formatting';
 import type { Mission, MissionParticipant } from '@/types/mission';
 
@@ -34,6 +39,22 @@ const QUICK_MESSAGES = [
   'Le colis est prêt',
   'Un léger décalage, merci pour votre patience',
   'Tout se passe bien !',
+];
+
+// Incident forms attached to the hub de remise (F2–F6).
+const INCIDENTS_REMISE: { type: string; label: string }[] = [
+  { type: 'buyer_absent', label: 'Acheteur absent au hub' },
+  { type: 'transporter_absent', label: 'Cotransporteur absent au hub' },
+  { type: 'hub_blocked', label: 'Absence ou blocage au hub' },
+  { type: 'contest_buyer_absent', label: 'Contester une absence acheteur' },
+  { type: 'contest_transporter_absent', label: 'Contester une absence cotransporteur' },
+];
+
+// Cancellation forms (F9/F10/F12) — D8 locks them once the mission is engaged.
+const ANNULATIONS: { type: string; label: string }[] = [
+  { type: 'cancel_transporter', label: 'Annuler ma co-livraison' },
+  { type: 'cancel_seller', label: 'Annulation vendeur' },
+  { type: 'cancel_buyer', label: 'Annulation acheteur' },
 ];
 
 export default function MissionGroupScreen() {
@@ -82,6 +103,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const updateMissionStatus = useMissionStore((s) => s.updateMissionStatus);
   const confirmPickup = useMissionStore((s) => s.confirmPickup);
   const confirmDelivery = useMissionStore((s) => s.confirmDelivery);
+  const resolveSupportReview = useMissionStore((s) => s.resolveSupportReview);
+  const separatedPairs = useMissionStore((s) => s.separatedPairs);
+  const { t } = useTranslation();
   const { routes } = useRouteStore();
   const routeForMission = routes.find((r) => r.id === mission.routeId);
   const missionTransportType = routeForMission?.transportType ?? 'car';
@@ -92,6 +116,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
   const [packageExpanded, setPackageExpanded] = useState(false);
   const [showOffHub, setShowOffHub] = useState(false);
+  // In-zone arrival validation, scoped to the current phase (a fresh confirmation
+  // is required when the flow moves from pickup to delivery).
+  const [arrivalConfirmed, setArrivalConfirmed] = useState<{ phase: string; at: string } | null>(null);
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
 
@@ -153,6 +180,8 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const sendQuickMessage = (msg: string) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toast(`Message envoyé : "${msg}"`); };
   const handlePickup = () => router.push({ pathname: '/mission/pickup', params: { id: mission.id } });
   const handleDelivery = () => router.push({ pathname: '/mission/delivery', params: { id: mission.id } });
+  const openIncident = (type: string) =>
+    router.push({ pathname: '/incident/[type]' as any, params: { type, missionId: mission.id } });
   const handleNavigate = () => router.push({ pathname: '/navigate/[missionId]', params: { missionId: mission.id } });
 
   const handleOffHub = (target: 'seller' | 'buyer', address: string, time: string) => {
@@ -201,10 +230,64 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[gs.scroll, { paddingBottom: insets.bottom + Spacing.xxl }]}>
 
+        {/* Support hold banner — mission « en attente », payments suspended */}
+        {mission.supportHold && (
+          <View style={[gs.banner, { backgroundColor: colors.error + '12' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              <Icon name="shield" size={14} color={colors.error} />
+              <Text style={[gs.bannerText, { color: colors.error }]}>{t('missions.supportHoldBanner')}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* TODO(backend): remove before production — dev-only support decision.
+            Admin UI is out of scope; this triggers the human decision's effects. */}
+        {__DEV__ && mission.supportHold && !mission.supportOutcome && (
+          <View style={gs.devBar}>
+            <Text style={gs.devLabel}>DEV · Décision support</Text>
+            <View style={gs.devBtnRow}>
+              {([
+                { o: 'danger_confirmed' as const, l: 'Danger confirmé' },
+                { o: 'good_faith' as const, l: 'Bonne foi' },
+                { o: 'abusive' as const, l: 'Abusif' },
+              ]).map(({ o, l }) => (
+                <TouchableOpacity
+                  key={o}
+                  style={[gs.devBtn, { backgroundColor: '#F5A623' }]}
+                  onPress={() => resolveSupportReview(mission.id, o)}
+                  accessibilityLabel={`Dev: resolve support as ${o}`}
+                >
+                  <Text style={gs.devBtnText}>{l}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Support decision reflected to the co-transporteur */}
+        {mission.supportOutcome && (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <SupportDecisionCard
+              outcome={mission.supportOutcome}
+              pedagogicalReminder={mission.pedagogicalReminder}
+              separated={separatedPairs.some((p) => {
+                const other = mission.reportedUserId ?? mission.buyer.id;
+                return (
+                  (p.a === mission.transporter.id && p.b === other) ||
+                  (p.a === other && p.b === mission.transporter.id)
+                );
+              })}
+            />
+            <TouchableOpacity onPress={() => openIncident('contest_decision')} hitSlop={12} style={gs.contestBtn}>
+              <Text style={[gs.offHubLink, { color: colors.primary }]}>Contester la décision du support (F14)</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
+
         {/* Off-hub active banner */}
         {mission.offHubProposal?.status === 'accepted' && (
           <View style={[gs.banner, { backgroundColor: colors.warning + '12' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="location-filled" size={14} color={colors.warning} /><Text style={[gs.bannerText, { color: colors.warning }]}>Rendez-vous hors hub — pas de vérification GPS</Text></View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="location-filled" size={14} color={colors.warning} /><Text style={[gs.bannerText, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text></View>
           </View>
         )}
 
@@ -267,6 +350,31 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </Animated.View>
         )}
 
+        {/* Hub meeting-zone presence — validates arrival on the ON-hub path.
+            Off-hub (offHubProposal accepted) keeps the "pas de vérification GPS"
+            banner above and shows no zone check. */}
+        {(() => {
+          if (reminderPhase === 'completed') return null;
+          const activeMissionHub = reminderPhase === 'pickup' ? mission.pickupHub : mission.deliveryHub;
+          if (activeMissionHub.isOffHub) return null;
+          const activeHub = mockHubs.find((h) => h.id === activeMissionHub.id) ?? null;
+          if (!activeHub) return null;
+          return (
+            <Animated.View entering={FadeInDown.delay(210).duration(300)}>
+              <HubZoneCheck
+                hub={activeHub}
+                scheduledTime={activeMissionHub.scheduledTime}
+                toleranceMinutes={activeMissionHub.toleranceMinutes}
+                confirmed={arrivalConfirmed?.phase === reminderPhase}
+                onConfirm={(ts) => {
+                  setArrivalConfirmed({ phase: reminderPhase, at: ts });
+                  toast(t('zone.presenceConfirmed'));
+                }}
+              />
+            </Animated.View>
+          );
+        })()}
+
         {/* No-show alerts */}
         {isPickupLate && (
           <Card style={{ backgroundColor: colors.error + '08', borderColor: colors.error + '30' }}>
@@ -278,9 +386,31 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         {isDeliveryLate && (
           <Card style={{ backgroundColor: colors.warning + '08', borderColor: colors.warning + '30' }}>
             <Text style={[gs.alertTitle, { color: colors.warning }]}>L'acheteur ne s'est pas présenté</Text>
-            <Text style={[gs.alertDesc, { color: colors.textSecondary }]}>Vous pouvez attendre ou signaler l'absence.</Text>
+            <Text style={[gs.alertDesc, { color: colors.textSecondary }]}>{"Vous pouvez attendre ou déclarer l'absence de l'acheteur."}</Text>
+            <Button title="Déclarer l'absence de l'acheteur" onPress={() => openIncident('buyer_absent')} variant="danger" />
+            <View style={{ height: Spacing.sm }} />
             <Button title="Options" onPress={handleReportBuyerAbsence} variant="outline" />
           </Card>
+        )}
+
+        {/* Incident forms — hub de remise (F2–F6) */}
+        {reminderPhase === 'delivery' && (
+          <View style={gs.incidentsBlock}>
+            <Text style={[gs.section, { color: colors.text }]}>Incidents — hub de remise</Text>
+            {INCIDENTS_REMISE.map((it) => (
+              <TouchableOpacity
+                key={it.type}
+                onPress={() => openIncident(it.type)}
+                style={[gs.incidentRow, { borderColor: colors.border }]}
+                accessibilityRole="button"
+                accessibilityLabel={it.label}
+              >
+                <Icon name="document" size={16} color={colors.textSecondary} />
+                <Text style={[gs.incidentLabel, { color: colors.text }]}>{it.label}</Text>
+                <Icon name="chevron-right" size={16} color={colors.textSecondary} />
+              </TouchableOpacity>
+            ))}
+          </View>
         )}
 
         {/* Timeline */}
@@ -340,6 +470,11 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </View>
         )}
 
+        {/* Ad banner */}
+        <Animated.View entering={FadeInDown.delay(250).duration(300)}>
+          <AdBanner index={new Date().getDay() + 1} />
+        </Animated.View>
+
         {/* Quick messages */}
         <Animated.View entering={FadeInDown.delay(300).duration(300)}>
           <Text style={[gs.section, { color: colors.text }]}>Messages rapides</Text>
@@ -386,6 +521,24 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
             <EcoImpactCard kgSaved={missionKgSaved} variant="compact" />
           </Animated.View>
         )}
+
+        {/* Annulation & contestation forms (F9/F10/F12) */}
+        <View style={gs.incidentsBlock}>
+          <Text style={[gs.section, { color: colors.text }]}>Annulation & contestation</Text>
+          {ANNULATIONS.map((it) => (
+            <TouchableOpacity
+              key={it.type}
+              onPress={() => openIncident(it.type)}
+              style={[gs.incidentRow, { borderColor: colors.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={it.label}
+            >
+              <Icon name="close" size={16} color={colors.textSecondary} />
+              <Text style={[gs.incidentLabel, { color: colors.text }]}>{it.label}</Text>
+              <Icon name="chevron-right" size={16} color={colors.textSecondary} />
+            </TouchableOpacity>
+          ))}
+        </View>
 
         {/* Cancel */}
         <TouchableOpacity onPress={handleCancelMission} hitSlop={12} style={gs.cancelBtn}>
@@ -447,6 +600,10 @@ const gs = StyleSheet.create({
   alertTitle: { ...Typography.bodyMedium, marginBottom: Spacing.xs },
   alertDesc: { ...Typography.caption, lineHeight: 18, marginBottom: Spacing.md },
   offHubLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
+  incidentsBlock: { gap: Spacing.sm },
+  incidentRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingHorizontal: Spacing.md, paddingVertical: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1 },
+  incidentLabel: { ...Typography.body, flex: 1 },
+  contestBtn: { alignItems: 'center', paddingTop: Spacing.sm },
   offHubDisabled: { ...Typography.caption, textAlign: 'center', fontStyle: 'italic' },
   msgs: { gap: Spacing.sm, paddingRight: Spacing.lg },
   msgPill: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1 },

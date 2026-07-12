@@ -9,9 +9,11 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
 import { ParticipantsCard } from '@/components/mission/ParticipantsCard';
+import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { formatCurrency } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
@@ -37,6 +39,7 @@ const GROUP_STATUSES = ['group_created', 'pickup_pending', 'picked_up', 'in_tran
 export default function MissionDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const router = useRouter();
 
   // Subscribe directly to the store so every mutation triggers a re-render
@@ -76,6 +79,12 @@ export default function MissionDetailScreen() {
     <SafeAreaWrapper>
       <Header title={`${mission.pickupHub.city} → ${mission.deliveryHub.city}`} showBack />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {mission.supportHold && (
+          <View style={[styles.holdBanner, { backgroundColor: colors.error + '12' }]}>
+            <Icon name="shield" size={14} color={colors.error} />
+            <Text style={[styles.holdBannerText, { color: colors.error }]}>{t('missions.supportHoldBanner')}</Text>
+          </View>
+        )}
         <View style={styles.statusRow}>
           <Badge label={STATUS_LABELS[mission.status] ?? mission.status} variant={mission.status === 'delivered' || mission.status === 'completed' ? 'success' : 'error'} />
           <View style={styles.earningCol}>
@@ -228,6 +237,16 @@ const sw = StyleSheet.create({
 
 const styles = StyleSheet.create({
   scroll: { gap: Spacing.lg, paddingBottom: Spacing.section },
+  holdBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+  },
+  holdBannerText: { ...Typography.captionMedium, textAlign: 'center', flexShrink: 1 },
   statusRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   earningCol: { alignItems: 'flex-end' },
   earningLabel: { ...Typography.caption },

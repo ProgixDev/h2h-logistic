@@ -19,4 +19,8 @@ export interface Hub {
   phone?: string;
   image?: string;
   availablePackages?: number; // For e-commerce partners: packages waiting
+  /** Meeting-zone diameter in metres. Default applied where read (60). */
+  zoneDiameterMeters?: number;
+  /** Label for the point central. Default « Entrée principale côté parking ». */
+  centralPointLabel?: string;
 }

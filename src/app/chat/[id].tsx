@@ -52,6 +52,7 @@ export default function ChatScreen() {
     role: string;
     avatar?: string;
     callDuration?: string;
+    missionId?: string;
   }>();
   const { id, name, role, avatar } = params;
   const { colors } = useColorScheme();
@@ -124,6 +125,19 @@ export default function ChatScreen() {
 
   const roleLabel = role === 'seller' ? 'Vendeur' : 'Acheteur';
 
+  const handleReportUser = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push({
+      pathname: '/report/user' as any,
+      params: {
+        reportedUserId: id ?? '',
+        reportedUserName: name ?? '',
+        reportedRole: role === 'seller' ? 'seller' : 'buyer',
+        missionId: params.missionId ?? '',
+      },
+    });
+  };
+
   return (
     <View style={[s.screen, { backgroundColor: colors.background }]}>
       {/* Header */}
@@ -158,6 +172,15 @@ export default function ChatScreen() {
           accessibilityState={{ disabled: true }}
         >
           <Icon name="video" size={22} color={colors.textSecondary} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={handleReportUser}
+          style={s.headerAction}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Signaler ${name ?? 'l\'utilisateur'}`}
+        >
+          <Icon name="flag" size={20} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { ConversationRow } from './ConversationRow';
@@ -25,6 +25,8 @@ interface ConversationGroupProps {
   statusVariant?: 'default' | 'success' | 'warning';
   completed?: boolean;
   onOpenChat: (participant: MissionParticipant, role: 'seller' | 'buyer') => void;
+  /** Tapping the card header opens the co-livraison (mission HQ). */
+  onOpenMission?: () => void;
 }
 
 export function ConversationGroup({
@@ -44,6 +46,7 @@ export function ConversationGroup({
   statusVariant = 'default',
   completed = false,
   onOpenChat,
+  onOpenMission,
 }: ConversationGroupProps) {
   const { colors } = useColorScheme();
 
@@ -60,8 +63,14 @@ export function ConversationGroup({
       ]}
       accessibilityLabel={`Conversation de la co-livraison ${listingTitle}, ${routeSummary}`}
     >
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Header — tap to open the co-livraison (mission HQ) */}
+      <Pressable
+        onPress={onOpenMission}
+        disabled={!onOpenMission}
+        accessibilityRole="button"
+        accessibilityLabel={`Ouvrir la co-livraison ${listingTitle}, ${routeSummary}`}
+        style={({ pressed }) => [styles.header, { opacity: pressed && onOpenMission ? 0.6 : 1 }]}
+      >
         <View style={[styles.headerIcon, { backgroundColor: colors.accentLight }]}>
           <Icon name="package" size={18} color={colors.primary} />
         </View>
@@ -78,7 +87,8 @@ export function ConversationGroup({
         ) : statusLabel ? (
           <Badge label={statusLabel} variant={statusVariant} />
         ) : null}
-      </View>
+        {onOpenMission && <Icon name="chevron-right" size={18} color={colors.textSecondary} />}
+      </Pressable>
 
       {/* Divider */}
       <View style={[styles.divider, { backgroundColor: colors.border }]} />
