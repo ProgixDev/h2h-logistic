@@ -8,8 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
+import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -20,7 +22,7 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 
-type MessageType = 'text' | 'call-summary';
+type MessageType = 'text' | 'call-summary' | 'image';
 
 interface Message {
   id: string;
@@ -29,6 +31,7 @@ interface Message {
   fromMe: boolean;
   time: string;
   callDuration?: string; // for call-summary
+  imageUri?: string; // for image
 }
 
 const QUICK_REPLIES = [
@@ -113,6 +116,54 @@ export default function ChatScreen() {
     }, 2000);
 
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const appendImage = (uri: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const newMsg: Message = {
+      id: `img-${Date.now()}`,
+      type: 'image',
+      text: '',
+      imageUri: uri,
+      fromMe: true,
+      time: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    };
+    setMessages((prev) => [...prev, newMsg]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const pickFromLibrary = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Autorisation requise', "Autorisez l'accès aux photos pour envoyer une image.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.7,
+      allowsMultipleSelection: false,
+    });
+    if (!result.canceled && result.assets[0]) appendImage(result.assets[0].uri);
+  };
+
+  const takePhoto = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Autorisation requise', "Autorisez l'accès à l'appareil photo pour prendre une photo.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
+    if (!result.canceled && result.assets[0]) appendImage(result.assets[0].uri);
+  };
+
+  // Bouton photo de la barre de saisie — propose appareil photo ou galerie.
+  const sendPhoto = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert('Envoyer une photo', 'Choisissez une source', [
+      { text: 'Appareil photo', onPress: takePhoto },
+      { text: 'Galerie', onPress: pickFromLibrary },
+      { text: 'Annuler', style: 'cancel' },
+    ]);
   };
 
   const startAudioCall = () => {
@@ -207,6 +258,29 @@ export default function ChatScreen() {
                 </Animated.View>
               );
             }
+            if (item.type === 'image' && item.imageUri) {
+              return (
+                <Animated.View entering={FadeInDown.delay(index * 30).duration(200)}>
+                  <View
+                    style={[
+                      s.imageBubble,
+                      item.fromMe ? s.bubbleMe : s.bubbleThem,
+                      { borderColor: item.fromMe ? colors.primary : colors.border },
+                    ]}
+                  >
+                    <Image source={{ uri: item.imageUri }} style={s.messageImage} contentFit="cover" />
+                    <Text
+                      style={[
+                        s.imageTime,
+                        { color: '#FFFFFF', backgroundColor: 'rgba(0,0,0,0.45)' },
+                      ]}
+                    >
+                      {item.time}
+                    </Text>
+                  </View>
+                </Animated.View>
+              );
+            }
             return (
               <Animated.View entering={FadeInDown.delay(index * 30).duration(200)}>
                 <View style={[s.bubble, item.fromMe ? s.bubbleMe : s.bubbleThem, {
@@ -246,6 +320,15 @@ export default function ChatScreen() {
 
         {/* Input bar */}
         <View style={[s.inputBar, { backgroundColor: colors.surface, borderTopColor: colors.border, paddingBottom: insets.bottom + Spacing.sm }]}>
+          <TouchableOpacity
+            onPress={sendPhoto}
+            style={[s.photoBtn, { backgroundColor: colors.background, borderColor: colors.border }]}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Envoyer une photo"
+          >
+            <Icon name="photo" size={20} color={colors.primary} />
+          </TouchableOpacity>
           <TextInput
             style={[s.input, { color: colors.text, backgroundColor: colors.background, borderColor: colors.border }]}
             value={input}
@@ -323,6 +406,27 @@ const s = StyleSheet.create({
   bubbleText: { ...Typography.body, lineHeight: 20 },
   bubbleTime: { ...Typography.caption, fontSize: 10, alignSelf: 'flex-end' },
 
+  // Image message
+  imageBubble: {
+    maxWidth: '70%',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  messageImage: { width: 200, height: 200 },
+  imageTime: {
+    ...Typography.caption,
+    fontSize: 10,
+    position: 'absolute',
+    bottom: 6,
+    right: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: BorderRadius.full,
+    overflow: 'hidden',
+  },
+
   // Quick replies
   quickRow: { paddingVertical: Spacing.sm },
   quickList: { paddingHorizontal: Spacing.lg, gap: Spacing.sm },
@@ -351,6 +455,15 @@ const s = StyleSheet.create({
     paddingVertical: Spacing.sm,
     maxHeight: 100,
     ...Typography.body,
+  },
+  photoBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
   },
   sendBtn: {
     width: 40,
