@@ -42,6 +42,10 @@ interface CommonFormFieldsProps {
    *  cancellation forms (demande client) — la géoloc n'a de sens qu'en
    *  déclaration d'incident/litige, pas pour une annulation volontaire. */
   showGeo?: boolean;
+  /** Show the "Preuves (optionnel)" photo slots. Off for voluntary
+   *  cancellation forms (demande client) — pas de preuves photo à joindre
+   *  pour une simple annulation. */
+  showProofs?: boolean;
 }
 
 const PHOTO_SLOTS: { key: PhotoSlot; label: string }[] = [
@@ -50,7 +54,7 @@ const PHOTO_SLOTS: { key: PhotoSlot; label: string }[] = [
   { key: 'photoColis', label: 'Photo du colis' },
 ];
 
-export function CommonFormFields({ info, value, onChange, showGeo = true }: CommonFormFieldsProps) {
+export function CommonFormFields({ info, value, onChange, showGeo = true, showProofs = true }: CommonFormFieldsProps) {
   const { colors } = useColorScheme();
 
   const patch = (p: Partial<CommonExtras>) => onChange({ ...value, ...p });
@@ -115,39 +119,43 @@ export function CommonFormFields({ info, value, onChange, showGeo = true }: Comm
 
       {/* Optional proofs */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>Preuves (optionnel)</Text>
-        <View style={styles.photoRow}>
-          {PHOTO_SLOTS.map(({ key, label }) => {
-            const uri = value[key];
-            return (
-              <View key={key} style={styles.photoSlot}>
-                {uri ? (
-                  <View style={[styles.photo, { borderColor: colors.border }]}>
-                    <Image source={{ uri }} style={styles.photoImg} contentFit="cover" />
-                    <Pressable
-                      onPress={() => patch({ [key]: undefined } as Partial<CommonExtras>)}
-                      style={[styles.photoRemove, { backgroundColor: colors.surface }]}
-                      hitSlop={6}
-                      accessibilityLabel={`Retirer ${label}`}
-                    >
-                      <Icon name="close" size={13} color={colors.text} />
-                    </Pressable>
+        {showProofs && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Preuves (optionnel)</Text>
+            <View style={styles.photoRow}>
+              {PHOTO_SLOTS.map(({ key, label }) => {
+                const uri = value[key];
+                return (
+                  <View key={key} style={styles.photoSlot}>
+                    {uri ? (
+                      <View style={[styles.photo, { borderColor: colors.border }]}>
+                        <Image source={{ uri }} style={styles.photoImg} contentFit="cover" />
+                        <Pressable
+                          onPress={() => patch({ [key]: undefined } as Partial<CommonExtras>)}
+                          style={[styles.photoRemove, { backgroundColor: colors.surface }]}
+                          hitSlop={6}
+                          accessibilityLabel={`Retirer ${label}`}
+                        >
+                          <Icon name="close" size={13} color={colors.text} />
+                        </Pressable>
+                      </View>
+                    ) : (
+                      <Pressable
+                        onPress={() => pickPhoto(key)}
+                        style={[styles.photoAdd, { borderColor: colors.border, backgroundColor: colors.surface }]}
+                        accessibilityRole="button"
+                        accessibilityLabel={label}
+                      >
+                        <Icon name="camera" size={20} color={colors.textSecondary} />
+                      </Pressable>
+                    )}
+                    <Text style={[styles.photoLabel, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
                   </View>
-                ) : (
-                  <Pressable
-                    onPress={() => pickPhoto(key)}
-                    style={[styles.photoAdd, { borderColor: colors.border, backgroundColor: colors.surface }]}
-                    accessibilityRole="button"
-                    accessibilityLabel={label}
-                  >
-                    <Icon name="camera" size={20} color={colors.textSecondary} />
-                  </Pressable>
-                )}
-                <Text style={[styles.photoLabel, { color: colors.textSecondary }]} numberOfLines={1}>{label}</Text>
-              </View>
-            );
-          })}
-        </View>
+                );
+              })}
+            </View>
+          </>
+        )}
 
         {/* Géolocalisation — masquée sur les formulaires d'annulation volontaire */}
         {showGeo && (
