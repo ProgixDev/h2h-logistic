@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.handtohand.logistic",
-      "buildNumber": "15",
+      "buildNumber": "18",
       "supportsTablet": true,
       "icon": "./assets/expo.icon",
       "infoPlist": {
@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.handtohand.logistic",
-      "versionCode": 16,
+      "versionCode": 18,
       "adaptiveIcon": {
         "backgroundColor": "#14248A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
