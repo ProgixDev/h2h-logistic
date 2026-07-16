@@ -117,13 +117,6 @@ export default function UserReportScreen() {
           <View style={styles.radioList}>
             {USER_REPORT_REASONS.map((r) => {
               const selected = reason === r.id;
-              const tag =
-                r.type === 'support_priority'
-                  ? t('report.tagPriority')
-                  : r.type === 'support'
-                    ? t('report.tagSupport')
-                    : null;
-              const tagColor = r.type === 'support_priority' ? colors.error : colors.primary;
               return (
                 <Pressable
                   key={r.id}
@@ -147,15 +140,7 @@ export default function UserReportScreen() {
                     {selected && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
                   </View>
                   <View style={styles.radioBody}>
-                    <View style={styles.radioLabelRow}>
-                      <Text style={[styles.radioLabel, { color: colors.text }]}>{r.label}</Text>
-                      {tag && (
-                        <View style={[styles.tag, { backgroundColor: tagColor + '14' }]}>
-                          <Text style={[styles.tagText, { color: tagColor }]}>{tag}</Text>
-                        </View>
-                      )}
-                    </View>
-                    <Text style={[styles.radioEffect, { color: colors.textSecondary }]}>{r.effect}</Text>
+                    <Text style={[styles.radioLabel, { color: colors.text }]}>{r.label}</Text>
                   </View>
                 </Pressable>
               );
@@ -289,7 +274,7 @@ const styles = StyleSheet.create({
   radioList: { gap: Spacing.sm, marginTop: Spacing.xs },
   radioRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     gap: Spacing.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
@@ -303,19 +288,10 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
   },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
-  radioBody: { flex: 1, gap: 2 },
-  radioLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flexWrap: 'wrap' },
+  radioBody: { flex: 1 },
   radioLabel: { ...Typography.body, flexShrink: 1 },
-  radioEffect: { ...Typography.caption },
-  tag: {
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-    borderRadius: BorderRadius.full,
-  },
-  tagText: { ...Typography.caption, fontSize: 10, letterSpacing: 0.3 },
 
   // Text area
   textArea: {
