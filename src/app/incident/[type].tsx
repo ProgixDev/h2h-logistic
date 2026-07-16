@@ -237,7 +237,9 @@ export default function IncidentFormScreen() {
         ))}
 
         {/* Common auto-fill + attestation + optional proofs */}
-        {!collectExpired && <CommonFormFields info={info} value={extras} onChange={setExtras} />}
+        {!collectExpired && (
+          <CommonFormFields info={info} value={extras} onChange={setExtras} showGeo={!spec.cancellation} />
+        )}
 
         {/* Settlement preview (§ Principe financier) */}
         {settlement && !isWait && !collectExpired && (

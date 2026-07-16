@@ -38,6 +38,10 @@ interface CommonFormFieldsProps {
   info: CommonFormData;
   value: CommonExtras;
   onChange: (next: CommonExtras) => void;
+  /** Show the "Ajouter ma géolocalisation" button. Off for voluntary
+   *  cancellation forms (demande client) — la géoloc n'a de sens qu'en
+   *  déclaration d'incident/litige, pas pour une annulation volontaire. */
+  showGeo?: boolean;
 }
 
 const PHOTO_SLOTS: { key: PhotoSlot; label: string }[] = [
@@ -46,7 +50,7 @@ const PHOTO_SLOTS: { key: PhotoSlot; label: string }[] = [
   { key: 'photoColis', label: 'Photo du colis' },
 ];
 
-export function CommonFormFields({ info, value, onChange }: CommonFormFieldsProps) {
+export function CommonFormFields({ info, value, onChange, showGeo = true }: CommonFormFieldsProps) {
   const { colors } = useColorScheme();
 
   const patch = (p: Partial<CommonExtras>) => onChange({ ...value, ...p });
@@ -145,21 +149,23 @@ export function CommonFormFields({ info, value, onChange }: CommonFormFieldsProp
           })}
         </View>
 
-        {/* Géolocalisation */}
-        <Pressable
-          onPress={value.geo ? () => patch({ geo: undefined }) : captureGeo}
-          style={({ pressed }) => [
-            styles.geoRow,
-            { borderColor: value.geo ? colors.success : colors.border, backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Ajouter ma géolocalisation"
-        >
-          <Icon name="location-filled" size={16} color={value.geo ? colors.success : colors.textSecondary} />
-          <Text style={[styles.geoText, { color: value.geo ? colors.success : colors.textSecondary }]}>
-            {value.geo ? 'Géolocalisation ajoutée ✓' : 'Ajouter ma géolocalisation'}
-          </Text>
-        </Pressable>
+        {/* Géolocalisation — masquée sur les formulaires d'annulation volontaire */}
+        {showGeo && (
+          <Pressable
+            onPress={value.geo ? () => patch({ geo: undefined }) : captureGeo}
+            style={({ pressed }) => [
+              styles.geoRow,
+              { borderColor: value.geo ? colors.success : colors.border, backgroundColor: colors.surface, opacity: pressed ? 0.85 : 1 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Ajouter ma géolocalisation"
+          >
+            <Icon name="location-filled" size={16} color={value.geo ? colors.success : colors.textSecondary} />
+            <Text style={[styles.geoText, { color: value.geo ? colors.success : colors.textSecondary }]}>
+              {value.geo ? 'Géolocalisation ajoutée ✓' : 'Ajouter ma géolocalisation'}
+            </Text>
+          </Pressable>
+        )}
 
         {/* Commentaire */}
         <TextInput
