@@ -22,14 +22,12 @@ import { AdBanner } from '@/components/dashboard/AdBanner';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { OffHubProposalSheet } from '@/components/logistics/OffHubProposal';
-import { HubZoneCheck } from '@/components/logistics/HubZoneCheck';
 import { SupportDecisionCard } from '@/components/mission/SupportDecisionCard';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
-import { mockHubs } from '@/services/mock/hubs';
 import { formatCurrency } from '@/utils/formatting';
 import type { Mission, MissionParticipant } from '@/types/mission';
 
@@ -116,9 +114,6 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
   const [packageExpanded, setPackageExpanded] = useState(false);
   const [showOffHub, setShowOffHub] = useState(false);
-  // In-zone arrival validation, scoped to the current phase (a fresh confirmation
-  // is required when the flow moves from pickup to delivery).
-  const [arrivalConfirmed, setArrivalConfirmed] = useState<{ phase: string; at: string } | null>(null);
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
 
@@ -350,30 +345,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </Animated.View>
         )}
 
-        {/* Hub meeting-zone presence — validates arrival on the ON-hub path.
-            Off-hub (offHubProposal accepted) keeps the "pas de vérification GPS"
-            banner above and shows no zone check. */}
-        {(() => {
-          if (reminderPhase === 'completed') return null;
-          const activeMissionHub = reminderPhase === 'pickup' ? mission.pickupHub : mission.deliveryHub;
-          if (activeMissionHub.isOffHub) return null;
-          const activeHub = mockHubs.find((h) => h.id === activeMissionHub.id) ?? null;
-          if (!activeHub) return null;
-          return (
-            <Animated.View entering={FadeInDown.delay(210).duration(300)}>
-              <HubZoneCheck
-                hub={activeHub}
-                scheduledTime={activeMissionHub.scheduledTime}
-                toleranceMinutes={activeMissionHub.toleranceMinutes}
-                confirmed={arrivalConfirmed?.phase === reminderPhase}
-                onConfirm={(ts) => {
-                  setArrivalConfirmed({ phase: reminderPhase, at: ts });
-                  toast(t('zone.presenceConfirmed'));
-                }}
-              />
-            </Animated.View>
-          );
-        })()}
+        {/* La validation de présence (créneau + proximité) vit désormais dans le
+            flux « Action suivante » (scan QR pickup/delivery) — demande client :
+            plus de section « Zone du hub » séparée sur le détail de mission. */}
 
         {/* No-show alerts */}
         {isPickupLate && (
