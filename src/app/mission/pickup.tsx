@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { QRScanner } from '@/components/logistics/QRScanner';
 import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
-import { HubZoneCheck } from '@/components/logistics/HubZoneCheck';
 import { Icon } from '@/components/ui/Icon';
 import { ScanProgressDots } from '@/components/mission/ScanProgressDots';
 import { Typography } from '@/constants/Typography';
@@ -25,7 +24,6 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
-import { mockHubs } from '@/services/mock/hubs';
 
 type PickupStep = 'approach' | 'scan-seller' | 'scan-package' | 'confirmed';
 
@@ -45,7 +43,7 @@ export default function PickupScreen() {
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
   const [packageAttempts, setPackageAttempts] = useState(0);
   const [locked, setLocked] = useState(false);
-  const [presenceConfirmedAt, setPresenceConfirmedAt] = useState<string | null>(null);
+  const [proximity] = useState(180);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -137,22 +135,16 @@ export default function PickupScreen() {
 
   // ─── STEP: APPROACH ────────────────────────────────────────
   if (step === 'approach') {
-    // Resolve the full hub (point central + zone) from the mock dataset.
-    const pickupHub = mockHubs.find((h) => h.id === mission.pickupHub.id) ?? null;
-    // Off-hub rendez-vous → no zone / GPS check (existing bypass, kept intact).
+    // Off-hub rendez-vous → no GPS proximity, just an info note (kept intact).
     const isOffHub = mission.pickupHub.isOffHub === true;
-    const showZoneCheck = !isOffHub && pickupHub !== null;
+    // Même affichage que la remise (demande client) : bandeau de proximité,
+    // pas de schéma « Zone du hub » ; le bouton scan est toujours accessible.
+    const proximityColor = proximity > 500 ? colors.primary : colors.success;
+    const proximityLabel = proximity > 500 ? 'Vous approchez du hub' : 'Vous êtes à proximité !';
 
     const goToSellerScan = () => {
       AccessibilityInfo.announceForAccessibility('Étape 1 sur 2 : scanner le QR du vendeur.');
       setStep('scan-seller');
-    };
-
-    const handleConfirmPresence = (ts: string) => {
-      setPresenceConfirmedAt(ts);
-      showToast(t('zone.presenceConfirmed'), 'success');
-      AccessibilityInfo.announceForAccessibility('Présence confirmée dans la zone. Étape 1 sur 2 : scanner le QR du vendeur.');
-      setTimeout(goToSellerScan, 600);
     };
 
     return (
@@ -179,23 +171,18 @@ export default function PickupScreen() {
             toleranceMinutes={mission.pickupHub.toleranceMinutes}
           />
 
-          {/* Off-hub: keep the "pas de vérification GPS" bypass. */}
-          {isOffHub && (
+          {isOffHub ? (
             <View style={[s.offHubBanner, { backgroundColor: colors.warning + '14' }]}>
               <Icon name="location-filled" size={14} color={colors.warning} />
               <Text style={[s.offHubText, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text>
             </View>
-          )}
-
-          {/* On-hub: GPS presence in the zone gates approach → scan-seller. */}
-          {showZoneCheck && (
-            <HubZoneCheck
-              hub={pickupHub}
-              scheduledTime={mission.pickupHub.scheduledTime}
-              toleranceMinutes={mission.pickupHub.toleranceMinutes}
-              confirmed={presenceConfirmedAt !== null}
-              onConfirm={handleConfirmPresence}
-            />
+          ) : (
+            <View style={[s.proximityCard, { backgroundColor: proximityColor + '12' }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Icon name="location-filled" size={16} color={proximityColor} />
+                <Text style={[s.proximityText, { color: proximityColor }]}>{proximityLabel}</Text>
+              </View>
+            </View>
           )}
 
           <Card>
@@ -230,18 +217,14 @@ export default function PickupScreen() {
           </View>
         </ScrollView>
 
-        {/* Off-hub keeps the direct scan button (no zone gate); on-hub advances
-            via the in-zone presence confirmation above. */}
-        {!showZoneCheck && (
-          <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
-            <Button
-              title="Scanner le QR du vendeur"
-              onPress={goToSellerScan}
-              variant="gradient"
-              style={{ minHeight: 52 }}
-            />
-          </View>
-        )}
+        <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          <Button
+            title="Scanner le QR du vendeur"
+            onPress={goToSellerScan}
+            variant="gradient"
+            style={{ minHeight: 52 }}
+          />
+        </View>
 
         {toast && (
           <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={2500} />
@@ -431,6 +414,8 @@ const s = StyleSheet.create({
 
   offHubBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md },
   offHubText: { ...Typography.captionMedium },
+  proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
+  proximityText: { ...Typography.bodyMedium },
   incidentLinks: { alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
   incidentLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
 
