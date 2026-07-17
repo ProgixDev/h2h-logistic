@@ -43,7 +43,9 @@ export default function PickupScreen() {
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
   const [packageAttempts, setPackageAttempts] = useState(0);
   const [locked, setLocked] = useState(false);
-  const [proximity] = useState(180);
+  // Récupération : la présence au hub se valide AVANT le scan (demande client —
+  // différence avec la remise qui va directement au scan).
+  const [presenceValidated, setPresenceValidated] = useState(false);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -135,16 +137,21 @@ export default function PickupScreen() {
 
   // ─── STEP: APPROACH ────────────────────────────────────────
   if (step === 'approach') {
-    // Off-hub rendez-vous → no GPS proximity, just an info note (kept intact).
+    // Off-hub rendez-vous → no GPS zone, just an info note (kept intact).
     const isOffHub = mission.pickupHub.isOffHub === true;
-    // Même affichage que la remise (demande client) : bandeau de proximité,
-    // pas de schéma « Zone du hub » ; le bouton scan est toujours accessible.
-    const proximityColor = proximity > 500 ? colors.primary : colors.success;
-    const proximityLabel = proximity > 500 ? 'Vous approchez du hub' : 'Vous êtes à proximité !';
+    // On-hub : la présence doit être validée avant de pouvoir scanner.
+    const scanUnlocked = isOffHub || presenceValidated;
 
     const goToSellerScan = () => {
       AccessibilityInfo.announceForAccessibility('Étape 1 sur 2 : scanner le QR du vendeur.');
       setStep('scan-seller');
+    };
+
+    const validatePresence = () => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setPresenceValidated(true);
+      showToast('Présence validée au hub ✓', 'success');
+      AccessibilityInfo.announceForAccessibility('Présence validée au hub. Vous pouvez scanner le QR du vendeur.');
     };
 
     return (
@@ -176,13 +183,20 @@ export default function PickupScreen() {
               <Icon name="location-filled" size={14} color={colors.warning} />
               <Text style={[s.offHubText, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text>
             </View>
-          ) : (
-            <View style={[s.proximityCard, { backgroundColor: proximityColor + '12' }]}>
+          ) : presenceValidated ? (
+            <View style={[s.proximityCard, { backgroundColor: colors.success + '12' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Icon name="location-filled" size={16} color={proximityColor} />
-                <Text style={[s.proximityText, { color: proximityColor }]}>{proximityLabel}</Text>
+                <Icon name="checkmark-circle" size={16} color={colors.success} />
+                <Text style={[s.proximityText, { color: colors.success }]}>Présence validée au hub ✓</Text>
               </View>
             </View>
+          ) : (
+            <Button
+              title="Valider ma présence au hub"
+              onPress={validatePresence}
+              variant="outline"
+              style={{ minHeight: 48 }}
+            />
           )}
 
           <Card>
@@ -218,10 +232,16 @@ export default function PickupScreen() {
         </ScrollView>
 
         <View style={[s.footer, { paddingBottom: insets.bottom + Spacing.lg }]}>
+          {!scanUnlocked && (
+            <Text style={[s.scanGateHint, { color: colors.textSecondary }]}>
+              Validez votre présence au hub pour scanner le QR du vendeur.
+            </Text>
+          )}
           <Button
             title="Scanner le QR du vendeur"
             onPress={goToSellerScan}
             variant="gradient"
+            disabled={!scanUnlocked}
             style={{ minHeight: 52 }}
           />
         </View>
@@ -416,6 +436,7 @@ const s = StyleSheet.create({
   offHubText: { ...Typography.captionMedium },
   proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
   proximityText: { ...Typography.bodyMedium },
+  scanGateHint: { ...Typography.caption, textAlign: 'center', marginBottom: Spacing.sm },
   incidentLinks: { alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
   incidentLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
 
