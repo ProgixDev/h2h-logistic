@@ -19,7 +19,7 @@
     },
     "android": {
       "package": "com.handtohand.logistic",
-      "versionCode": 18,
+      "versionCode": 19,
       "adaptiveIcon": {
         "backgroundColor": "#14248A",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
