@@ -19,7 +19,7 @@ import { useMissionStore } from '@/stores/useMissionStore';
 import { useIncidentsStore } from '@/stores/useIncidentsStore';
 import { canCancelFree, contestationDeadline, DELAYS } from '@/constants/delaysRules';
 import { computeSettlement } from '@/utils/settlement';
-import { getIncidentFormSpec, roleFromAnswer, type SpecField } from '@/services/mock/incidentFormSpecs';
+import { getIncidentFormSpec, roleFromAnswer, type SpecField } from '@/constants/formulairesIncident';
 import { SETTLEMENT_PARTY_LABELS } from '@/types/settlement';
 import type { CommonFormData, MissionFormStatus } from '@/types/incident';
 import type { Mission } from '@/types/mission';

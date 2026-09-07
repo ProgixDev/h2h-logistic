@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { UserReportPayload, UserReportReason } from '@/services/mock/userReports';
+import type { UserReportPayload, UserReportReason } from '@/constants/signalementUtilisateur';
 // 🔴 `submitUserReport` ATTENDAIT UNE SECONDE ET RENDAIT UN IDENTIFIANT
 // FABRIQUÉ. Rien n'était envoyé ; le signalant voyait un ecran de succès et une
 // référence qui n'existe nulle part. Les libellés et le routage support, eux,
 // restent : ce sont des données d'écran, et elles n'ont jamais été le défaut.
-import { getUserReportReason, isSupportReason } from '@/services/mock/userReports';
+import { getUserReportReason, isSupportReason } from '@/constants/signalementUtilisateur';
 import { signalerUtilisateur } from '@/services/signalements';
 import { useMissionStore } from '@/stores/useMissionStore';
 

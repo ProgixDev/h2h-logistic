@@ -1,3 +1,8 @@
+// LE PROTOCOLE D'INCIDENTS, TEL QUE LE CLIENT L'A ÉCRIT.
+//
+// ⚠️ VENU DE `services/mock/` SANS UNE LIGNE DE CHANGEMENT. C'est une
+// transcription de document, lue par l'écran d'information : elle n'a jamais été
+// une donnée de démonstration.
 /**
  * Incidents Protocol — HandtoHand Logistic
  *

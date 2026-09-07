@@ -34,7 +34,7 @@ import { useMissionStore } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useEarningsStore } from '@/stores/useEarningsStore';
 import { formatCurrency, formatTime } from '@/utils/formatting';
-import { type AppNotification } from '@/services/mock/notifications';
+import { type AppNotification } from '@/types/notification';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { DailyConfirmation } from '@/components/route/DailyConfirmation';
 import { EcoImpactSummary } from '@/components/dashboard/EcoImpactSummary';

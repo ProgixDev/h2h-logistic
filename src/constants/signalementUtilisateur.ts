@@ -1,3 +1,10 @@
+// LES MOTIFS DE SIGNALEMENT D'UNE PERSONNE — de la configuration, pas des données.
+//
+// ⚠️ MÊME HISTOIRE QUE `signalementHub` : ce fichier vivait dans
+// `services/mock/` alors que la liste des motifs, leur qualification en
+// « support prioritaire » et leurs libellés sont des décisions produit. Seule
+// `submitUserReport()` était fausse, et plus rien ne l'appelait — le magasin
+// passe par `signalerUtilisateur`.
 export type UserReportReason =
   | 'danger'
   | 'fraud'
@@ -85,14 +92,4 @@ export interface UserReportPayload {
   photoUris?: string[];
   /** Mandatory good-faith attestation — always true when submitted. */
   goodFaith: true;
-}
-
-export async function submitUserReport(
-  payload: UserReportPayload,
-): Promise<{ id: string; createdAt: string }> {
-  await new Promise((r) => setTimeout(r, 1000));
-  return {
-    id: `ureport-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
 }

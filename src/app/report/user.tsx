@@ -22,7 +22,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useUserReportsStore } from '@/stores/useUserReportsStore';
-import { USER_REPORT_REASONS, type UserReportReason } from '@/services/mock/userReports';
+import { USER_REPORT_REASONS, type UserReportReason } from '@/constants/signalementUtilisateur';
 
 const MAX_PHOTOS = 3;
 const MAX_NOTE_LENGTH = 600;

@@ -1,6 +1,6 @@
 // SIGNALER QUELQU'UN NE FAISAIT RIEN.
 //
-// 🔴 `services/mock/userReports.ts` :
+// 🔴 `constants/signalementUtilisateur.ts` (alors `services/mock/userReports.ts`) :
 //
 //     export async function submitUserReport(payload) {
 //       await new Promise((r) => setTimeout(r, 1000));
@@ -174,7 +174,7 @@ test('⚠️ ET CHAQUE MOTIF DE L’ÉCRAN EST UNE VALEUR QUE LA BASE ACCEPTE', 
   // de l'écran sans toucher à l'énumération. Or l'inclusion suffit : proposer
   // MOINS que ce que la base accepte ne casse rien, proposer PLUS casse tout.
   // C'est cette asymétrie qu'on garde.
-  const mock = lire('src/services/mock/hubReports.ts');
+  const mock = lire('src/constants/signalementHub.ts');
   for (const motif of ['closed', 'wrong_address', 'saturated', 'security', 'other']) {
     assert.ok(
       new RegExp(`'${motif}'`).test(mock),
@@ -192,7 +192,7 @@ test('🔴 « PARTENAIRE NON COOPÉRATIF » N’EST PLUS PROPOSÉ — ET NE REVI
   // ⚠️ CE TEST GARDE L'ÉCRAN, PAS L'ÉNUMÉRATION : le motif ne doit plus être
   // OFFERT. Sans lui, une remise à plat de la liste le ferait revenir sans que
   // personne le remarque.
-  const mock = lire('src/services/mock/hubReports.ts');
+  const mock = lire('src/constants/signalementHub.ts');
   const options = mock.slice(mock.indexOf('HUB_REPORT_REASONS'), mock.indexOf('HubReportPayload'));
   assert.ok(
     !/'partner_uncooperative'/.test(options),

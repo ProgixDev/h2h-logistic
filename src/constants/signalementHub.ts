@@ -1,3 +1,10 @@
+// LES MOTIFS DE SIGNALEMENT D'UN HUB — de la configuration, pas des données.
+//
+// ⚠️ CE FICHIER VENAIT DE `services/mock/`, ET IL N'AVAIT RIEN D'UN MOCK : la
+// liste des motifs est un choix produit, et l'écran la lit telle quelle. Ce qui
+// était faux, c'était son voisin `submitHubReport()` — une seconde d'attente
+// et un identifiant fabriqué. Le magasin appelle `signalerHub` depuis le
+// 04/09/2026 ; la fausse soumission n'était plus appelée par personne.
 // ⚠️ CE QUE L'ÉCRAN PROPOSE EST UN SOUS-ENSEMBLE DE CE QUE LA BASE ACCEPTE.
 // `hub_report_reason` porte encore `partner_uncooperative`, retiré de l'écran
 // le 04/09/2026, et il DOIT y rester : un signalement l'utilise déjà. Une
@@ -31,12 +38,4 @@ export interface HubReportPayload {
   reason: HubReportReason;
   notes?: string;
   photoUris?: string[];
-}
-
-export async function submitHubReport(payload: HubReportPayload): Promise<{ id: string; createdAt: string }> {
-  await new Promise((r) => setTimeout(r, 1000));
-  return {
-    id: `report-${Date.now()}`,
-    createdAt: new Date().toISOString(),
-  };
 }

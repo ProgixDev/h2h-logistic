@@ -1,3 +1,19 @@
+// LES FORMULAIRES D'INCIDENT — la mise en page des questions, pas les règles.
+//
+// ⚠️ CE FICHIER VENAIT DE `services/mock/`, ET IL N'A JAMAIS ÉTÉ FAUX : chaque
+// champ, chaque option et chaque texte de pré-validation est une décision
+// produit tirée du protocole client. Il changeait de dossier, pas de contenu.
+//
+// 🔴 CE QU'IL RESTE À TRANCHER, ET QUI N'EST PAS FAIT ICI. `ref.incident_forms`
+// porte en base, pour ses quatorze lignes : `declarants`, `delay_rule_id`,
+// `label_fr`, `requires_tolerance_elapsed`, `opens_contestation`. Ce fichier
+// redit les quatre premières sous les noms `role`, `delayRuleId`, `title` et
+// `collectWindowOnly`. Deux vérités pour une règle — celle de la base doit
+// gagner, et ce sera une passe à part.
+//
+// ⚠️ ET TROIS LIBELLÉS ÉCRIVENT « la tolérance de 10 minutes » EN DUR, alors que
+// `missions.tolerance_minutes` la porte par mission. C'est le même défaut que
+// `utils/tolerance.ts` côté place de marché, supprimé le 07/09/2026.
 import type { IncidentFormType, DeclarantRole } from '@/types/incident';
 
 export interface SpecField {

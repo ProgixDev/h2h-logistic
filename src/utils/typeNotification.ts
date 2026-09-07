@@ -5,7 +5,7 @@
 // doit être éprouvée. Tant qu'elle vivait à côté de la requête, l'importer
 // tirait le client Supabase, qui exige les variables d'environnement à
 // l'import : un test sur une fonction pure échouait faute de `.env.local`.
-import type { AppNotification } from '@/services/mock/notifications';
+import type { AppNotification } from '@/types/notification';
 
 /**
  * Le vocabulaire de la base vers celui de l'écran.

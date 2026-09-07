@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { HubReportPayload, HubReportReason } from '@/services/mock/hubReports';
+import type { HubReportPayload, HubReportReason } from '@/constants/signalementHub';
 // 🔴 `submitHubReport` ATTENDAIT UNE SECONDE ET RENDAIT UN IDENTIFIANT
 // FABRIQUÉ. Rien ne partait, et l'écran remerciait. Les libellés des motifs
 // restent côté écran — ils n'ont jamais été le défaut.

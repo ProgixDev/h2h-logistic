@@ -10,7 +10,7 @@
 // compte neuf n'a pas de notifications, et lui en montrer d'inventées est la
 // même faute que le « 96% de réussite » corrigé le 02/09/2026.
 import { create } from 'zustand';
-import type { AppNotification } from '@/services/mock/notifications';
+import type { AppNotification } from '@/types/notification';
 import { chargerNotifications, marquerLue } from '@/services/notifications';
 import { sequenceur } from '@/utils/derniereLectureGagne';
 

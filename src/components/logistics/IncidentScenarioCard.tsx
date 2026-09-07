@@ -10,7 +10,7 @@ import {
   type EffectSeverity,
   type IncidentEffect,
   type IncidentScenario,
-} from '@/services/mock/incidentsProtocol';
+} from '@/constants/protocoleIncidents';
 
 interface IncidentScenarioCardProps {
   scenario: IncidentScenario;

@@ -19,7 +19,7 @@
 // Refiltrer côté client dupliquerait la règle à deux endroits qui finiraient
 // par diverger — et seule celle du serveur protège vraiment.
 import { supabase } from '@/lib/supabase';
-import type { AppNotification } from '@/services/mock/notifications';
+import type { AppNotification } from '@/types/notification';
 import { versTypeEcran } from '@/utils/typeNotification';
 
 type LigneNotification = {

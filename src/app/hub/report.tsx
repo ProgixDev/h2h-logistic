@@ -22,7 +22,7 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useHubReportsStore } from '@/stores/useHubReportsStore';
-import { HUB_REPORT_REASONS, type HubReportReason } from '@/services/mock/hubReports';
+import { HUB_REPORT_REASONS, type HubReportReason } from '@/constants/signalementHub';
 
 const MAX_PHOTOS = 3;
 const MAX_NOTE_LENGTH = 600;
