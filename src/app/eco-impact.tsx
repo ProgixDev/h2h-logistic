@@ -62,7 +62,7 @@ export default function EcoImpactScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Hero */}
         <LinearGradient
-          colors={[colors.success, '#34A882']}
+          colors={[colors.success, '#3BBF94']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.hero}

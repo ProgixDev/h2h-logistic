@@ -1,10 +1,15 @@
 // Bleu céruléen — voir le commentaire jumeau dans
-// `hand-to-hand/src/constants/Colors.ts` : primary #007BA7, sa version foncée
-// #005C7D, et #2A9CC4 en thème sombre. Les deux fichiers bougent ensemble.
+// `hand-to-hand/src/constants/Colors.ts` : primary #0091C5, sa version foncée
+// #00739C, et #38ACD4 en thème sombre. Les deux fichiers bougent ensemble.
+//
+// 06/09/2026 : le bleu ET le vert ont été éclaircis d'un même pas (+6 points de
+// luminosité HSL, teinte et saturation inchangées) à la demande du client. Le
+// détail du calcul, et la raison pour laquelle le pas doit rester COMMUN aux
+// deux couleurs, sont dans le fichier jumeau.
 export const Colors = {
   light: {
-    primary: '#007BA7',
-    primaryGradientEnd: '#2A8A6A',
+    primary: '#0091C5',
+    primaryGradientEnd: '#31A17C',
     accent: '#998FC7',
     accentLight: '#D4C2FC',
     background: '#F9F5FF',
@@ -26,8 +31,8 @@ export const Colors = {
     goldBorder: '#E5C158',
   },
   dark: {
-    primary: '#2A9CC4',
-    primaryGradientEnd: '#34A882',
+    primary: '#38ACD4',
+    primaryGradientEnd: '#3BBF94',
     accent: '#998FC7',
     accentLight: '#3D3654',
     background: '#1A1A1E',

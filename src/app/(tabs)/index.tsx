@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
 
     // Shadow
-    shadowColor: '#007BA7',
+    shadowColor: '#0091C5',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 8,
