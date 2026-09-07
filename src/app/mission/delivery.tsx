@@ -16,23 +16,41 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Toast } from '@/components/ui/Toast';
 import { QRScanner } from '@/components/logistics/QRScanner';
+import { HubPresenceCard } from '@/components/logistics/HubPresenceCard';
 import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
 import { Icon } from '@/components/ui/Icon';
 import { ScanProgressDots } from '@/components/mission/ScanProgressDots';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
+import { chargerHubs } from '@/services/hubs';
+import { declarerPresenceHub } from '@/services/presenceHub';
+import { useHubPresence } from '@/hooks/useHubPresence';
+import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
 import { enregistrerScan, messageDeScan, nouvelleCle } from '@/services/scans';
 
-type DeliveryStep = 'approach' | 'scan-buyer' | 'scan-package' | 'confirmed';
+// 🔴 07/09/2026 — « presence » ARRIVE ENFIN SUR LA REMISE. La récupération
+// avait sa page depuis le 12/08/2026 ; la remise, elle, commençait à
+// « approach » et n'a JAMAIS eu d'étape de présence. Le cotransporteur ne
+// pouvait donc pas se déclarer au HUB DE REMISE — le point dont le guide
+// client parle le plus.
+//
+// 🔴 ET LA CONSÉQUENCE N'ÉTAIT PAS COSMÉTIQUE. La révélation GPS du §4 exige
+// DEUX déclarations pour la même étape. L'acheteur avait la sienne depuis
+// `logistics/presence-au-hub` côté place de marché ; sans celle-ci, le compte
+// ne pouvait pas atteindre deux, et le voile ne pouvait jamais se lever sur la
+// remise. La règle existait en base, complète, et restait inatteignable.
+type DeliveryStep = 'presence' | 'approach' | 'scan-buyer' | 'scan-package' | 'confirmed';
 
 const MAX_PACKAGE_ATTEMPTS = 3;
 
 export default function DeliveryScreen() {
   const { colors } = useColorScheme();
+  const { t } = useTranslation();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,7 +58,12 @@ export default function DeliveryScreen() {
   const { routes } = useRouteStore();
 
   const mission = getMissionById(id ?? '');
-  const [step, setStep] = useState<DeliveryStep>('approach');
+  // ⚠️ HORS HUB, ON SAUTE LA PAGE 1, comme à la récupération : un rendez-vous
+  // hors hub n'a ni zone ni point central à montrer, et sa présence ne se
+  // vérifie pas au GPS. L'y envoyer donnerait une page vide dont on ne
+  // pourrait pas sortir.
+  const offHubDelivery = getMissionById(id ?? '')?.deliveryHub.isOffHub === true;
+  const [step, setStep] = useState<DeliveryStep>(offHubDelivery ? 'approach' : 'presence');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
   const [packageAttempts, setPackageAttempts] = useState(0);
@@ -57,6 +80,30 @@ export default function DeliveryScreen() {
   }, []);
   const [earningsReleased, setEarningsReleased] = useState(false);
   const [displayedEarnings, setDisplayedEarnings] = useState('0.00');
+
+  // ⚠️ CHARGÉ, DONC ABSENT UN INSTANT : l'écran montre moins tant que le hub
+  // n'est pas là, il ne se vide pas.
+  const [fullHub, setFullHub] = useState<Hub | null>(null);
+  const hubVise = mission?.deliveryHub?.id;
+  useEffect(() => {
+    let vivant = true;
+    if (!hubVise) return;
+    chargerHubs()
+      .then((hubs) => { if (vivant) setFullHub(hubs.find((h) => h.id === hubVise) ?? null); })
+      .catch((e) => console.error('[mission] hub de remise illisible', e));
+    return () => { vivant = false; };
+  }, [hubVise]);
+
+  // 🔴 CES DEUX-LÀ SONT AU-DESSUS DU `if (!mission)`, ET C'EST OBLIGATOIRE.
+  // Un hook posé après une sortie anticipée change le NOMBRE de hooks entre
+  // deux rendus — React lève « Rendered more hooks than during the previous
+  // render ». C'est le défaut que ce fichier a déjà connu, et que le premier
+  // jet de la déclaration de présence a réintroduit côté récupération.
+  //
+  // ⚠️ `useHubPresence` NE DÉCIDE DE RIEN. Il donne la position du téléphone
+  // pour l'afficher et pour l'ENVOYER ; le verdict de zone revient du serveur.
+  const { coords } = useHubPresence(fullHub);
+  const [declaration, setDeclaration] = useState(false);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -183,6 +230,116 @@ export default function DeliveryScreen() {
     }
   });
 
+  // 🔴 LA DÉCLARATION DE PRÉSENCE À LA REMISE, jumelle de celle de
+  // `mission/pickup` — mêmes gardes, même vocabulaire, seule l'étape change.
+  //
+  // ⚠️ `'remise'` ET PAS `'recuperation'`. Le serveur dérive la partie de la
+  // mission, mais PAS l'étape : c'est le seul paramètre qui dit de quel hub on
+  // parle. Se tromper ici écrirait la présence du cotransporteur sur le hub du
+  // vendeur, et le compte de la révélation resterait bloqué à un.
+  //
+  // ⚠️ ON ENREGISTRE TOUJOURS, ON NE VALIDE QUE DANS LA ZONE. Hors zone, le
+  // guide dit que « sa présence ne peut pas ENCORE être validée » — pas que
+  // rien ne s'est passé. Le message rapporte ce que le serveur a répondu,
+  // distance comprise.
+  const validatePresence = async () => {
+    if (declaration) return;
+    setDeclaration(true);
+    try {
+      // ⚠️ SANS POSITION, PAS DE DÉCLARATION. Le serveur refuse un appel sans
+      // coordonnées, et il a raison : une présence sans position ne prouve
+      // rien. On le dit plutôt que d'envoyer un point inventé.
+      if (!coords) {
+        showToast(t('presence.noLocation'), 'error');
+        return;
+      }
+      const r = await declarerPresenceHub(mission.id, 'remise', {
+        lat: coords.latitude,
+        lng: coords.longitude,
+      });
+      await Haptics.notificationAsync(
+        r.dansLaZone
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning,
+      );
+      const message = r.dansLaZone
+        ? t('presence.recorded')
+        : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM)));
+      showToast(message, r.dansLaZone ? 'success' : 'warning');
+      AccessibilityInfo.announceForAccessibility(message);
+      // ⚠️ ON AVANCE MÊME HORS ZONE. Bloquer le scan sur une erreur GPS
+      // immobiliserait la co-livraison en retirant l'outil censé aider les
+      // deux personnes à se trouver — et l'arrivée est déjà enregistrée.
+      setStep('approach');
+    } catch (e) {
+      // Le serveur dit pourquoi : hors hub, étape qui ne vous concerne pas,
+      // aucun hub fixé pour cette étape.
+      console.error('[presence] declaration impossible', e);
+      showToast(e instanceof Error ? e.message : t('presence.failed'), 'error');
+    } finally {
+      setDeclaration(false);
+    }
+  };
+
+  // ⚠️ UNE SEULE FOIS, LU PAR LES DEUX PAGES. Le nom et le détail affiché sont
+  // la même chose à la présence et à l'approche ; les écrire deux fois, c'est
+  // s'assurer qu'ils divergeront.
+  const hubCard = (
+    <Card>
+      <View style={s.hubRow}>
+        <Icon name="hub-gare" size={28} color={colors.primary} />
+        <View style={s.hubInfo}>
+          <Text style={[s.hubName, { color: colors.text }]}>{mission.deliveryHub.name}</Text>
+          <Text style={[s.hubCity, { color: colors.textSecondary }]}>
+            {/* 🔴 LE DÉTAIL AFFICHÉ, pas la ville : c'est la ligne du protocole
+                qui dit où se présenter. « Nice » ne distingue pas quatre
+                entrées de gare ; « Av. Thiers, côté parking » si. */}
+            {fullHub?.displayDetail ?? mission.deliveryHub.city}
+          </Text>
+        </View>
+      </View>
+    </Card>
+  );
+
+  // ─── STEP: PRESENCE ────────────────────────────────────────
+  if (step === 'presence') {
+    return (
+      <View style={[s.screen, { backgroundColor: colors.background }]}>
+        <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
+          <Header title="Co-livraison du colis" showBack />
+          <Text style={[s.missionRef, { color: colors.textSecondary }]}>#{missionCode}</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+          {hubCard}
+
+          {fullHub ? (
+            <HubPresenceCard
+              hub={fullHub}
+              scheduledTime={mission.deliveryHub.scheduledTime}
+              toleranceMinutes={mission.deliveryHub.toleranceMinutes}
+              onConfirm={validatePresence}
+            />
+          ) : (
+            /* ⚠️ HUB INTROUVABLE DANS LE RÉFÉRENTIEL : pas de zone à dessiner,
+               mais la présence doit rester déclarable — sinon le scan reste
+               verrouillé et la co-livraison s'arrête sur un écran muet. */
+            <Button
+              title={t('presence.button')}
+              onPress={validatePresence}
+              variant="gradient"
+              style={{ minHeight: 52 }}
+            />
+          )}
+        </ScrollView>
+
+        {toast && (
+          <Toast message={toast.msg} type={toast.type} visible onHide={() => setToast(null)} duration={2500} />
+        )}
+      </View>
+    );
+  }
+
   // ─── STEP: APPROACH ────────────────────────────────────────
   if (step === 'approach') {
     // Absence et blocage : ouverts SEULEMENT apres la fin de la tolerance.
@@ -207,15 +364,7 @@ export default function DeliveryScreen() {
         </View>
 
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
-          <Card>
-            <View style={s.hubRow}>
-              <Icon name="hub-gare" size={28} color={colors.primary} />
-              <View style={s.hubInfo}>
-                <Text style={[s.hubName, { color: colors.text }]}>{mission.deliveryHub.name}</Text>
-                <Text style={[s.hubCity, { color: colors.textSecondary }]}>{mission.deliveryHub.city}</Text>
-              </View>
-            </View>
-          </Card>
+          {hubCard}
 
           <ToleranceWindow
             scheduledTime={mission.deliveryHub.scheduledTime}

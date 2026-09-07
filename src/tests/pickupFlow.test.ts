@@ -159,3 +159,76 @@ test('🔴 LES DEUX ENTRÉES VERS UNE PHASE SE LISENT PAREIL', () => {
   assert.ok(!/Scanner le QR du vendeur'/.test(timeline));
   assert.ok(!/Entrer le code acheteur/.test(timeline));
 });
+
+// ── La remise déclare sa présence, elle aussi ──────────────────────────────
+//
+// 🔴 CE BLOC EXISTE PARCE QUE LA MOITIÉ DE LA RÈGLE MANQUAIT SANS BRUIT. La
+// récupération avait sa page de présence depuis le 12/08/2026 ; la remise
+// commençait à « approach » et n'en a jamais eu. Rien ne le signalait : les
+// deux écrans compilaient, s'affichaient et se comportaient normalement.
+//
+// 🔴 ET LA CONSÉQUENCE ÉTAIT INVISIBLE AUSSI. La révélation GPS du §4 exige
+// DEUX déclarations sur la MÊME étape. L'acheteur avait la sienne côté place
+// de marché ; sans celle du cotransporteur, le compte de la remise ne pouvait
+// pas atteindre deux. La règle était complète en base et inatteignable.
+
+test('🔴 LA REMISE AUSSI S’OUVRE SUR LA DÉCLARATION DE PRÉSENCE', () => {
+  const src = lire(DELIVERY);
+  assert.ok(/'presence' \| 'approach'/.test(src), '« presence » précède « approach »');
+  assert.ok(
+    /useState<DeliveryStep>\(offHubDelivery \? 'approach' : 'presence'\)/.test(src),
+    'la première étape est la présence — sauf hors hub',
+  );
+  assert.ok(/const offHubDelivery = .*deliveryHub\.isOffHub === true/.test(src));
+});
+
+test('🔴 CHAQUE ÉTAPE DÉCLARE LA SIENNE — « remise » N’EST PAS « recuperation »', () => {
+  // ⚠️ LE SERVEUR DÉRIVE LA PARTIE DE LA MISSION, MAIS PAS L'ÉTAPE. C'est le
+  // seul paramètre qui dit de quel hub on parle. Les intervertir écrirait la
+  // présence du cotransporteur sur le hub du vendeur, et le compte de la
+  // révélation resterait bloqué à un — sans qu'aucune erreur ne remonte.
+  assert.match(
+    codeSeul(PICKUP),
+    /declarerPresenceHub\(\s*mission\.id,\s*'recuperation'/,
+    'la récupération ne déclare plus l’étape « recuperation »',
+  );
+  assert.match(
+    codeSeul(DELIVERY),
+    /declarerPresenceHub\(\s*mission\.id,\s*'remise'/,
+    'la remise ne déclare pas l’étape « remise »',
+  );
+});
+
+test('🔴 AUCUNE DES DEUX PAGES N’EST SANS ISSUE', () => {
+  // Une page de présence qui n'avance pas immobilise la co-livraison : le scan
+  // reste derrière elle. On avance MÊME HORS ZONE — l'arrivée est déjà
+  // enregistrée, et bloquer retirerait l'outil censé aider à se trouver.
+  for (const chemin of [PICKUP, DELIVERY]) {
+    const src = codeSeul(chemin);
+    assert.match(
+      src,
+      /setStep\('approach'\)/,
+      `${chemin} : la déclaration ne fait pas avancer`,
+    );
+  }
+});
+
+test('⚠️ LA PRÉSENCE PART AU SERVEUR, ELLE NE RESTE PAS SUR LE TÉLÉPHONE', () => {
+  // 🔴 LA RÉGRESSION QUE CE TEST INTERDIT. Le bouton posait un état local et
+  // affichait « Présence validée au hub ✓ » : rien n'était écrit nulle part, et
+  // le mot « validée » était faux deux fois — le serveur distingue DÉCLARER
+  // (toujours enregistré) de VALIDER (seulement dans la zone).
+  for (const chemin of [PICKUP, DELIVERY]) {
+    const src = codeSeul(chemin);
+    assert.ok(
+      src.includes("from '@/services/presenceHub'"),
+      `${chemin} : le service de présence n’est pas importé`,
+    );
+    assert.ok(
+      !/Présence validée au hub/.test(src),
+      `${chemin} : le message qui n’était vrai nulle part est revenu`,
+    );
+    // Sans position, pas de déclaration : une présence sans point ne prouve rien.
+    assert.match(src, /if \(!coords\)/, `${chemin} : une présence sans position passerait`);
+  }
+});
