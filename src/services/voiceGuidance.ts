@@ -5,6 +5,7 @@
 
 import * as Speech from 'expo-speech';
 import type { RouteStep } from '@/services/routing';
+import { auLieu } from '@/utils/lieuRendezVous';
 
 let voiceEnabled = true;
 let currentlySpeaking = false;
@@ -78,7 +79,7 @@ export function speakInstruction(instruction: string, distanceMeters?: number): 
 }
 
 export function speakArrival(hubName: string): void {
-  speak(`Vous êtes arrivé au hub ${hubName}. Bonne co-livraison !`);
+  speak(`Vous êtes arrivé ${auLieu({ name: hubName })}. Bonne co-livraison !`);
 }
 
 export function speakRouteStart(hubName: string, durationMinutes: number): void {

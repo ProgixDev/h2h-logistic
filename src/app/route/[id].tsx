@@ -14,6 +14,7 @@ import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { auLieu } from '@/utils/lieuRendezVous';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { ACTIVE_STATUSES } from '@/types/mission';
@@ -164,7 +165,7 @@ export default function RouteDetailScreen() {
           <InfoRow label="Horaire collecte" value={route.schedule.pickupTime} colors={colors} />
           {Object.entries(route.schedule.deliveryTimes).map(([hubId, time]) => {
             const hub = route.deliveryHubs.find((h) => h.hubId === hubId);
-            return <InfoRow key={hubId} label={`Remise au hub ${hub?.hubName ?? ''}`} value={time} colors={colors} />;
+            return <InfoRow key={hubId} label={`Remise ${auLieu({ name: hub?.hubName ?? '' })}`} value={time} colors={colors} />;
           })}
           <InfoRow label="Créé le" value={formatDate(route.createdAt)} colors={colors} />
         </Card>
@@ -194,7 +195,7 @@ export default function RouteDetailScreen() {
                   onPress={() => handleReportHub(route.pickupHub.hubId, route.pickupHub.hubName, route.pickupHub.city)}
                   hitSlop={10}
                   accessibilityRole="button"
-                  accessibilityLabel={`Signaler le hub ${route.pickupHub.hubName}`}
+                  accessibilityLabel={`Signaler le ${route.pickupHub.hubName}`}
                   style={({ pressed }) => [styles.reportInline, { opacity: pressed ? 0.6 : 1 }]}
                 >
                   <Icon name="flag" size={12} color={colors.textSecondary} />
@@ -232,7 +233,7 @@ export default function RouteDetailScreen() {
                       onPress={() => handleReportHub(hub.hubId, hub.hubName, hub.city)}
                       hitSlop={10}
                       accessibilityRole="button"
-                      accessibilityLabel={`Signaler le hub ${hub.hubName}`}
+                      accessibilityLabel={`Signaler le ${hub.hubName}`}
                       style={({ pressed }) => [styles.reportInline, { opacity: pressed ? 0.6 : 1 }]}
                     >
                       <Icon name="flag" size={12} color={colors.textSecondary} />

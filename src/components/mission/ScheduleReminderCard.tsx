@@ -10,6 +10,7 @@ import Animated, {
   cancelAnimation,
 } from 'react-native-reanimated';
 import dayjs from 'dayjs';
+import { auLieu, type LieuRendezVous } from '@/utils/lieuRendezVous';
 import { Icon } from '@/components/ui/Icon';
 import { SandClockAnimation } from '@/components/mission/SandClockAnimation';
 import { Typography } from '@/constants/Typography';
@@ -20,9 +21,9 @@ type Phase = 'pickup' | 'delivery' | 'completed';
 
 interface ScheduleReminderCardProps {
   pickupTime: string;
-  pickupHubName: string;
+  pickupLieu: LieuRendezVous;
   deliveryTime: string;
-  deliveryHubName: string;
+  deliveryLieu: LieuRendezVous;
   pickupActualTime?: string;
   phase: Phase;
 }
@@ -69,9 +70,9 @@ function formatLate(ms: number): string {
 
 export function ScheduleReminderCard({
   pickupTime,
-  pickupHubName,
+  pickupLieu,
   deliveryTime,
-  deliveryHubName,
+  deliveryLieu,
   pickupActualTime,
   phase,
 }: ScheduleReminderCardProps) {
@@ -122,8 +123,10 @@ export function ScheduleReminderCard({
   const pickupDayLabel = formatDayLabel(pickupTime);
   const deliveryDayLabel = formatDayLabel(deliveryTime);
 
-  const pickupLine = `Prise en charge au vendeur ${pickupDayLabel} à ${pickupTimeLabel} au hub ${pickupHubName}`;
-  const deliveryLine = `Remise prévue ${deliveryDayLabel} à ${deliveryTimeLabel} au hub ${deliveryHubName}`;
+  // 🔴 PLUS DE « au hub » DANS LA PHRASE : le nom le porte déjà, et hors hub
+  // il n'y a pas de hub. Voir `utils/lieuRendezVous`.
+  const pickupLine = `Prise en charge au vendeur ${pickupDayLabel} à ${pickupTimeLabel} ${auLieu(pickupLieu)}`;
+  const deliveryLine = `Remise prévue ${deliveryDayLabel} à ${deliveryTimeLabel} ${auLieu(deliveryLieu)}`;
 
   const countdownLabel = isOverdue ? 'Bientôt' : formatCountdown(remainingMs);
   const lateLabel = `Léger retard — ${formatLate(remainingMs)}`;

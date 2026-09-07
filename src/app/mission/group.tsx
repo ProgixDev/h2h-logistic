@@ -391,9 +391,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           <Animated.View entering={FadeInDown.delay(180).duration(300)}>
             <ScheduleReminderCard
               pickupTime={mission.pickupHub.scheduledTime}
-              pickupHubName={mission.pickupHub.name}
+              pickupLieu={mission.pickupHub}
               deliveryTime={mission.deliveryHub.scheduledTime}
-              deliveryHubName={mission.deliveryHub.name}
+              deliveryLieu={mission.deliveryHub}
               pickupActualTime={mission.pickupHub.actualTime}
               phase={reminderPhase}
             />
@@ -405,7 +405,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           <Animated.View entering={FadeInDown.delay(220).duration(300)}>
             <DirectionHubButton
               phase={reminderPhase}
-              hubName={reminderPhase === 'pickup' ? mission.pickupHub.name : mission.deliveryHub.name}
+              lieu={reminderPhase === 'pickup' ? mission.pickupHub : mission.deliveryHub}
               onPress={() =>
                 router.push({
                   pathname: reminderPhase === 'pickup' ? '/mission/pickup' : '/mission/delivery',

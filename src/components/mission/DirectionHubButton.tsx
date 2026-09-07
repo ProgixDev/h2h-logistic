@@ -8,12 +8,13 @@ import { HandoffAnimation } from '@/components/mission/HandoffAnimation';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { auLieu, nomDuLieu, type LieuRendezVous } from '@/utils/lieuRendezVous';
 
 type Phase = 'pickup' | 'delivery';
 
 interface DirectionHubButtonProps {
   phase: Phase;
-  hubName: string;
+  lieu: LieuRendezVous;
   distanceMeters?: number;
   onPress: () => void;
   onNavigatePress: () => void;
@@ -26,7 +27,7 @@ function formatDistance(m: number): string {
 
 export function DirectionHubButton({
   phase,
-  hubName,
+  lieu,
   distanceMeters,
   onPress,
   onNavigatePress,
@@ -44,8 +45,8 @@ export function DirectionHubButton({
 
   const accessibilityLabel =
     phase === 'pickup'
-      ? `Valider la récupération, direction hub vendeur ${hubName}`
-      : `Remise, direction hub acheteur ${hubName}`;
+      ? `Valider la récupération, rendez-vous ${auLieu(lieu)}`
+      : `Remise, rendez-vous ${auLieu(lieu)}`;
 
   const scale = useSharedValue(1);
   const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -92,7 +93,7 @@ export function DirectionHubButton({
               {title}
             </Text>
             <Text style={styles.meta} numberOfLines={1}>
-              Hub {hubName}
+              {nomDuLieu(lieu)}
               {distanceMeters != null ? `  •  à ${formatDistance(distanceMeters)}` : ''}
             </Text>
           </View>
@@ -102,7 +103,7 @@ export function DirectionHubButton({
             onPress={handleChevronPress}
             hitSlop={8}
             accessibilityRole="button"
-            accessibilityLabel={`Ouvrir la navigation vers ${hubName}`}
+            accessibilityLabel={`Ouvrir la navigation vers ${nomDuLieu(lieu)}`}
             style={({ pressed }) => [styles.chevron, pressed && { opacity: 0.7 }]}
           >
             <Icon name="chevron-right" size={32} color="#FFFFFF" />
