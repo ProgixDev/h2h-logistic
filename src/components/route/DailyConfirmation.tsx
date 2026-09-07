@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Icon } from '@/components/ui/Icon';
 import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
+import { TOLERANCE_PROTOCOLE_MINUTES } from '@/constants/delaysRules';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -58,7 +59,14 @@ export function DailyConfirmation({ route, onConfirm, onSkip }: DailyConfirmatio
         <Text style={[s.timeValue, { color: colors.primary }]}>{route.schedule.pickupTime}</Text>
       </View>
 
-      <ToleranceWindow scheduledTime={scheduledTime} toleranceMinutes={10} size="compact" />
+      {/* ⚠️ AUCUNE MISSION N'EXISTE ENCORE ICI : c'est le trajet que le
+          cotransporteur declare, pas un rendez-vous accepte. La tolerance
+          affichee est donc celle du protocole, pas celle d'une mission. */}
+      <ToleranceWindow
+        scheduledTime={scheduledTime}
+        toleranceMinutes={TOLERANCE_PROTOCOLE_MINUTES}
+        size="compact"
+      />
 
       <View style={s.actions}>
         <Button

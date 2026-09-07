@@ -14,7 +14,16 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 
 interface ToleranceWindowProps {
   scheduledTime: string;
-  toleranceMinutes?: number;
+  /**
+   * Celle de la mission (`missions.tolerance_minutes`) — PAS de valeur par
+   * défaut. Elle en avait une, `= 10`, et une mission à quinze minutes
+   * dessinait donc la fenêtre de quelqu'un d'autre.
+   *
+   * ⚠️ AVANT QU'UNE MISSION EXISTE, il n'y a rien à lire : « Trajet du jour »
+   * montre la tolérance générale du protocole
+   * (`TOLERANCE_PROTOCOLE_MINUTES`), et c'est le seul cas légitime.
+   */
+  toleranceMinutes: number;
   size?: 'compact' | 'full';
 }
 
@@ -58,7 +67,7 @@ function getDotPosition(scheduledTime: string, tolerance: number): number {
 
 export function ToleranceWindow({
   scheduledTime,
-  toleranceMinutes = 10,
+  toleranceMinutes,
   size = 'full',
 }: ToleranceWindowProps) {
   const { colors } = useColorScheme();

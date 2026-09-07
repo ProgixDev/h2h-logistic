@@ -8,7 +8,7 @@ import { HubMap } from '@/components/hub/HubMap';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useHubPresence } from '@/hooks/useHubPresence';
-import { getToleranceWindow, isWithinTolerance, DEFAULT_TOLERANCE_MINUTES } from '@/utils/tolerance';
+import { getToleranceWindow, isWithinTolerance } from '@/utils/tolerance';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import type { Hub } from '@/types/hub';
@@ -38,7 +38,8 @@ import type { Hub } from '@/types/hub';
 interface HubPresenceCardProps {
   hub: Hub;
   scheduledTime: string;
-  toleranceMinutes?: number;
+  /** Celle de la mission. PAS de valeur par défaut — voir `utils/tolerance.ts`. */
+  toleranceMinutes: number;
   /** Présence déjà enregistrée — la carte montre l'état confirmé. */
   confirmed?: boolean;
   /** Enregistre la présence. Reçoit l'horodatage ISO. */
@@ -48,7 +49,7 @@ interface HubPresenceCardProps {
 export function HubPresenceCard({
   hub,
   scheduledTime,
-  toleranceMinutes = DEFAULT_TOLERANCE_MINUTES,
+  toleranceMinutes,
   confirmed = false,
   onConfirm,
 }: HubPresenceCardProps) {

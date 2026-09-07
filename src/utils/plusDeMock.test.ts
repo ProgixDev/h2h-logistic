@@ -26,6 +26,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { lireCode } from '@/utils/sansCommentaires';
 
 const RACINE = join(process.cwd(), 'src');
 
@@ -62,14 +63,6 @@ test('🔴 AUCUN FICHIER N’IMPORTE PLUS DE MOCK', () => {
  *  qui prouvent qu'elle est satisfaite. C'est le piège que `pickupFlow.test.ts`
  *  décrit déjà, mot pour mot.
  */
-const codeSeul = (chemin: string): string =>
-  readFileSync(chemin, 'utf8')
-    .split('\n')
-    .filter((l) => {
-      const t = l.trimStart();
-      return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*') && !t.startsWith('{/*');
-    })
-    .join('\n');
 
 test('⚠️ ET LES FAUSSES SOUMISSIONS NON PLUS', () => {
   // Elles rendaient un identifiant fabriqué après une seconde d'attente : de
@@ -77,7 +70,7 @@ test('⚠️ ET LES FAUSSES SOUMISSIONS NON PLUS', () => {
   const fautifs: string[] = [];
   for (const chemin of fichiers(RACINE)) {
     if (chemin.endsWith('plusDeMock.test.ts')) continue;
-    const src = codeSeul(chemin);
+    const src = lireCode(chemin);
     for (const nom of ['submitHubReport', 'submitUserReport']) {
       if (new RegExp(`(function|const)\\s+${nom}\\b`).test(src)) {
         fautifs.push(`${chemin.replace(process.cwd(), '.')} → ${nom}`);

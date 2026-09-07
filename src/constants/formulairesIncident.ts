@@ -4,16 +4,23 @@
 // champ, chaque option et chaque texte de pré-validation est une décision
 // produit tirée du protocole client. Il changeait de dossier, pas de contenu.
 //
-// 🔴 CE QU'IL RESTE À TRANCHER, ET QUI N'EST PAS FAIT ICI. `ref.incident_forms`
-// porte en base, pour ses quatorze lignes : `declarants`, `delay_rule_id`,
-// `label_fr`, `requires_tolerance_elapsed`, `opens_contestation`. Ce fichier
-// redit les quatre premières sous les noms `role`, `delayRuleId`, `title` et
-// `collectWindowOnly`. Deux vérités pour une règle — celle de la base doit
-// gagner, et ce sera une passe à part.
+// 🔴 CE FICHIER NE DÉCIDE PAS DES RÈGLES, IL LES MET EN PAGE — ET DEPUIS LE
+// 07/09/2026 UNE GARDE LE VÉRIFIE. `ref.incident_forms` porte en base, pour ses
+// quatorze lignes : `declarants`, `delay_rule_id`, `label_fr`,
+// `requires_tolerance_elapsed`, `opens_contestation`. Ce fichier redit les deux
+// premières sous les noms `role` et `delayRuleId`. C'est une COPIE assumée —
+// `ref` n'est pas lisible par `authenticated`, donc l'application ne peut pas
+// aller les chercher — mais `src/backend/protocoleAppartientALaBase.test.ts`
+// échoue dès qu'elle diverge de la base. La base décide, ce fichier suit.
 //
-// ⚠️ ET TROIS LIBELLÉS ÉCRIVENT « la tolérance de 10 minutes » EN DUR, alors que
-// `missions.tolerance_minutes` la porte par mission. C'est le même défaut que
-// `utils/tolerance.ts` côté place de marché, supprimé le 07/09/2026.
+// ✅ ET LES TROIS LIBELLÉS QUI ÉCRIVAIENT « la tolérance de 10 minutes » EN DUR
+// ONT ÉTÉ CORRIGÉS LE MÊME JOUR. Ils portent maintenant le jeton `{tolerance}`,
+// que l'écran remplace par la tolérance DE LA MISSION
+// (`missions.tolerance_minutes`, `smallint not null default 10` — une valeur
+// par défaut n'est pas une constante). On demandait à quelqu'un dont la mission
+// pouvait porter quinze minutes s'il avait attendu la fin des dix ; sa réponse
+// était ensuite versée au dossier comme une preuve, sur une question qui
+// n'était pas la sienne.
 import type { IncidentFormType, DeclarantRole } from '@/types/incident';
 
 export interface SpecField {
@@ -78,7 +85,7 @@ export const INCIDENT_FORM_SPECS: IncidentFormSpec[] = [
       { id: 'action', label: 'Que souhaitez-vous faire ?', type: 'radio', required: true, options: ["Continuer d'attendre", "Clôturer pour absence de l'acheteur"] },
       { id: 'since', label: 'Depuis quelle heure êtes-vous présent au hub ?', type: 'text', placeholder: 'ex. 17h05' },
       { id: 'buyer_visible', label: "L'acheteur était-il visible sur place ?", type: 'radio', options: OUI_NON_JND },
-      { id: 'waited', label: 'Avez-vous attendu la fin de la tolérance de 10 minutes ?', type: 'radio', options: OUI_NON },
+      { id: 'waited', label: 'Avez-vous attendu la fin de la {tolerance} ?', type: 'radio', options: OUI_NON },
       { id: 'has_package', label: 'Le colis est-il toujours en votre possession ?', type: 'radio', options: OUI_NON },
     ],
     preValidation:
@@ -124,7 +131,7 @@ export const INCIDENT_FORM_SPECS: IncidentFormSpec[] = [
     fields: [
       { id: 'action', label: 'Que souhaitez-vous faire ?', type: 'radio', required: true, options: ["Continuer d'attendre", 'Clôturer pour absence du cotransporteur'] },
       { id: 'since', label: 'Depuis quelle heure êtes-vous présent au hub ?', type: 'text' },
-      { id: 'waited', label: 'Avez-vous attendu la fin de la tolérance de 10 minutes ?', type: 'radio', options: OUI_NON },
+      { id: 'waited', label: 'Avez-vous attendu la fin de la {tolerance} ?', type: 'radio', options: OUI_NON },
       { id: 'transporter_visible', label: 'Le cotransporteur était-il visible sur place ?', type: 'radio', options: OUI_NON_JND },
       { id: 'received', label: 'Avez-vous reçu le colis ?', type: 'radio', options: OUI_NON },
     ],
@@ -192,7 +199,7 @@ export const INCIDENT_FORM_SPECS: IncidentFormSpec[] = [
     delayRuleId: 'D3',
     fields: [
       { id: 'arrival', label: "Heure d'arrivée au point de rendez-vous", type: 'text', placeholder: 'ex. 09h05' },
-      { id: 'waited', label: 'Avez-vous attendu la fin de la tolérance de 10 minutes ?', type: 'radio', options: OUI_NON },
+      { id: 'waited', label: 'Avez-vous attendu la fin de la {tolerance} ?', type: 'radio', options: OUI_NON },
       { id: 'seller_visible', label: 'Le vendeur était-il visible sur place ?', type: 'radio', options: OUI_NON_JND },
       { id: 'package_given', label: 'Le colis vous a-t-il été remis ?', type: 'radio', options: OUI_NON },
     ],

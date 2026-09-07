@@ -39,23 +39,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { PGlite } from '@electric-sql/pglite';
+import {
+  ABSENCE,
+  DEPOT_VOISIN,
+  ouvrirSchemaVoisin,
+  schemaVoisinPresent,
+} from '@/backend/schemaVoisin';
 
 const RACINE = join(process.cwd(), 'src');
 
-/** Le dépôt de la place de marché — il détient le schéma que ce dépôt appelle. */
-const DEPOT_VOISIN = process.env.H2H_MARKETPLACE
-  ?? join(process.cwd(), '..', 'hand-to-hand');
-
-const DOSSIER_MIGRATIONS = join(DEPOT_VOISIN, 'supabase', 'migrations');
 const GARDE_VOISINE = join(DEPOT_VOISIN, 'src', 'backend', 'aucuneRpcOrpheline.test.ts');
-
-const ABSENCE = `le dépôt de la place de marché est introuvable (${DEPOT_VOISIN}).\n`
-  + 'Ce dépôt ne possède pas le schéma : sans les migrations voisines, il est '
-  + 'IMPOSSIBLE de savoir si les fonctions appelées ici existent encore. Ce test '
-  + 'échoue plutôt que de se taire — un contrôle vert qui n’a rien vérifié est '
-  + 'pire que pas de contrôle.\n'
-  + 'Cloner `hand-to-hand` à côté, ou donner son chemin dans H2H_MARKETPLACE.';
 
 // ── LE CODE QUE LES ÉCRANS ATTEIGNENT VRAIMENT ─────────────────────────────
 //
@@ -237,96 +230,16 @@ const APPELS = TOUS.flatMap(lireAppels);
 
 // ── LE SCHÉMA VOISIN, REJOUÉ ───────────────────────────────────────────────
 //
-// ⚠️ PRÉLUDE ET ADAPTATIONS COPIÉS DE `hand-to-hand/src/backend/*.test.ts`. Il
-// n'existe pas de monorepo (`docs/backend/ARCHITECTURE.md` le dit), donc pas de
-// module partagé : la copie est le prix de la séparation des dépôts.
-//
-// 🔴 PAS DE POSTGIS DANS PGlite : `geography(point,4326)` devient `text` et les
-// index GiST sautent. Toutes les gardes de la place de marché font pareil.
-
-const PRELUDE = `
-create schema if not exists auth;
-create schema if not exists extensions;
-create schema if not exists storage;
-create table if not exists storage.buckets (
-  id text primary key, name text not null, public boolean not null default false,
-  file_size_limit bigint, allowed_mime_types text[],
-  created_at timestamptz not null default now()
-);
-create table if not exists storage.objects (
-  id uuid primary key default gen_random_uuid(),
-  bucket_id text references storage.buckets(id), name text, owner uuid,
-  created_at timestamptz not null default now()
-);
-alter table storage.objects enable row level security;
-create or replace function storage.foldername(name text) returns text[]
-  language plpgsql immutable as $fold$
-declare parts text[];
-begin
-  parts := string_to_array(name, '/');
-  return parts[1 : array_length(parts, 1) - 1];
-end $fold$;
-
-create schema if not exists realtime;
-create table if not exists realtime.messages (
-  id uuid not null default gen_random_uuid(), topic text not null, extension text,
-  payload jsonb, event text, private boolean default false,
-  inserted_at timestamp not null default now(), updated_at timestamp not null default now()
-);
-alter table realtime.messages enable row level security;
-create or replace function realtime.topic() returns text
-  language sql stable as $rt$ select current_setting('realtime.topic', true) $rt$;
-create or replace function realtime.send(
-  payload jsonb, event text, topic text, private boolean default true)
-  returns void language plpgsql as $rs$
-begin
-  insert into realtime.messages (topic, event, payload, private, extension)
-  values (topic, event, payload, private, 'broadcast');
-end $rs$;
-create or replace function realtime.broadcast_changes(
-  topic_name text, event_name text, operation text, table_name text,
-  table_schema text, new record, old record, level text default 'ROW')
-  returns void language plpgsql as $rb$
-begin
-  perform realtime.send(
-    jsonb_build_object('operation', operation, 'schema', table_schema,
-                       'table', table_name, 'record', to_jsonb(new)),
-    event_name, topic_name, true);
-end $rb$;
-
-do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated; end if;
-  if not exists (select 1 from pg_roles where rolname = 'anon') then create role anon; end if;
-  if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role; end if;
-end $$;
-grant usage on schema realtime to authenticated, anon;
-grant select on realtime.messages to authenticated;
-`;
-
-const adapter = (sql: string): string => sql
-  .replace(/^create extension .*$/gim, '-- [shim] extension')
-  .replace(/extensions\.geography\(point,\s*4326\)/g, 'text')
-  .replace(/extensions\.citext/g, 'text')
-  .replace(/^create index [^;]*using gist[^;]*;/gim, '-- [shim] gist')
-  .replace(/^create index [^;]*trgm_ops[^;]*;/gim, '-- [shim] trgm');
+// ⚠️ LE REJEU VIT DANS `@/backend/schemaVoisin`, PAS ICI. Deux tests de ce
+// dossier en ont besoin ; deux copies du prélude finiraient par diverger, et
+// un shim qui diverge fait mentir la garde qu'il sert.
 
 type Signature = { args: string[]; obligatoires: string[]; accordee: boolean };
 
 const schema = new Map<string, Signature[]>();
 
-if (existsSync(DOSSIER_MIGRATIONS)) {
-  const db = new PGlite();
-  await db.exec(PRELUDE);
-  await db.exec(`
-    alter default privileges in schema public
-      grant select, insert, update, delete on tables to authenticated;
-    alter default privileges in schema public grant select on tables to anon;
-    alter default privileges in schema public grant usage on sequences to authenticated;
-    grant usage on schema auth, public to authenticated, anon;
-  `);
-  for (const f of readdirSync(DOSSIER_MIGRATIONS).filter((n) => n.endsWith('.sql')).sort()) {
-    await db.exec(adapter(readFileSync(join(DOSSIER_MIGRATIONS, f), 'utf8')));
-  }
+if (schemaVoisinPresent()) {
+  const db = await ouvrirSchemaVoisin();
 
   // ⚠️ SEULS LES ARGUMENTS D'ENTRÉE COMPTENT. `proargnames` contient aussi les
   // colonnes des fonctions `returns table(…)` ; les prendre pour des paramètres
@@ -361,7 +274,7 @@ if (existsSync(DOSSIER_MIGRATIONS)) {
 }
 
 test('🔴 TOUTE FONCTION APPELÉE EXISTE, ET EST ACCORDÉE AUX CLIENTS', () => {
-  assert.ok(existsSync(DOSSIER_MIGRATIONS), ABSENCE);
+  assert.ok(schemaVoisinPresent(), ABSENCE);
 
   const fautifs: string[] = [];
   for (const nom of [...new Set(APPELS.map((a) => a.nom))].sort()) {
@@ -385,7 +298,7 @@ test('🔴 TOUTE FONCTION APPELÉE EXISTE, ET EST ACCORDÉE AUX CLIENTS', () => 
 });
 
 test('🔴 ET LES PARAMÈTRES PORTENT LES NOMS QUE LA BASE ATTEND', () => {
-  assert.ok(existsSync(DOSSIER_MIGRATIONS), ABSENCE);
+  assert.ok(schemaVoisinPresent(), ABSENCE);
 
   // ⚠️ POSTGREST TRANSMET DES PARAMÈTRES NOMMÉS. Une clé inconnue et un
   // paramètre obligatoire oublié échouent tous les deux à l'appel — et aucun

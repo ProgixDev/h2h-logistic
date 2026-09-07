@@ -17,7 +17,8 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { useIncidentsStore } from '@/stores/useIncidentsStore';
-import { canCancelFree, contestationDeadline, DELAYS } from '@/constants/delaysRules';
+import { canCancelFree, contestationDeadline } from '@/constants/delaysRules';
+import { interpolerLibelle } from '@/utils/tolerance';
 import { computeSettlement } from '@/utils/settlement';
 import { getIncidentFormSpec, roleFromAnswer, type SpecField } from '@/constants/formulairesIncident';
 import { SETTLEMENT_PARTY_LABELS } from '@/types/settlement';
@@ -117,10 +118,19 @@ export default function IncidentFormScreen() {
 
   // F11 — only during the collect window. Past scheduled + tolerance without a
   // finalized pickup, the form is unavailable and the flow switches to F13.
+  //
+  // 🔴 LA TOLÉRANCE VIENT DE LA MISSION, PAS D'UNE CONSTANTE. Cette ligne
+  // lisait `DELAYS.toleranceMinutes`, c'est-à-dire 10 pour tout le monde, alors
+  // qu'elle avait `mission.pickupHub` sous la main. Une mission à quinze
+  // minutes fermait donc le formulaire de refus du colis CINQ MINUTES TROP TÔT,
+  // et basculait le cotransporteur sur la procédure de blocage (F13) alors
+  // qu'il était encore dans son créneau.
   const pickupFinalized = !!mission && [...ENGAGED_STATUSES, 'delivered', 'completed'].includes(mission.status);
   const collectExpired =
     !!spec.collectWindowOnly && !!mission && !pickupFinalized &&
-    dayjs().isAfter(dayjs(mission.pickupHub.scheduledTime).add(DELAYS.toleranceMinutes, 'minute'));
+    dayjs().isAfter(
+      dayjs(mission.pickupHub.scheduledTime).add(mission.pickupHub.toleranceMinutes, 'minute'),
+    );
   const openF13 = () =>
     router.replace({ pathname: '/incident/[type]' as any, params: { type: 'collect_absent', missionId: technicalId } });
 
@@ -253,10 +263,14 @@ export default function IncidentFormScreen() {
         )}
 
         {/* Specific fields */}
+        {/* ⚠️ LE LIBELLÉ EST RÉSOLU ICI, avec la tolérance DE CETTE MISSION :
+            trois questions demandent « avez-vous attendu la fin de la
+            {'{tolerance}'} ? », et la réponse part au dossier comme preuve. */}
         {!collectExpired && spec.fields.map((field) => (
           <FieldRenderer
             key={field.id}
             field={field}
+            libelle={interpolerLibelle(field.label, hub?.toleranceMinutes)}
             value={answers[field.id]}
             onSelect={(v) => setAnswer(field.id, v)}
             photoUri={fieldPhotos[field.id]}
@@ -329,6 +343,7 @@ export default function IncidentFormScreen() {
 
 function FieldRenderer({
   field,
+  libelle,
   value,
   onSelect,
   photoUri,
@@ -337,6 +352,8 @@ function FieldRenderer({
   colors,
 }: {
   field: SpecField;
+  /** `field.label` une fois ses jetons résolus — c'est LUI qu'on affiche. */
+  libelle: string;
   value?: string;
   onSelect: (v: string) => void;
   photoUri?: string;
@@ -347,7 +364,7 @@ function FieldRenderer({
   return (
     <View style={styles.field}>
       <Text style={[styles.fieldLabel, { color: colors.text }]}>
-        {field.label}
+        {libelle}
         {field.required ? <Text style={{ color: colors.error }}> *</Text> : null}
       </Text>
 
@@ -387,7 +404,7 @@ function FieldRenderer({
             field.type === 'textarea' ? styles.textArea : styles.textInput,
             { color: colors.text, backgroundColor: colors.surface, borderColor: colors.border },
           ]}
-          accessibilityLabel={field.label}
+          accessibilityLabel={libelle}
         />
       )}
 
@@ -400,7 +417,7 @@ function FieldRenderer({
             </Pressable>
           </View>
         ) : (
-          <Pressable onPress={onAddPhoto} style={[styles.photoAdd, { borderColor: colors.border, backgroundColor: colors.surface }]} accessibilityRole="button" accessibilityLabel={field.label}>
+          <Pressable onPress={onAddPhoto} style={[styles.photoAdd, { borderColor: colors.border, backgroundColor: colors.surface }]} accessibilityRole="button" accessibilityLabel={libelle}>
             <Icon name="camera" size={22} color={colors.textSecondary} />
             <Text style={[styles.photoAddLabel, { color: colors.textSecondary }]}>Ajouter</Text>
           </Pressable>

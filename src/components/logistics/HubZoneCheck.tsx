@@ -22,7 +22,8 @@ interface HubZoneCheckProps {
   /** The active hub (point central + zone). Only ON-hub — callers skip this off-hub. */
   hub: Hub;
   scheduledTime: string;
-  toleranceMinutes?: number;
+  /** Celle de la mission. PAS de valeur par défaut — voir `utils/tolerance.ts`. */
+  toleranceMinutes: number;
   /** Presence already recorded → shows the confirmed state instead of the button. */
   confirmed?: boolean;
   /** Records the presence and advances the flow. Receives the ISO timestamp. */
@@ -32,7 +33,7 @@ interface HubZoneCheckProps {
 export function HubZoneCheck({
   hub,
   scheduledTime,
-  toleranceMinutes = 10,
+  toleranceMinutes,
   confirmed = false,
   onConfirm,
 }: HubZoneCheckProps) {

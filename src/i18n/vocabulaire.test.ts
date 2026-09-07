@@ -16,8 +16,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { lireCode } from '@/utils/sansCommentaires';
 
 /** Toutes les chaînes littérales visibles des écrans et composants. */
 function fichiersSource(dossier: string, acc: string[] = []): string[] {
@@ -33,17 +34,6 @@ function fichiersSource(dossier: string, acc: string[] = []): string[] {
 }
 
 /** Le fichier sans ses commentaires — seul le texte RENDU compte. */
-function codeSeul(chemin: string): string {
-  return readFileSync(chemin, 'utf8')
-    .split('\n')
-    .filter((l) => {
-      const t = l.trimStart();
-      return (
-        !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*') && !t.startsWith('{/*')
-      );
-    })
-    .join('\n');
-}
 
 const SOURCES = [
   ...fichiersSource(join(process.cwd(), 'src', 'app')),
@@ -56,7 +46,7 @@ test('🔴 « TRANSPORTEUR » NE S’ÉCRIT JAMAIS SEUL', () => {
   // On cherche le mot NON précédé de « co » et NON suivi de « particulier ».
   const fautifs: string[] = [];
   for (const chemin of SOURCES) {
-    const code = codeSeul(chemin);
+    const code = lireCode(chemin);
     for (const ligne of code.split('\n')) {
       // « cotransporteur » et « cotransporteurs » sont corrects — on les écarte
       // avant de chercher le mot nu.
@@ -81,7 +71,7 @@ test('🔴 L’ARGENT DU COTRANSPORTEUR EST UNE « PARTICIPATION », jamais un g
   // cadre du cotransportage est un PARTAGE DES FRAIS : le mot porte la règle.
   const fautifs: string[] = [];
   for (const chemin of SOURCES) {
-    for (const ligne of codeSeul(chemin).split('\n')) {
+    for (const ligne of lireCode(chemin).split('\n')) {
       if (!/['"`][^'"`]*\b(gains?|revenus?|salaires?)\b/i.test(ligne)) continue;
       // `useEarningsStore`, `transporterEarning` — identifiants, pas du texte.
       if (/Earnings|earning/.test(ligne)) continue;
@@ -96,7 +86,7 @@ test('⚠️ LES TROIS MOTS SONT BIEN PRÉSENTS — un test qui ne trouve rien n
   // application vide, ou si `SOURCES` se retrouvait vide après un déplacement
   // de dossier. Ils affirmeraient une conformité qu'ils n'ont pas vérifiée.
   assert.ok(SOURCES.length > 50, `seulement ${SOURCES.length} fichiers balayés`);
-  const tout = SOURCES.map(codeSeul).join('\n');
+  const tout = SOURCES.map(lireCode).join('\n');
   assert.ok(/cotransporteur particulier/i.test(tout), '« cotransporteur particulier » absent');
   assert.ok(/participation/i.test(tout), '« participation » absent');
   assert.ok(/co-livraison/i.test(tout), '« co-livraison » absent');

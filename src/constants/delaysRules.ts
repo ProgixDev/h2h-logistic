@@ -1,16 +1,49 @@
 import dayjs from 'dayjs';
-import { DEFAULT_TOLERANCE_MINUTES, isWithinTolerance, getToleranceWindow } from '@/utils/tolerance';
 import type { DeclarantRole } from '@/types/incident';
 
 /**
- * Partie 2 — « Règles de délais » : the SINGLE source of truth for every
- * deadline in the incident system. Forms only REFERENCE these rules (D0–D8);
- * no deadline is inlined in a form.
+ * Partie 2 — « Règles de délais » : les échéances du protocole d'incidents.
+ * Les formulaires les RÉFÉRENCENT (D0–D8), aucun ne réécrit un délai.
  *
- * D0 reuses src/utils/tolerance.ts (the −10 / +10 min window).
+ * 🔴 CE N'EST PAS LA SOURCE, C'EST UNE COPIE — ET ELLE EST TENUE. Ces valeurs
+ * appartiennent à `ref.delay_protocol`, une ligne unique et VERSIONNÉE par
+ * `effective_from`, que `app.tg_incident_admissibility` applique pour décider
+ * si une déclaration d'absence est recevable. Le serveur décide ; ce fichier
+ * ne fait que dire la même chose à l'écran, et
+ * `src/backend/protocoleAppartientALaBase.test.ts` échoue dès que les deux
+ * divergent. Sans cette garde, un tarif changé en base laisserait l'écran
+ * annoncer 2 € pendant que le serveur en facture trois.
+ *
+ * 🔴 `toleranceMinutes` A QUITTÉ CETTE LISTE LE 07/09/2026. Elle y valait 10
+ * pour tout le monde, alors que `missions.tolerance_minutes` la porte PAR
+ * MISSION. Ce qui la lisait — la fenêtre de refus du colis (F11) — lit
+ * désormais la mission. La tolérance globale de `ref.delay_protocol` existe
+ * bien, mais elle sert au SERVEUR pour la recevabilité, pas à l'écran pour
+ * afficher un créneau.
  */
+/**
+ * D0 — la tolérance GÉNÉRALE du protocole, celle de
+ * `ref.delay_protocol.tolerance_minutes`.
+ *
+ * 🔴 ELLE N'EST PAS CELLE D'UNE MISSION, ET LES CONFONDRE EST LE DÉFAUT QU'ON
+ * VIENT DE FERMER. Dès qu'une mission existe, la tolérance à afficher est
+ * `missions.tolerance_minutes` — portée jusqu'aux écrans par
+ * `mission.pickupHub.toleranceMinutes` / `deliveryHub`. Celle-ci ne vaut que
+ * LÀ OÙ AUCUNE MISSION N'EXISTE ENCORE : « Trajet du jour » montre la fenêtre
+ * autour du départ que le cotransporteur a déclaré, avant que quiconque ait
+ * accepté quoi que ce soit.
+ *
+ * ⚠️ ELLE EST INTERDITE DANS LE CODE DE MISSION, et un test le vérifie
+ * (`protocoleAppartientALaBase.test.ts`) : `src/app/mission/`,
+ * `src/components/mission/` et `src/components/logistics/` ont toujours une
+ * mission sous la main, donc n'ont aucune raison de lire une valeur globale.
+ *
+ * ⚠️ ET SA VALEUR EST TENUE PAR LA BASE : le même test échoue si elle s'écarte
+ * de `ref.delay_protocol`.
+ */
+export const TOLERANCE_PROTOCOLE_MINUTES = 10;
+
 export const DELAYS = {
-  toleranceMinutes: DEFAULT_TOLERANCE_MINUTES, // D0 — reuse utils/tolerance
   contestationHours: 24, // D1, D2, D3, D4
   freeCancelHoursBefore: 1, // D7
   doubleAbsenceClaimMinutes: 10, // D5, D6
@@ -109,15 +142,13 @@ export const DELAY_PRINCIPLES: DelayPrinciple[] = [
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-/** D0 — within the −10 / +10 min tolerance window (reuses utils/tolerance). */
-export function isWithinToleranceD0(scheduledISO: string): boolean {
-  return isWithinTolerance(scheduledISO, DELAYS.toleranceMinutes);
-}
-
-/** D0 — the tolerance window labels around a scheduled time. */
-export function toleranceWindowD0(scheduledISO: string) {
-  return getToleranceWindow(scheduledISO, DELAYS.toleranceMinutes);
-}
+// 🔴 `isWithinToleranceD0` ET `toleranceWindowD0` ONT ÉTÉ SUPPRIMÉES LE
+// 07/09/2026. Zéro appelant — mesuré, pas supposé — et toutes deux passaient
+// `DELAYS.toleranceMinutes` à `utils/tolerance`, c'est-à-dire la constante à 10
+// qu'on vient de retirer. Elles étaient le chemin tout tracé pour réintroduire
+// une tolérance globale dans un écran : ce que voit chaque partie vient de
+// `missions.tolerance_minutes`, et les écrans qui l'affichent le passent déjà
+// explicitement.
 
 /** D1–D4 — ISO deadline 24h after the given notification time. */
 export function contestationDeadline(fromISO: string): string {

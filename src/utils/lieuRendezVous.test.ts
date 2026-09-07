@@ -19,9 +19,10 @@
 // Retirer est aussi faux qu'ajouter — le protocole rend ce mot porteur.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { auLieu, nomDuLieu } from '@/utils/lieuRendezVous';
+import { lireCode } from '@/utils/sansCommentaires';
 
 const HUB = { name: 'Hub Gare de Nice-Ville' };
 const HORS_HUB_ADRESSE = {
@@ -66,14 +67,6 @@ const tousLesFichiers = (dir: string, acc: string[] = []): string[] => {
 };
 
 /** Le fichier sans ses commentaires — ceux-ci CITENT le défaut pour l'expliquer. */
-const codeSeul = (chemin: string): string =>
-  readFileSync(chemin, 'utf8')
-    .split('\n')
-    .filter((l) => {
-      const t = l.trimStart();
-      return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*') && !t.startsWith('{/*');
-    })
-    .join('\n');
 
 test('🔴 PLUS AUCUNE PHRASE NE COMPOSE SON PROPRE « hub » AUTOUR D’UN NOM', () => {
   // ⚠️ CE QU'ON CHERCHE : le mot « hub » suivi immédiatement d'une
@@ -83,7 +76,7 @@ test('🔴 PLUS AUCUNE PHRASE NE COMPOSE SON PROPRE « hub » AUTOUR D’UN NOM'
   const gabarit = /\bhubs?\s+(\$\{|\{[a-zA-Z_])/i;
   const fautifs: string[] = [];
   for (const chemin of tousLesFichiers(join(process.cwd(), 'src'))) {
-    for (const [i, ligne] of codeSeul(chemin).split('\n').entries()) {
+    for (const [i, ligne] of lireCode(chemin).split('\n').entries()) {
       if (gabarit.test(ligne)) {
         fautifs.push(`${chemin.replace(process.cwd(), '.')} : ${ligne.trim()}`);
       }

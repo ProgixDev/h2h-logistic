@@ -29,6 +29,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { lireCode } from '@/utils/sansCommentaires';
 
 const lire = (chemin: string): string =>
   readFileSync(join(process.cwd(), chemin), 'utf8');
@@ -40,14 +41,6 @@ const lire = (chemin: string): string =>
  *  recherche sur le fichier entier retrouverait donc la phrase dans la note qui
  *  justifie sa disparition, et le test tomberait pour la raison même qui prouve
  *  qu'il est satisfait. */
-const codeSeul = (chemin: string): string =>
-  lire(chemin)
-    .split('\n')
-    .filter((l) => {
-      const t = l.trimStart();
-      return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*') && !t.startsWith('{/*');
-    })
-    .join('\n');
 
 const PICKUP = 'src/app/mission/pickup.tsx';
 const DELIVERY = 'src/app/mission/delivery.tsx';
@@ -77,7 +70,7 @@ test('⚠️ HORS HUB, LA PAGE 1 EST SAUTÉE — sinon elle est sans issue', () 
 test('🔴 UN SEUL « JE SUIS AU HUB » — le bouton a QUITTÉ la page 2', () => {
   // ⚠️ Le doublon corrigé le 12/08 : deux boutons du même nom, dont un seul
   // enregistrait l'arrivée. Le second ne faisait qu'avancer d'étape.
-  const src = codeSeul(PICKUP);
+  const src = lireCode(PICKUP);
   const page2 = src.slice(src.indexOf("if (step === 'approach')"));
   assert.ok(
     !/Valider ma présence au hub/.test(page2),
@@ -188,12 +181,12 @@ test('🔴 CHAQUE ÉTAPE DÉCLARE LA SIENNE — « remise » N’EST PAS « recu
   // présence du cotransporteur sur le hub du vendeur, et le compte de la
   // révélation resterait bloqué à un — sans qu'aucune erreur ne remonte.
   assert.match(
-    codeSeul(PICKUP),
+    lireCode(PICKUP),
     /declarerPresenceHub\(\s*mission\.id,\s*'recuperation'/,
     'la récupération ne déclare plus l’étape « recuperation »',
   );
   assert.match(
-    codeSeul(DELIVERY),
+    lireCode(DELIVERY),
     /declarerPresenceHub\(\s*mission\.id,\s*'remise'/,
     'la remise ne déclare pas l’étape « remise »',
   );
@@ -204,7 +197,7 @@ test('🔴 AUCUNE DES DEUX PAGES N’EST SANS ISSUE', () => {
   // reste derrière elle. On avance MÊME HORS ZONE — l'arrivée est déjà
   // enregistrée, et bloquer retirerait l'outil censé aider à se trouver.
   for (const chemin of [PICKUP, DELIVERY]) {
-    const src = codeSeul(chemin);
+    const src = lireCode(chemin);
     assert.match(
       src,
       /setStep\('approach'\)/,
@@ -219,7 +212,7 @@ test('⚠️ LA PRÉSENCE PART AU SERVEUR, ELLE NE RESTE PAS SUR LE TÉLÉPHONE'
   // le mot « validée » était faux deux fois — le serveur distingue DÉCLARER
   // (toujours enregistré) de VALIDER (seulement dans la zone).
   for (const chemin of [PICKUP, DELIVERY]) {
-    const src = codeSeul(chemin);
+    const src = lireCode(chemin);
     assert.ok(
       src.includes("from '@/services/presenceHub'"),
       `${chemin} : le service de présence n’est pas importé`,

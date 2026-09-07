@@ -27,10 +27,9 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { motifDeBase, estPrioritaire } from './motifSignalement';
+import { codeSeul } from '@/utils/sansCommentaires';
 
 const lire = (p: string) => readFileSync(join(process.cwd(), ...p.split('/')), 'utf8');
-const codeSeul = (s: string) =>
-  s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 // ── LA TRADUCTION DES MOTIFS ────────────────────────────────────────────────
 

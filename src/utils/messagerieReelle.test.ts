@@ -36,11 +36,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { codeSeul } from '@/utils/sansCommentaires';
 
 const lire = (p: string) => readFileSync(join(process.cwd(), ...p.split('/')), 'utf8');
 /** Le code seul : la correction NOMME ce qu'elle remplace. */
-const codeSeul = (s: string) =>
-  s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
 
 const CHAT = codeSeul(lire('src/app/chat/[id].tsx'));
 const ONGLET = codeSeul(lire('src/app/(tabs)/messages.tsx'));
