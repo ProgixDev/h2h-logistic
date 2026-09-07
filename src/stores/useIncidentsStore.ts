@@ -1,86 +1,84 @@
+// LE MAGASIN DES DÉCLARATIONS — IL NE FABRIQUE PLUS RIEN.
+//
+// 🔴 CE QU'IL FAISAIT JUSQU'AU 07/09/2026. `submitIncident` attendait 800 ms
+// (`MOCK_SUBMIT_DELAY`), fabriquait `incident-${Date.now()}`, rangeait l'objet
+// en mémoire — et l'écran affichait « Formulaire envoyé. » Douze formulaires ne
+// quittaient jamais le téléphone.
+//
+// 🔴 ET IL SEMAIT DEUX DOSSIERS DE DÉMONSTRATION AU DÉMARRAGE, sur des missions
+// `mission-a1` / `mission-a2` qui n'existent pas, avec un « Gare Saint-Charles »
+// inventé. Ce n'était pas décoratif : `getIncidentsForMission` servait à
+// trouver la déclaration visée par une contestation et à lire SA fenêtre de
+// 24 h. L'écran mesurait donc des délais réels contre des dossiers imaginaires.
+//
+// ⚠️ LA LECTURE EST DEVENUE ASYNCHRONE, ET ELLE DEVAIT L'ÊTRE. Les dossiers
+// vivent en base ; `incidentsDeMission` ne rend que ce qui a été CHARGÉ, et
+// `chargerPourMission` doit être appelée avant. Un accesseur synchrone qui
+// rendrait `[]` en attendant laisserait croire « aucune déclaration » là où la
+// réponse est « on ne sait pas encore » — et rouvrirait une contestation déjà
+// close.
 import { create } from 'zustand';
-import type { IncidentRecord, IncidentFormType } from '@/types/incident';
-import { contestationDeadline } from '@/constants/delaysRules';
-
-/** Declaration types that open a 24h contestation window (D1/D2/D3). */
-const CONTEST_OPENING_TYPES: IncidentFormType[] = ['buyer_absent', 'transporter_absent', 'seller_absent'];
-
-/** A record to submit — id/createdAt/contestationDeadline are filled by the store. */
-export type IncidentDraft = Omit<IncidentRecord, 'id' | 'createdAt' | 'contestationDeadline'> & {
-  contestationDeadline?: string;
-};
-
-const MOCK_SUBMIT_DELAY = 800;
+import {
+  chargerIncidentsDeMission,
+  declarerIncident,
+  type BrouillonIncident,
+  type IncidentDepose,
+} from '@/services/incidents';
 
 interface IncidentsState {
-  incidents: IncidentRecord[];
+  /** Par mission, et seulement ce qui a été chargé. */
+  parMission: Record<string, IncidentDepose[]>;
+  /** Les missions dont le chargement a abouti — `{}` ne veut pas dire « aucun ». */
+  chargees: Record<string, boolean>;
   isSubmitting: boolean;
-  submitIncident: (draft: IncidentDraft) => Promise<IncidentRecord>;
-  getIncidentsForMission: (missionId: string) => IncidentRecord[];
-}
+  erreur: string | null;
 
-function buildRecord(draft: IncidentDraft, meta: { id: string; createdAt: string }): IncidentRecord {
-  // Deadlines come from the centralized module (Partie 2), never inlined.
-  const deadline =
-    draft.contestationDeadline ??
-    (CONTEST_OPENING_TYPES.includes(draft.type) ? contestationDeadline(meta.createdAt) : undefined);
-  return { ...draft, id: meta.id, createdAt: meta.createdAt, contestationDeadline: deadline };
-}
-
-// ─── Seeds (demo) ───────────────────────────────────────────────────────────
-function seedIncidents(): IncidentRecord[] {
-  const declaredAt = '2026-07-11T17:15:00.000Z';
-  return [
-    buildRecord(
-      {
-        type: 'buyer_absent',
-        transactionId: 'TX-A1B2C3',
-        missionId: 'mission-a1',
-        declarantRole: 'transporter',
-        hubName: 'Gare Saint-Charles',
-        rendezvousAt: '2026-07-11T17:00:00.000Z',
-        declaredAt,
-        missionStatus: 'support_review',
-        accuracyConfirmed: true,
-        comment: "Présent au hub avec le colis, acheteur non présent après la tolérance.",
-      },
-      { id: 'incident-seed-1', createdAt: declaredAt },
-    ),
-    buildRecord(
-      {
-        type: 'cancel_seller',
-        transactionId: 'TX-D4E5F6',
-        missionId: 'mission-a2',
-        declarantRole: 'seller',
-        hubName: "Gare d'Antibes",
-        rendezvousAt: '2026-07-12T17:30:00.000Z',
-        declaredAt: '2026-07-10T09:00:00.000Z',
-        missionStatus: 'closed',
-        accuracyConfirmed: true,
-        reason: 'Vente annulée',
-      },
-      { id: 'incident-seed-2', createdAt: '2026-07-10T09:00:00.000Z' },
-    ),
-  ];
+  chargerPourMission: (missionId: string) => Promise<void>;
+  declarer: (brouillon: BrouillonIncident) => Promise<IncidentDepose>;
+  incidentsDeMission: (missionId: string) => IncidentDepose[];
+  estCharge: (missionId: string) => boolean;
 }
 
 export const useIncidentsStore = create<IncidentsState>((set, get) => ({
-  incidents: seedIncidents(),
+  parMission: {},
+  chargees: {},
   isSubmitting: false,
+  erreur: null,
 
-  submitIncident: async (draft) => {
-    set({ isSubmitting: true });
+  chargerPourMission: async (missionId) => {
+    if (!missionId) return;
     try {
-      await new Promise((r) => setTimeout(r, MOCK_SUBMIT_DELAY));
-      const now = new Date().toISOString();
-      const record = buildRecord(draft, { id: `incident-${Date.now()}`, createdAt: now });
-      set((state) => ({ incidents: [record, ...state.incidents], isSubmitting: false }));
-      return record;
+      const lignes = await chargerIncidentsDeMission(missionId);
+      set((s) => ({
+        parMission: { ...s.parMission, [missionId]: lignes },
+        chargees: { ...s.chargees, [missionId]: true },
+        erreur: null,
+      }));
     } catch (e) {
-      set({ isSubmitting: false });
+      // ⚠️ ON NE MARQUE PAS « CHARGÉ » SUR UN ÉCHEC. Le dire reviendrait à
+      // affirmer qu'il n'y a aucune déclaration, alors qu'on n'en sait rien.
+      set({ erreur: e instanceof Error ? e.message : 'Déclarations indisponibles' });
+    }
+  },
+
+  declarer: async (brouillon) => {
+    set({ isSubmitting: true, erreur: null });
+    try {
+      const depose = await declarerIncident(brouillon);
+      set((s) => ({
+        parMission: {
+          ...s.parMission,
+          [brouillon.missionId]: [depose, ...(s.parMission[brouillon.missionId] ?? [])],
+        },
+        isSubmitting: false,
+      }));
+      return depose;
+    } catch (e) {
+      set({ isSubmitting: false, erreur: e instanceof Error ? e.message : 'Envoi impossible' });
       throw e;
     }
   },
 
-  getIncidentsForMission: (missionId) => get().incidents.filter((i) => i.missionId === missionId),
+  incidentsDeMission: (missionId) => get().parMission[missionId] ?? [],
+  estCharge: (missionId) => get().chargees[missionId] === true,
 }));

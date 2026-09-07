@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { constaterAbsence, televerserPhotoDeGarde } from '@/services/scans';
+import { constaterAbsence } from '@/services/scans';
+import { televerserPreuves } from '@/services/incidents';
 import * as Haptics from 'expo-haptics';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import dayjs from 'dayjs';
@@ -45,12 +46,26 @@ export default function IncidentFormScreen() {
   const spec = getIncidentFormSpec(params.type ?? '');
   const mission = useMissionStore((s) => s.missions.find((m) => m.id === (params.missionId ?? '')));
   const applyIncidentOutcome = useMissionStore((s) => s.applyIncidentOutcome);
-  const { submitIncident, getIncidentsForMission, isSubmitting } = useIncidentsStore();
+  const declarer = useIncidentsStore((s) => s.declarer);
+  const chargerPourMission = useIncidentsStore((s) => s.chargerPourMission);
+  const incidentsDeMission = useIncidentsStore((s) => s.incidentsDeMission);
+  const estCharge = useIncidentsStore((s) => s.estCharge);
+  const isSubmitting = useIncidentsStore((s) => s.isSubmitting);
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [fieldPhotos, setFieldPhotos] = useState<Record<string, string>>({});
   const [extras, setExtras] = useState<CommonExtras>({ accuracyConfirmed: false });
   const [toast, setToast] = useState<string | null>(null);
+
+  // 🔴 LES DÉCLARATIONS DÉJÀ DÉPOSÉES VIENNENT DE LA BASE, PAS D'UN MAGASIN
+  // LOCAL. C'est parmi elles qu'on cherche celle qu'une contestation vise, et
+  // c'est SA fenêtre de 24 h qui décide si le formulaire est encore recevable.
+  // Tant que la liste était semée en mémoire, l'écran mesurait un délai réel
+  // contre un dossier inventé.
+  const missionCourante = mission?.id ?? params.missionId ?? '';
+  useEffect(() => {
+    if (missionCourante) void chargerPourMission(missionCourante);
+  }, [missionCourante, chargerPourMission]);
 
   if (!spec) {
     return (
@@ -102,13 +117,21 @@ export default function IncidentFormScreen() {
   };
 
   // Contestation gating — D1/D2/D3 (prior declaration) or D4 (support decision).
+  //
+  // ⚠️ ET ON ATTEND D'AVOIR CHARGÉ AVANT DE CONCLURE. Une liste vide parce que
+  // la requête n'a pas encore répondu n'est pas « aucune déclaration » : c'est
+  // « on ne sait pas ». Conclure trop tôt ouvrirait une contestation sur un
+  // dossier dont la fenêtre est peut-être close.
+  const declarationVisee = spec.contestsType
+    ? incidentsDeMission(technicalId).find((i) => i.type === spec.contestsType)
+    : undefined;
   let contestDeadline: string | undefined;
   if (spec.contestsType) {
-    const priorDecl = getIncidentsForMission(technicalId).find((i) => i.type === spec.contestsType);
-    contestDeadline = priorDecl?.contestationDeadline;
+    contestDeadline = declarationVisee?.finContestation ?? undefined;
   } else if (spec.contestsDecision && mission?.supportResolvedAt) {
     contestDeadline = contestationDeadline(mission.supportResolvedAt);
   }
+  const contestationEnAttente = !!spec.contestsType && !estCharge(technicalId);
   const windowClosed =
     (!!spec.contestsType || !!spec.contestsDecision) && !!contestDeadline && dayjs().isAfter(contestDeadline);
 
@@ -137,7 +160,9 @@ export default function IncidentFormScreen() {
   const primaryVal = spec.primaryChoiceFieldId ? answers[spec.primaryChoiceFieldId] : undefined;
   const isWait = spec.waitValue !== undefined && primaryVal === spec.waitValue;
   const requiredAnswered = spec.fields.filter((f) => f.required).every((f) => !!answers[f.id]);
-  const canSubmit = !isWait && !windowClosed && !engagedLocked && !collectExpired && extras.accuracyConfirmed && requiredAnswered && !isSubmitting;
+  const canSubmit = !isWait && !windowClosed && !engagedLocked && !collectExpired
+    && !contestationEnAttente
+    && extras.accuracyConfirmed && requiredAnswered && !isSubmitting;
 
   // D7 — pick the annulation text based on the >1h / <1h délai.
   const lateCancel = !canCancelFree(info.rendezvousAt, declarantRole);
@@ -152,53 +177,71 @@ export default function IncidentFormScreen() {
   const handleSubmit = async () => {
     if (!canSubmit) return;
 
-    // 🔴 UN SEUL DE CES DOUZE FORMULAIRES ATTEINT LA BASE AUJOURD'HUI, et c'est
-    // dit ici plutôt que caché : `constater_absence` existe, testée, accordée —
-    // et personne ne l'appelait. Les onze autres restent locaux ; le protocole
-    // d'incidents complet est hors périmètre de cette tranche.
-    //
-    // 🔴 LA PHOTO EST OBLIGATOIRE, ET C'EST LE SERVEUR QUI L'EXIGE : un constat
-    // sans preuve ferait facturer l'acheteur sur la seule parole du
-    // cotransporteur particulier.
+    // 🔴 LES DOUZE FORMULAIRES ATTEIGNENT LA BASE DEPUIS LE 07/09/2026. Jusque-
+    // là, un seul — `constater_absence` — la touchait ; les onze autres
+    // partaient dans un magasin Zustand et l'écran disait pourtant « Formulaire
+    // envoyé. » `declarer_incident` écrit désormais dans
+    // `public.incident_declarations`, et c'est le SERVEUR qui déduit le rôle,
+    // le rendez-vous, le hub et la fenêtre de contestation.
+
+    // ⚠️ LES PHOTOS PARTENT AVANT LA DÉCLARATION, ET LEURS CHEMINS AVEC ELLE.
+    // `proof_uris` recevait jusqu'ici des URI locales `file:///data/user/0/…`,
+    // valables sur ce téléphone et nulle part ailleurs — une preuve que le
+    // support ne peut pas ouvrir n'est pas une preuve.
+    const urisPreuves = [
+      ...Object.values(fieldPhotos),
+      extras.photoLieu, extras.captureStatut, extras.photoColis,
+    ].filter((u): u is string => !!u);
+
+    let cheminsPreuves: string[] = [];
+    try {
+      cheminsPreuves = await televerserPreuves(mission?.shipmentId, urisPreuves);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Envoi des photos impossible.');
+      return;
+    }
+
+    // 🔴 LA PHOTO EST OBLIGATOIRE POUR LE CONSTAT D'ABSENCE, ET C'EST LE SERVEUR
+    // QUI L'EXIGE : un constat sans preuve ferait facturer l'acheteur sur la
+    // seule parole du cotransporteur particulier.
     if (spec.type === 'buyer_absent' && mission?.shipmentId) {
-      const preuve = Object.values(fieldPhotos)[0] ?? extras.photoLieu;
-      if (!preuve) {
+      if (cheminsPreuves.length === 0) {
         setToast("Une photo du lieu est requise pour constater l'absence.");
         return;
       }
       try {
-        const chemin = await televerserPhotoDeGarde(mission.shipmentId, preuve, 'absence');
-        await constaterAbsence(mission.shipmentId, chemin);
+        await constaterAbsence(mission.shipmentId, cheminsPreuves[0]);
       } catch (e) {
         // ⚠️ ON N'ENVOIE PAS LE FORMULAIRE SI LE CONSTAT ÉCHOUE. Le refus du
         // serveur est une règle — « cette expedition a deja ete remise »,
         // « seul le cotransporteur particulier assigne constate l absence » —
-        // et un formulaire local qui part quand même ferait croire au
-        // cotransporteur que l'absence est enregistrée.
+        // et un formulaire qui part quand même ferait croire au cotransporteur
+        // que l'absence est enregistrée.
         setToast(e instanceof Error ? e.message : "Constat d'absence impossible.");
         return;
       }
     }
 
-    await submitIncident({
-      type: spec.type,
-      transactionId: info.transactionId,
-      missionId: technicalId,
-      declarantRole,
-      hubName: info.hubName,
-      rendezvousAt: info.rendezvousAt,
-      declaredAt: info.declaredAt,
-      missionStatus: info.missionStatus,
-      accuracyConfirmed: true,
-      comment: extras.comment,
-      photoLieu: extras.photoLieu,
-      captureStatut: extras.captureStatut,
-      photoColis: extras.photoColis,
-      geo: extras.geo,
-      reason: spec.reasonFieldId ? answers[spec.reasonFieldId] : undefined,
-      answers,
-      proofUris: Object.values(fieldPhotos),
-    });
+    try {
+      await declarer({
+        missionId: technicalId,
+        type: spec.type,
+        motif: spec.reasonFieldId ? answers[spec.reasonFieldId] : undefined,
+        reponses: answers,
+        cheminsPreuves,
+        commentaire: extras.comment,
+        position: extras.geo,
+        // Ce que la contestation vise, quand elle en vise une (F3/F5/F8).
+        contesteId: declarationVisee?.id,
+      });
+    } catch (e) {
+      // ⚠️ LES REFUS DU SERVEUR SONT DES RÈGLES, PAS DES PANNES : « tolerance
+      // non ecoulee », « le formulaire X n est pas ouvert au role Y ». On les
+      // montre tels quels — c'est la seule information utile au cotransporteur.
+      setToast(e instanceof Error ? e.message : "Envoi du formulaire impossible.");
+      return;
+    }
+
     // Apply the mission outcome (money + disposition) for outcome-bearing forms.
     if (OUTCOME_TYPES.includes(spec.type) && !isWait && technicalId) {
       applyIncidentOutcome(technicalId, spec.type);
