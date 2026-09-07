@@ -3,14 +3,13 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Icon } from '@/components/ui/Icon';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { hubZoneDiameterM, hubZoneRadiusM } from '@/constants/hubZone';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import type { Hub } from '@/types/hub';
 
 /** « Comment ça marche » — the 3-step reassurance block from the client infographic. */
 interface HubZoneStepsProps {
-  hub: Pick<Hub, 'zoneDiameterMeters'>;
+  hub: Pick<Hub, 'zoneRadiusM'>;
 }
 
 function fill(template: string, vars: Record<string, string | number>): string {
@@ -21,8 +20,8 @@ export function HubZoneSteps({ hub }: HubZoneStepsProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
 
-  const diameter = hubZoneDiameterM(hub);
-  const radius = Math.round(hubZoneRadiusM(hub));
+  
+  const radius = hub.zoneRadiusM;
   const steps = [t('zone.step1'), t('zone.step2'), t('zone.step3')];
 
   return (
@@ -46,7 +45,7 @@ export function HubZoneSteps({ hub }: HubZoneStepsProps) {
       </View>
 
       <Text style={[s.legend, { color: colors.textSecondary }]}>
-        {fill(t('zone.legend'), { diameter, radius })}
+        {fill(t('zone.legend'), { radius })}
       </Text>
     </View>
   );

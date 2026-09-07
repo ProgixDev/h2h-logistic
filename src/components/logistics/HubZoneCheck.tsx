@@ -8,7 +8,6 @@ import { HubZoneSteps } from '@/components/logistics/HubZoneSteps';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useHubPresence } from '@/hooks/useHubPresence';
-import { hubZoneDiameterM, hubZoneRadiusM } from '@/constants/hubZone';
 import { isWithinTolerance } from '@/utils/tolerance';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -41,9 +40,9 @@ export function HubZoneCheck({
   const { t } = useTranslation();
   const { coords, distanceMeters, inZone, loading, simulation, setSimulation } = useHubPresence(hub);
 
-  const diameter = hubZoneDiameterM(hub);
-  const radius = Math.round(hubZoneRadiusM(hub));
-  const label = hub.centralPointLabel ?? t('zone.centralPointDefault');
+  
+  const radius = hub.zoneRadiusM;
+  const label = hub.displayDetail ?? t('zone.centralPointDefault');
   const withinWindow = isWithinTolerance(scheduledTime, toleranceMinutes);
   const demoForced = simulation !== 'auto';
   const canConfirm = inZone && (withinWindow || (__DEV__ && demoForced)) && !confirmed;
@@ -73,7 +72,7 @@ export function HubZoneCheck({
             ? t('zone.locating')
             : inZone
               ? t('zone.inZone')
-              : fill(t('zone.outOfZone'), { label, diameter })}
+              : fill(t('zone.outOfZone'), { label, radius })}
         </Text>
         {!loading && !inZone && (
           <Text style={[s.distanceText, { color: colors.textSecondary }]}>

@@ -1,53 +1,39 @@
 // La zone du hub — « êtes-vous vraiment au point de rendez-vous ? »
 //
-// 🔴 CE QU'ELLE COMMANDE : l'affichage du plan, le point qui montre la position
-// du cotransporteur particulier, et la couleur qui lui dit s'il est arrivé. Une
-// zone trop large valide une présence à deux rues de là ; trop étroite, elle
-// refuse quelqu'un qui est devant la porte.
+// 🔴 CE FICHIER ÉPINGLAIT UN NOMBRE QUI N'AURAIT JAMAIS DÛ VIVRE ICI. Il
+// vérifiait `DEFAULT_HUB_ZONE_DIAMETER_M === 60`, donc un rayon de 30 m — pendant
+// que `hand-to-hand/src/utils/hubZone.ts` en portait un de 150 m. Deux
+// constantes, un facteur cinq, aucune des deux venue du serveur : le test
+// verrouillait consciencieusement la moitié d'une contradiction.
 //
-// ⚠️ ET ELLE EST EN MÈTRES, PAS EN KILOMÈTRES. `haversineDistance` rend des km ;
-// `distanceToHubMeters` multiplie par 1 000. Un facteur oublié rendrait toute
-// position « dans la zone » — sans erreur, sans écran cassé.
+// ⚠️ DEPUIS LE 06/09/2026 LE RAYON EST UNE DONNÉE, par hub, dans
+// `public.hubs.zone_radius_m` (60 m par défaut). `constants/hubZone.ts` a été
+// supprimé, et `Hub.zoneRadiusM` est OBLIGATOIRE : il n'y a plus de défaut
+// client à réintroduire, parce qu'il n'y a plus rien à remplir.
+//
+// 🔴 ET CES FONCTIONS NE DÉCIDENT PLUS RIEN. Le verdict de présence vient de
+// `declarer_presence_hub`, qui recalcule la distance côté serveur — sinon il
+// suffirait de mentir sur sa position pour se déclarer présent. Ce qui reste
+// ici sert à AFFICHER : le cercle, la distance, « rapprochez-vous ».
+//
+// ⚠️ CE QUI EST GARDÉ DE L'ANCIENNE VERSION, PARCE QUE ÇA L'AVAIT MÉRITÉ : la
+// distance est en MÈTRES (le ×1000 oublié rendrait toute position « dans la
+// zone »), et la borne est INCLUSIVE (une inégalité stricte refuserait quelqu'un
+// pile au bord, au mètre près, sans rien lui expliquer).
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { distanceToHubMeters, isInHubZone } from '@/utils/hubZone';
-import {
-  DEFAULT_HUB_ZONE_DIAMETER_M,
-  hubZoneDiameterM,
-  hubZoneRadiusM,
-} from '@/constants/hubZone';
 
-// Gare de Nice-Ville, approximativement.
-const HUB = { latitude: 43.7048, longitude: 7.2619 };
+// Gare de Nice-Ville, approximativement, avec le rayon que rend la base.
+const HUB = { point: { lat: 43.7048, lng: 7.2619 }, zoneRadiusM: 60 };
 const METRE_EN_DEGRE_LAT = 1 / 111_320;
 
 /** Une position décalée de `m` mètres vers le nord du point central. */
 const auNord = (m: number) => ({
-  latitude: HUB.latitude + m * METRE_EN_DEGRE_LAT,
-  longitude: HUB.longitude,
-});
-
-// ── Le diamètre par défaut ─────────────────────────────────────────────────
-
-test('la zone fait 60 m de diamètre, donc 30 m de rayon', () => {
-  assert.equal(DEFAULT_HUB_ZONE_DIAMETER_M, 60);
-  assert.equal(hubZoneDiameterM({}), 60);
-  assert.equal(hubZoneRadiusM({}), 30);
-});
-
-test('⚠️ LE RAYON EST LA MOITIÉ DU DIAMÈTRE — jamais le diamètre lui-même', () => {
-  // 🔴 La confusion la plus facile du module, et la plus silencieuse : elle
-  // doublerait la zone. Un cotransporteur particulier à 55 m serait déclaré
-  // présent, et le vendeur ne le verrait nulle part.
-  assert.equal(hubZoneRadiusM({ zoneDiameterMeters: 100 }), 50);
-  assert.equal(hubZoneRadiusM({ zoneDiameterMeters: 40 }), 20);
-});
-
-test('un hub peut porter SA zone — le défaut ne s’impose pas', () => {
-  assert.equal(hubZoneDiameterM({ zoneDiameterMeters: 120 }), 120);
-  assert.equal(hubZoneRadiusM({ zoneDiameterMeters: 120 }), 60);
+  latitude: HUB.point.lat + m * METRE_EN_DEGRE_LAT,
+  longitude: HUB.point.lng,
 });
 
 // ── La distance ────────────────────────────────────────────────────────────
@@ -60,7 +46,7 @@ test('🔴 LA DISTANCE EST EN MÈTRES, PAS EN KILOMÈTRES', () => {
 });
 
 test('sur le point central, la distance est nulle', () => {
-  assert.ok(distanceToHubMeters(HUB.latitude, HUB.longitude, HUB) < 1);
+  assert.ok(distanceToHubMeters(HUB.point.lat, HUB.point.lng, HUB) < 1);
 });
 
 test('la distance ne dépend pas du SENS du décalage', () => {
@@ -76,25 +62,51 @@ test('à 10 m du point central, on est dans la zone', () => {
   assert.equal(isInHubZone(p.latitude, p.longitude, HUB), true);
 });
 
-test('🔴 À 50 M, ON EST DEHORS — la zone fait 30 m de rayon, pas 60', () => {
-  const p = auNord(50);
-  assert.equal(isInHubZone(p.latitude, p.longitude, HUB), false);
+test('🔴 LE RAYON VIENT DU HUB, JAMAIS D’UNE CONSTANTE', () => {
+  // ⚠️ LA MÊME POSITION, DEUX HUBS, DEUX RÉPONSES. C'est ce qui rend impossible
+  // le retour d'un défaut côté client : il n'y a rien à lire ailleurs.
+  const p = auNord(80);
+  assert.equal(isInHubZone(p.latitude, p.longitude, { ...HUB, zoneRadiusM: 60 }), false);
+  assert.equal(isInHubZone(p.latitude, p.longitude, { ...HUB, zoneRadiusM: 200 }), true);
 });
 
-test('un hub à grande zone accepte ce qu’un hub standard refuse', () => {
-  // ⚠️ La même position, deux hubs : c'est la zone du hub qui décide, jamais
-  // une constante lue ailleurs.
-  const p = auNord(45);
-  assert.equal(isInHubZone(p.latitude, p.longitude, HUB), false);
-  assert.equal(
-    isInHubZone(p.latitude, p.longitude, { ...HUB, zoneDiameterMeters: 120 }),
-    true,
-  );
-});
-
-test('⚠️ LA BORNE EST DEDANS : à 30 m pile, on est dans la zone', () => {
+test('⚠️ LA BORNE EST DEDANS : au rayon pile, on est dans la zone', () => {
   // Une inégalité stricte refuserait la présence de quelqu'un pile au bord,
   // au mètre près, sans rien lui expliquer.
-  const p = auNord(29.5);
+  const p = auNord(HUB.zoneRadiusM - 0.5);
   assert.equal(isInHubZone(p.latitude, p.longitude, HUB), true);
+});
+
+// ── LE DÉFAUT NE PEUT PAS REVENIR ──────────────────────────────────────────
+
+test('🔴 AUCUNE CONSTANTE DE ZONE NE SURVIT DANS `src`', async () => {
+  // 🔴 SUPPRIMER LES DEUX CONSTANTES NE SUFFIT PAS : quelqu'un en réécrit une le
+  // jour où un écran a besoin d'un rayon avant d'avoir chargé son hub. Ce test
+  // est le seul obstacle à ce retour.
+  //
+  // ⚠️ Le pendant côté base est `rayonDeZoneUnique` dans hand-to-hand, qui relit
+  // le défaut de la colonne. Aucun lanceur de tests ne couvre les deux dépôts —
+  // les deux moitiés se citent donc l'une l'autre en commentaire.
+  const { readdirSync, readFileSync, statSync } = await import('node:fs');
+  const { join } = await import('node:path');
+
+  const fautifs: string[] = [];
+  const parcourir = (dir: string) => {
+    for (const e of readdirSync(dir)) {
+      const p = join(dir, e);
+      if (statSync(p).isDirectory()) parcourir(p);
+      else if (/\.(ts|tsx)$/.test(e) && !p.includes('hubZone.test')) {
+        // ⚠️ ON CHERCHE UNE DÉCLARATION, PAS UNE MENTION. Le premier jet
+        // signalait `hubZone.ts` — qui EXPLIQUE en commentaire que la constante a
+        // été supprimée. Un garde-fou qui compte les explications de sa propre
+        // règle finit par pousser à effacer l'explication.
+        if (/(?:^|\n)\s*(?:export\s+)?const\s+DEFAULT_HUB_ZONE/.test(readFileSync(p, 'utf8'))) {
+          fautifs.push(p);
+        }
+      }
+    }
+  };
+  parcourir(join(process.cwd(), 'src'));
+  assert.deepEqual(fautifs, [],
+    `une constante de zone est revenue :\n${fautifs.join('\n')}`);
 });

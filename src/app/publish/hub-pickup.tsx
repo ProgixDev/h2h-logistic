@@ -132,7 +132,7 @@ export default function HubPickupScreen() {
                   onPress={() => selectHub(hub)}
                   style={[styles.mapPin, { backgroundColor: selected ? colors.primary + '15' : 'transparent', borderBottomColor: colors.border }]}
                 >
-                  <Icon name={iconeHub(hub.type)} size={18} color={colors.textSecondary} />
+                  <Icon name={iconeHub(hub.placeType)} size={18} color={colors.textSecondary} />
                   <Text style={[styles.mapPinName, { color: colors.text }]} numberOfLines={1}>{hub.name}</Text>
                   {selected && <Text style={[styles.mapPinCheck, { color: colors.primary }]}>✓</Text>}
                 </TouchableOpacity>
@@ -189,7 +189,7 @@ export default function HubPickupScreen() {
                     {/* Top row */}
                     <View style={styles.hubTop}>
                       <View style={styles.hubNameRow}>
-                        <Icon name={iconeHub(item.type)} size={20} color={colors.textSecondary} />
+                        <Icon name={iconeHub(item.placeType)} size={20} color={colors.textSecondary} />
                         <Text style={[styles.hubName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                       </View>
                       {selected ? (
@@ -197,13 +197,16 @@ export default function HubPickupScreen() {
                           <Text style={styles.checkIcon}>✓</Text>
                         </View>
                       ) : (
-                        <Badge label={libelleHub(item.type)} variant="outline" />
+                        null
                       )}
                     </View>
 
-                    {/* Address + hours */}
-                    <Text style={[styles.hubAddress, { color: colors.textSecondary }]}>{item.address}</Text>
-                    <Text style={[styles.hubHours, { color: colors.textSecondary }]}>{item.openingHours}</Text>
+                    {/* 🔴 LE DÉTAIL AFFICHÉ, pas l adresse et les horaires. Le
+                        protocole de nommage dit que le nom seul ne suffit
+                        jamais : c est cette ligne qui dit où se présenter. Les
+                        horaires décrivaient un entrepôt. */}
+                    <Text style={[styles.hubAddress, { color: colors.textSecondary }]} numberOfLines={3}>{item.displayDetail}</Text>
+                    <Text style={[styles.hubHours, { color: colors.textSecondary }]}>{item.city}</Text>
                   </View>
                 </TouchableOpacity>
               );

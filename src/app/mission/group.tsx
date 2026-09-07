@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +22,8 @@ import { AdBanner } from '@/components/dashboard/AdBanner';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
 import { attenteDepassee } from '@/utils/retardAuRendezVous';
-import { OffHubProposalSheet } from '@/components/logistics/OffHubProposal';
+import { OffHubDecisionSheet } from '@/components/logistics/OffHubProposal';
+import { chargerDemandesHorsHub, repondreHorsHub, type DemandeHorsHub } from '@/services/horsHub';
 import { SupportDecisionCard } from '@/components/mission/SupportDecisionCard';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -88,7 +89,6 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const cancelMission = useMissionStore((s) => s.cancelMission);
   const reportSellerAbsence = useMissionStore((s) => s.reportSellerAbsence);
   const reportBuyerAbsence = useMissionStore((s) => s.reportBuyerAbsence);
-  const proposeOffHub = useMissionStore((s) => s.proposeOffHub);
   const resolveSupportReview = useMissionStore((s) => s.resolveSupportReview);
   const separatedPairs = useMissionStore((s) => s.separatedPairs);
   const { t } = useTranslation();
@@ -102,6 +102,18 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   const [toastType, setToastType] = useState<'success' | 'warning' | 'error'>('success');
   const [packageExpanded, setPackageExpanded] = useState(false);
   const [showOffHub, setShowOffHub] = useState(false);
+  // 🔴 LA DEMANDE VIENT DE LA BASE, PAS D'UN MAGASIN LOCAL. `mission.offHubProposal`
+  // n'a jamais été qu'un objet posé en mémoire par l'écran lui-même : il
+  // survivait à un rechargement en disparaissant, et l'autre partie ne l'a
+  // jamais vu. La RLS ne rend ici que les demandes dont je suis le décideur.
+  const [demande, setDemande] = useState<DemandeHorsHub | null>(null);
+  const [envoiHorsHub, setEnvoiHorsHub] = useState(false);
+  // ⚠️ « HORS HUB » SE LIT SUR LA MISSION, PAS SUR LA DEMANDE. Une demande
+  // acceptée disparaît de `demande` (on ne garde que ce qui attend une réponse) ;
+  // ce qui reste vrai, c'est que la co-livraison a changé de lieu — et c'est la
+  // mission qui le porte, parce que c'est le serveur qui l'y a écrit.
+  const horsHubAccepte = mission.deliveryHub.isOffHub === true
+    || mission.pickupHub.isOffHub === true;
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
 
@@ -164,17 +176,23 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
     });
   };
 
-  const canProposeOffHub = useMemo(() => {
-    const targetTime = ['pickup_pending', 'group_created'].includes(mission.status)
-      ? mission.pickupHub.scheduledTime
-      : mission.deliveryHub.scheduledTime;
-    const windowStart = dayjs(targetTime).subtract(10, 'minute');
-    return dayjs().isBefore(windowStart) && !mission.offHubProposal;
-  }, [mission]);
-
   const toast = (msg: string, type: 'success' | 'warning' | 'error' = 'success') => {
     setToastMsg(msg); setToastType(type); setShowToast(true);
   };
+
+  // ⚠️ ON NE GARDE QUE CE QUI ATTEND UNE RÉPONSE. Une demande acceptée, refusée
+  // ou expirée n'appelle plus de décision : l'afficher rouvrirait un débat clos.
+  const relireDemandes = useCallback(async () => {
+    if (!mission?.id) return;
+    try {
+      const toutes = await chargerDemandesHorsHub(mission.id);
+      setDemande(toutes.find((d) => d.statut === 'pending') ?? null);
+    } catch (e) {
+      console.error('[horsHub] demandes illisibles', e);
+    }
+  }, [mission?.id]);
+
+  useEffect(() => { void relireDemandes(); }, [relireDemandes]);
 
   const sendQuickMessage = (msg: string) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toast(`Message envoyé : "${msg}"`); };
   const handlePickup = () => router.push({ pathname: '/mission/pickup', params: { id: mission.id } });
@@ -183,11 +201,31 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
     router.push({ pathname: '/incident/[type]' as any, params: { type, missionId: mission.id } });
   const handleNavigate = () => router.push({ pathname: '/navigate/[missionId]', params: { missionId: mission.id } });
 
-  const handleOffHub = (target: 'seller' | 'buyer', address: string, time: string) => {
-    setShowOffHub(false);
-    proposeOffHub(mission.id, { target, address, proposedTime: time });
-    toast('Proposition envoyée. En attente de réponse...');
-    setTimeout(() => toast('Proposition acceptée ! Nouveau point confirmé.'), 3500);
+  // 🔴 CE QUI ÉTAIT ICI MENTAIT. `handleOffHub` appelait un `proposeOffHub` de
+  // magasin local, puis affichait « Proposition acceptée ! Nouveau point
+  // confirmé. » après un `setTimeout` de 3,5 secondes. Rien n'était envoyé,
+  // personne n'avait répondu, et le cotransporteur repartait avec une adresse
+  // qu'il croyait convenue.
+  //
+  // ⚠️ ET LE SENS ÉTAIT INVERSÉ : c'est le vendeur ou l'acheteur qui DEMANDE un
+  // rendez-vous hors hub, et le cotransporteur qui TRANCHE — « jamais
+  // automatiquement imposée au cotransporteur » (§5). Cet écran ne propose donc
+  // plus, il décide.
+  const repondre = async (accepter: boolean, motif?: string) => {
+    if (!demande || envoiHorsHub) return;
+    setEnvoiHorsHub(true);
+    try {
+      await repondreHorsHub(demande.id, accepter, { motif });
+      setShowOffHub(false);
+      await relireDemandes();
+      toast(accepter ? 'Point de rencontre accepté.' : 'Refusé — le rendez-vous reste au hub.',
+            accepter ? 'success' : 'warning');
+    } catch (e: any) {
+      // Le message du serveur dit POURQUOI (déjà tranchée, expirée, pas vous).
+      toast(String(e?.message ?? e), 'error');
+    } finally {
+      setEnvoiHorsHub(false);
+    }
   };
 
   const handleReportSellerAbsence = () => {
@@ -319,7 +357,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         )}
 
         {/* Off-hub active banner */}
-        {mission.offHubProposal?.status === 'accepted' && (
+        {horsHubAccepte && (
           <View style={[gs.banner, { backgroundColor: colors.warning + '12' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="location-filled" size={14} color={colors.warning} /><Text style={[gs.bannerText, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text></View>
           </View>
@@ -433,9 +471,14 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         </Animated.View>
 
         {/* Off-hub + report links */}
-        {canProposeOffHub && (
+        {/* ⚠️ ON N'OUVRE PLUS RIEN DE SOI-MÊME : la feuille ne s'ouvre que
+            lorsqu'une demande ATTEND une réponse. Avant, elle s'ouvrait sans
+            condition, même sur un trajet qui n'autorise pas le hors hub. */}
+        {demande && (
           <TouchableOpacity onPress={() => setShowOffHub(true)} hitSlop={12}>
-            <Text style={[gs.offHubLink, { color: colors.primary }]}>Proposer hors hub</Text>
+            <Text style={[gs.offHubLink, { color: colors.primary }]}>
+              Une demande hors hub attend votre réponse
+            </Text>
           </TouchableOpacity>
         )}
         {hubsSignalables.length > 0 && (
@@ -468,10 +511,8 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           <Text style={[gs.offHubLink, { color: colors.textSecondary }]}>Signaler un hub</Text>
         </TouchableOpacity>
         )}
-        {!canProposeOffHub && !mission.offHubProposal && (
-          <Text style={[gs.offHubDisabled, { color: colors.textSecondary }]}>Le hors hub n'est plus disponible.</Text>
-        )}
-        {mission.offHubProposal?.status === 'pending' && (
+
+        {demande && (
           <View style={[gs.banner, { backgroundColor: colors.primary + '08' }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 }}><Icon name="hourglass" size={14} color={colors.primary} /><Text style={[gs.bannerText, { color: colors.primary }]}>Proposition hors hub en attente...</Text></View>
           </View>
@@ -561,7 +602,14 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
             empêcher, réintroduit côté client. */}
       </ScrollView>
 
-      <OffHubProposalSheet visible={showOffHub} onClose={() => setShowOffHub(false)} onSend={handleOffHub} pickupHubName={mission.pickupHub.name} deliveryHubName={mission.deliveryHub.name} />
+      <OffHubDecisionSheet
+        visible={showOffHub}
+        onClose={() => setShowOffHub(false)}
+        demande={demande}
+        hubDeRepli={demande?.etape === 'recuperation' ? mission.pickupHub.name : mission.deliveryHub.name}
+        onDecider={repondre}
+        envoi={envoiHorsHub}
+      />
       <Toast message={toastMsg} type={toastType} visible={showToast} onHide={() => setShowToast(false)} duration={2500} />
     </View>
   );

@@ -1,62 +1,86 @@
-// LES POINTS RELAIS — ceux qui existent vraiment.
+// LES POINTS DE RENDEZ-VOUS — ceux qui existent vraiment, avec leur point.
 //
-// 🔴 CE QUE ÇA REMPLACE, ET C'EST LE POINT DE TOUTE LA TRANCHE.
-// `services/mock/hubs.ts` déclare VINGT-CINQ hubs : gares, gares routières,
-// centres commerciaux, lockers, de Nice à Marseille. Aucun n'existe. Leurs
-// identifiants (`hub-nice-gare`) ne sont même pas des uuid — ils ne peuvent
-// donc pas être écrits dans `published_routes.departure_hub_id`, qui référence
-// `public.hubs`.
+// 🔴 CE FICHIER RENDAIT `latitude: 0, longitude: 0` POUR TOUS LES HUBS, ET C'EST
+// LE DÉFAUT QUI RENDAIT LA FONCTIONNALITÉ INUTILISABLE. `hubs.geo` est une
+// `geography` PostGIS que PostgREST rend en WKB hexadécimal ; faute de savoir la
+// lire, `versHub` posait deux zéros. Le commentaire d'origine annonçait « mieux
+// vaut ne rien rendre que rendre une valeur fausse » — et rendait ensuite le
+// golfe de Guinée pour chaque point de rendez-vous de la plateforme.
 //
-// **`public.hubs` contient ZÉRO ligne en production**, et ce n'est pas un
-// oubli : les hubs ne sont pas des lieux qu'on choisit, ce sont des gens qui se
-// portent candidats. Le recrutement se fait au lancement, par
-// `candidater_hub()` puis `trancher_candidature_hub()` côté support.
+// Conséquence, jamais vue parce que rien ne la relisait : `isInHubZone`,
+// `HubZoneMap` et `useHubPresence` ne pouvaient PAS fonctionner sur un hub réel.
+// La vérification de zone, la carte du rendez-vous et « Je suis au hub » —
+// c'est-à-dire tout le guide client — portaient sur une position fabriquée.
 //
-// ⚠️ CONSÉQUENCE ASSUMÉE : l'assistant de publication affichera une liste VIDE
-// tant que personne n'aura été recruté. C'est la vérité, et elle vaut mieux que
-// vingt-cinq adresses inventées qu'un cotransporteur particulier irait chercher
-// sur place.
+// ⚠️ CORRIGÉ EN BASE, PAS ICI (06/09/2026). `public.hubs` porte désormais
+// `latitude` et `longitude` en `numeric`, écrites par la même fonction qui écrit
+// `geo`, depuis les mêmes deux paramètres. Le client n'a plus à deviner.
+//
+// 🔴 ET LA RÈGLE ANNONCÉE EST ENFIN TENUE : une ligne inexploitable n'est PAS
+// rendue. Un hub sans coordonnées ne s'épingle pas, et le protocole de nommage
+// dit que le nom seul ne suffit jamais — l'écarter est la seule réponse honnête.
 import { supabase } from '@/lib/supabase';
-import type { Hub, HubType } from '@/types/hub';
+import type { Hub, HubPlaceType } from '@/types/hub';
 
 type Ligne = {
   id: string;
   name: string;
+  place_type: string;
+  detail_affiche: string | null;
   address: string | null;
   city: string | null;
-  hub_type: HubType;
-  operating_hours: string | null;
-  phone: string | null;
-  capacity: number | null;
-  current_load: number | null;
+  latitude: number | string | null;
+  longitude: number | string | null;
+  zone_radius_m: number | string | null;
+  status: string;
 };
 
-const CHAMPS = 'id, name, address, city, hub_type, operating_hours, phone, capacity, current_load';
+// ⚠️ NI `capacity`, NI `current_load`, NI `operating_hours`, NI `phone` : ces
+// colonnes ont quitté `hubs` avec l'entrepôt qu'elles décrivaient. Un hub est
+// un point de rendez-vous, « pas nécessairement un entrepôt »
+// (docs/hubs-fonctionnement.md §1) ; tout cela appartient aux points relais.
+const CHAMPS =
+  'id, name, place_type, detail_affiche, address, city, latitude, longitude, zone_radius_m, status';
 
 /**
- * ⚠️ LES COORDONNÉES NE SONT PAS ENCORE LUES. `hubs.geo` est une `geography`
- * PostGIS, que PostgREST rend en WKB hexadécimal — inexploitable tel quel côté
- * client. Les écrans qui ont besoin d'un point (la zone de présence, la
- * navigation) le liront par une RPC dédiée quand ils seront branchés ; d'ici là
- * mieux vaut ne rien rendre que rendre une valeur fausse.
+ * Rend `null` plutôt que d'inventer ce qui manque.
+ *
+ * 🔴 `numeric` REVIENT EN CHAÎNE avec PostgREST, et `Number(null)` vaut `0` :
+ * c'est très exactement par là que le « 0, 0 » reviendrait. D'où le contrôle de
+ * nullité AVANT la conversion.
  */
-const versHub = (l: Ligne): Hub => ({
-  id: l.id,
-  name: l.name,
-  address: l.address ?? '',
-  city: l.city ?? '',
-  latitude: 0,
-  longitude: 0,
-  type: l.hub_type,
-  openingHours: l.operating_hours ?? '',
-  phone: l.phone ?? undefined,
-  availablePackages:
-    l.capacity != null && l.current_load != null
-      ? Math.max(0, l.capacity - l.current_load)
-      : undefined,
-});
+const versHub = (l: Ligne): Hub | null => {
+  if (l.latitude == null || l.longitude == null || l.zone_radius_m == null) return null;
+  const lat = Number(l.latitude);
+  const lng = Number(l.longitude);
+  const rayon = Number(l.zone_radius_m);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(rayon)) return null;
+  if (!l.detail_affiche) return null;
 
-/** Tous les points relais actifs. */
+  return {
+    id: l.id,
+    name: l.name,
+    placeType: l.place_type as HubPlaceType,
+    displayDetail: l.detail_affiche,
+    city: l.city ?? '',
+    address: l.address ?? null,
+    point: { lat, lng },
+    zoneRadiusM: rayon,
+    status: l.status === 'active' ? 'active' : 'inactive',
+  };
+};
+
+const exploitables = (lignes: readonly Ligne[]): Hub[] => {
+  const rendus: Hub[] = [];
+  for (const l of lignes) {
+    const h = versHub(l);
+    if (h) rendus.push(h);
+    else console.error('[hubs] ligne inexploitable, hub ecarte', l?.id);
+  }
+  return rendus;
+};
+
+/** Tous les points de rendez-vous actifs. */
 export async function chargerHubs(): Promise<Hub[]> {
   const { data, error } = await supabase
     .from('hubs')
@@ -64,16 +88,16 @@ export async function chargerHubs(): Promise<Hub[]> {
     .eq('status', 'active')
     .order('city', { ascending: true });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as Ligne[]).map(versHub);
+  return exploitables((data ?? []) as unknown as Ligne[]);
 }
 
 /**
- * Les points relais d'une ville.
+ * Les points de rendez-vous d'une ville.
  *
- * ⚠️ RECHERCHE INSENSIBLE À LA CASSE ET AUX ESPACES : la ville vient d'une
- * liste déroulante côté app et d'une saisie libre côté candidature. « nice » et
- * « Nice » désignent la même ville, et un cotransporteur qui ne voit pas son
- * point relais conclut qu'il n'y en a pas.
+ * ⚠️ RECHERCHE INSENSIBLE À LA CASSE ET AUX ESPACES : la ville vient d'une liste
+ * déroulante ici et d'une saisie libre ailleurs. « nice » et « Nice » désignent
+ * la même ville, et un cotransporteur qui ne voit pas de hub conclut qu'il n'y
+ * en a pas.
  */
 export async function chargerHubsParVille(ville: string): Promise<Hub[]> {
   const v = ville.trim();
@@ -85,5 +109,5 @@ export async function chargerHubsParVille(ville: string): Promise<Hub[]> {
     .ilike('city', v)
     .order('name', { ascending: true });
   if (error) throw new Error(error.message);
-  return ((data ?? []) as unknown as Ligne[]).map(versHub);
+  return exploitables((data ?? []) as unknown as Ligne[]);
 }

@@ -74,13 +74,31 @@ const ICON_MAP = {
   'train': { set: 'mat', name: 'train' },
 
   // ─── Hub Types ───
+  // ── LES SIX TYPES DE LIEU DU PROTOCOLE DE NOMMAGE ──────────────────────────
+  // ⚠️ Les anciennes (`hub-bus`, `hub-highway`, `hub-shopping`, `hub-partner`,
+  // `hub-locker`) décrivaient des entrepôts et des points relais ; elles ont
+  // suivi les types qu'elles illustraient. `hub-relay` RESTE : c'est le repli de
+  // `iconeHub()` quand la base rend un type que ce client ne connaît pas encore.
+  'hub-parking': { set: 'mat', name: 'parking' },
   'hub-gare': { set: 'mat', name: 'train-variant' },
-  'hub-bus': { set: 'ion', name: 'bus' },
-  'hub-highway': { set: 'mat', name: 'highway' },
+  'hub-station': { set: 'mat', name: 'gas-station-outline' },
+  'hub-entree': { set: 'mat', name: 'door-open' },
+  'hub-rond-point': { set: 'mat', name: 'rotate-right' },
+  'hub-commerce': { set: 'ion', name: 'storefront-outline' },
+  // ⚠️ QUATRE DE PLUS LE 07/09/2026, arrivées par la donnée et non par le
+  // protocole : l'export réel du client (514 points) portait 34 « Place », 2
+  // « Port », 1 « Église » et 3 « Point de covoiturage ». Voir
+  // `hand-to-hand/supabase/migrations/20260907100000_…`.
+  'hub-place': { set: 'mat', name: 'fountain' },
+  'hub-port': { set: 'mat', name: 'ferry' },
+  'hub-eglise': { set: 'mat', name: 'church-outline' },
+  'hub-covoiturage': { set: 'mat', name: 'car-multiple' },
+  'hub-relay': { set: 'ion', name: 'pin-outline' },
+  // ⚠️ CES DEUX-LÀ NE SONT PLUS DES TYPES DE LIEU, mais elles restent utilisées
+  // ailleurs — `InterstitialAd` et `OffHubProposal`. Les retirer avec les autres
+  // aurait cassé deux écrans sans rapport avec les hubs.
   'hub-shopping': { set: 'ion', name: 'cart-outline' },
   'hub-partner': { set: 'ion', name: 'storefront-outline' },
-  'hub-locker': { set: 'mat', name: 'locker' },
-  'hub-relay': { set: 'ion', name: 'pin-outline' },
 
   // ─── Finance ───
   'wallet': { set: 'ion', name: 'wallet-outline' },

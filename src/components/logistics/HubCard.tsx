@@ -1,16 +1,32 @@
+// LA FICHE D'UN POINT DE RENDEZ-VOUS — le contrat d'affichage du protocole.
+//
+// 🔴 CE QUE LE PROTOCOLE DE NOMMAGE EXIGE (docs/hubs-protocole-nommage.md,
+// « Affichage recommandé dans l'application ») :
+//   • ligne principale : le NOM, tel quel — il porte déjà « Hub » et le type de
+//     lieu, parce qu'il est CALCULÉ en base ;
+//   • sous-texte : le DÉTAIL AFFICHÉ (« Parking ouvert, côté entrée
+//     principale ») — « le nom du hub ne suffit pas » ;
+//   • le point exact épinglé sur la carte.
+//
+// 🔴 CE QUE CETTE FICHE MONTRAIT À LA PLACE : le nom, une PUCE DE TYPE en
+// concurrence visuelle avec lui, l'adresse postale, et les HORAIRES
+// D'OUVERTURE — une notion d'entrepôt, sur un lieu qui n'en est pas un. Le
+// détail affiché, lui, n'existait pas.
+//
+// ⚠️ LE TYPE DE LIEU PASSE EN ICÔNE, PAS EN TEXTE. Il est déjà DANS le nom :
+// l'écrire à côté le répète et vole la place du détail, qui est la seule ligne
+// disant où se présenter.
 import React from 'react';
 import { View, Text, TouchableOpacity, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import type { Hub } from '@/types/hub';
 import { Card } from '@/components/ui/Card';
-import { Badge } from '@/components/ui/Badge';
 import { Icon } from '@/components/ui/Icon';
 import { HubParticipantChip, type HubParticipantInfo } from '@/components/route/HubParticipantChip';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { hubZoneDiameterM } from '@/constants/hubZone';
 import { iconeHub, libelleHub } from '@/constants/HubTypes';
 
 interface HubCardProps {
@@ -39,13 +55,15 @@ export function HubCard({
   const { t } = useTranslation();
   const router = useRouter();
 
-  const typeLabel = libelleHub(hub.type) ?? hub.type;
-  const zoneChipLabel = t('zone.sizeChip').replace('{diameter}', String(hubZoneDiameterM(hub)));
+  // ⚠️ Le libellé ne s'affiche plus : il sert à l'accessibilité, pour qu'un
+  // lecteur d'écran annonce la nature du lieu que l'icône montre.
+  const typeLabel = libelleHub(hub.placeType);
+  const zoneChipLabel = t('zone.sizeChip').replace('{radius}', String(hub.zoneRadiusM));
 
   const openReport = () => {
     router.push({
       pathname: '/hub/report' as any,
-      params: { hubId: hub.id, hubName: hub.name, hubAddress: `${hub.address}, ${hub.city}` },
+      params: { hubId: hub.id, hubName: hub.name, hubAddress: hub.address ?? hub.city },
     });
   };
 
@@ -59,15 +77,24 @@ export function HubCard({
         style={selected ? { borderColor: colors.primary, borderWidth: 2 } : undefined}
       >
         <View style={styles.header}>
+          {/* Le type de lieu, en icône : il est déjà dans le nom.
+              ⚠️ `Icon` ne prend pas d'étiquette d'accessibilité — la vue qui le
+              porte l'annonce à sa place, sinon un lecteur d'écran ne dit rien de
+              la nature du lieu. */}
+          <View accessible accessibilityLabel={typeLabel}>
+            <Icon name={iconeHub(hub.placeType)} size={16} color={colors.textSecondary} />
+          </View>
+          {/* 🔴 LE NOM, TEL QUEL. Aucun gabarit, aucun `replace(/^hub /)` : le
+              premier mot est porteur, c'est tout le protocole. */}
           <Text style={[styles.name, { color: colors.text }]}>{hub.name}</Text>
           {participants && participants.length > 0 ? (
             <HubParticipantChip participants={participants} onPress={onPressParticipant} />
-          ) : (
-            <Badge label={typeLabel} variant="outline" />
-          )}
+          ) : null}
         </View>
-        <Text style={[styles.address, { color: colors.textSecondary }]}>
-          {hub.address}, {hub.city}
+        {/* 🔴 LE DÉTAIL AFFICHÉ — la ligne qui dit OÙ SE PRÉSENTER. L'adresse ne
+            le dit pas : un parking de gare a une adresse et quatre entrées. */}
+        <Text style={[styles.address, { color: colors.textSecondary }]} numberOfLines={3}>
+          {hub.displayDetail}
         </Text>
         <View style={styles.metaRow}>
           <View style={[styles.zoneChip, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
@@ -76,8 +103,11 @@ export function HubCard({
           </View>
         </View>
         <View style={styles.footer}>
+          {/* ⚠️ LES HORAIRES ONT DISPARU, et ce n'est pas une perte : un point de
+              rendez-vous n'ouvre ni ne ferme. Ce qui conditionne l'accès — « côté
+              boutique », « portail principal » — se dit dans le détail affiché. */}
           <Text style={[styles.hours, { color: colors.textSecondary }]}>
-            {hub.openingHours}
+            {hub.city}
           </Text>
           <View style={styles.footerRight}>
             {distance && (
@@ -105,8 +135,8 @@ export function HubCard({
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: Spacing.xs,
     marginBottom: Spacing.xs,
   },
   name: {

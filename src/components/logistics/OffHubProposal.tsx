@@ -1,3 +1,22 @@
+// LA DÉCISION SUR UNE DEMANDE HORS HUB — le cotransporteur tranche.
+//
+// 🔴 CETTE FEUILLE FAISAIT L'INVERSE, ET MENTAIT. Elle proposait au
+// cotransporteur d'ENVOYER une demande hors hub à un vendeur ou un acheteur ;
+// son `onSend` n'envoyait rien, et l'écran appelant affichait, 3,5 secondes plus
+// tard, « Proposition acceptée ! Nouveau point confirmé. » — une acceptation que
+// personne n'avait donnée.
+//
+// 🔴 LE SENS VIENT DU GUIDE (docs/hubs-fonctionnement.md §5) : la possibilité
+// dépend « de l'ACCEPTATION PRÉALABLE DU COTRANSPORTEUR », et une demande
+// « n'est JAMAIS automatiquement imposée AU COTRANSPORTEUR ». C'est donc le
+// vendeur (récupération) ou l'acheteur (remise) qui demande — c'est lui que le
+// rendez-vous déplace — et le cotransporteur qui accepte ou refuse, parce que
+// c'est son trajet qu'on modifie.
+//
+// ⚠️ « REFUSER » EST AUSSI VISIBLE QU'« ACCEPTER », ET IL EST NOMMÉ. Pas
+// « Plus tard », pas une croix en coin : « Refuser et rester au {hub} ». Le
+// repli du guide doit se lire comme un choix ordinaire, pas comme un abandon —
+// et il doit dire OÙ l'on reste, sinon ce n'est pas une information.
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -7,128 +26,105 @@ import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { normaliserHeure, heureValide } from '@/utils/heureTrajet';
+import { useTranslation } from '@/hooks/useTranslation';
+import type { DemandeHorsHub } from '@/services/horsHub';
 
-type Target = 'seller' | 'buyer';
-
-interface OffHubProposalSheetProps {
+interface OffHubDecisionSheetProps {
   visible: boolean;
   onClose: () => void;
-  onSend: (target: Target, address: string, time: string) => void;
-  pickupHubName: string;
-  deliveryHubName: string;
+  /** La demande à trancher. `null` = rien à décider. */
+  demande: DemandeHorsHub | null;
+  /** Le hub où le rendez-vous RESTE si l'on refuse. Nommé, jamais « le hub ». */
+  hubDeRepli: string;
+  onDecider: (accepter: boolean, motif?: string) => void;
+  envoi?: boolean;
 }
 
-export function OffHubProposalSheet({
+export function OffHubDecisionSheet({
   visible,
   onClose,
-  onSend,
-  pickupHubName,
-  deliveryHubName,
-}: OffHubProposalSheetProps) {
+  demande,
+  hubDeRepli,
+  onDecider,
+  envoi,
+}: OffHubDecisionSheetProps) {
   const { colors } = useColorScheme();
-  const [target, setTarget] = useState<Target>('seller');
-  const [address, setAddress] = useState('');
-  const [time, setTime] = useState('');
+  const { t } = useTranslation();
+  const [motif, setMotif] = useState('');
 
-  // 🔴 MÊME DÉFAUT QUE L'ASSISTANT DE PUBLICATION : « longueur >= 4 » acceptait
-  // « 7h30 » et « 99:99 ». Un rendez-vous hors hub se donne à un inconnu ; une
-  // heure fantaisiste s'y paie par un déplacement pour rien.
-  const canSend = address.trim().length > 2 && heureValide(time);
+  if (!demande) return null;
 
-  const handleSend = () => {
+  const decider = (accepter: boolean) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    onSend(target, address.trim(), normaliserHeure(time)!);
-    setAddress('');
-    setTime('');
+    onDecider(accepter, motif.trim() || undefined);
+    setMotif('');
   };
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={s.content}>
-        <Text style={[s.title, { color: colors.text }]}>Proposer un rendez-vous hors hub</Text>
+        <Text style={[s.title, { color: colors.text }]}>{t('offHub.decisionTitle')}</Text>
 
-        {/* Warning */}
-        <View style={[s.warning, { backgroundColor: colors.warning + '15' }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Icon name="alert-circle" size={16} color={colors.warning} />
-            <Text style={[s.warningText, { color: colors.warning, flex: 1 }]}>
-              Le hors hub est exceptionnel. Le GPS ne sera pas actif pour cette rencontre.
-            </Text>
-          </View>
+        {/* ⚠️ L'ADRESSE PROPOSÉE EST LA DONNÉE CENTRALE : c'est sur elle qu'on se
+            prononce, et c'est un DÉTOUR qu'on accepte ou non. */}
+        <View style={[s.bloc, { backgroundColor: colors.border + '25' }]}>
+          <Text style={[s.label, { color: colors.textSecondary }]}>{t('offHub.proposedPoint')}</Text>
+          <Text style={[s.adresse, { color: colors.text }]}>{demande.adresseProposee}</Text>
+          {!!demande.motif && (
+            <Text style={[s.motif, { color: colors.textSecondary }]}>{demande.motif}</Text>
+          )}
         </View>
 
-        {/* Target toggle */}
-        <Text style={[s.label, { color: colors.text }]}>À qui proposez-vous ?</Text>
-        <View style={[s.toggleRow, { backgroundColor: colors.border + '30' }]}>
-          <TouchableOpacity
-            onPress={() => setTarget('seller')}
-            style={[s.toggleBtn, target === 'seller' && { backgroundColor: colors.surface }]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="hub-partner" size={14} color={target === 'seller' ? colors.text : colors.textSecondary} />
-              <Text style={[s.toggleText, { color: target === 'seller' ? colors.text : colors.textSecondary }]}>
-                Vendeur
-              </Text>
-            </View>
-            <Text style={[s.toggleHint, { color: colors.textSecondary }]} numberOfLines={1}>
-              {pickupHubName}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setTarget('buyer')}
-            style={[s.toggleBtn, target === 'buyer' && { backgroundColor: colors.surface }]}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="person-add" size={14} color={target === 'buyer' ? colors.text : colors.textSecondary} />
-              <Text style={[s.toggleText, { color: target === 'buyer' ? colors.text : colors.textSecondary }]}>
-                Acheteur
-              </Text>
-            </View>
-            <Text style={[s.toggleHint, { color: colors.textSecondary }]} numberOfLines={1}>
-              {deliveryHubName}
-            </Text>
-          </TouchableOpacity>
+        {/* 🔴 LES FRAIS NE S'INVENTENT PAS. `null` veut dire « aucun frais
+            proposé » — écrire « 0 € » se lirait comme une promesse de gratuité. */}
+        <View style={s.ligne}>
+          <Icon name="info" size={16} color={colors.textSecondary} />
+          <Text style={[s.ligneTexte, { color: colors.textSecondary }]}>
+            {demande.fraisCents == null
+              ? t('offHub.noFee')
+              : t('offHub.fee').replace('{amount}', (demande.fraisCents / 100).toFixed(2))}
+          </Text>
         </View>
 
-        {/* Address input */}
-        <Text style={[s.label, { color: colors.text }]}>Point de rencontre proposé</Text>
+        <View style={s.ligne}>
+          <Icon name="alert-circle" size={16} color={colors.warning} />
+          <Text style={[s.ligneTexte, { color: colors.warning }]}>{t('zone.offHubNoGps')}</Text>
+        </View>
+
+        {/* 🔴 LA PHRASE DE REPLI, AVANT LES BOUTONS. Elle nomme le hub : sans lui,
+            « rester au hub » ne dit pas où l'on sera. */}
+        <View style={[s.repli, { backgroundColor: colors.primary + '10' }]}>
+          <Text style={[s.repliTexte, { color: colors.text }]}>
+            {t('offHub.fallback').replace('{hub}', hubDeRepli)}
+          </Text>
+        </View>
+
+        <Text style={[s.label, { color: colors.text }]}>{t('offHub.reasonLabel')}</Text>
         <TextInput
           style={[s.input, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-          value={address}
-          onChangeText={setAddress}
-          placeholder="Adresse ou description du lieu"
+          value={motif}
+          onChangeText={setMotif}
+          placeholder={t('offHub.reasonPlaceholder')}
           placeholderTextColor={colors.textSecondary}
           multiline
         />
 
-        {/* Time input */}
-        <Text style={[s.label, { color: colors.text }]}>Heure proposée</Text>
-        <TextInput
-          style={[s.timeInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
-          value={time}
-          onChangeText={setTime}
-          placeholder="14:00"
-          placeholderTextColor={colors.textSecondary}
-          keyboardType="numbers-and-punctuation"
-          maxLength={5}
+        <Button
+          title={t('offHub.accept')}
+          onPress={() => decider(true)}
+          variant="gradient"
+          disabled={envoi}
         />
-        <Text style={[s.timeHint, { color: colors.textSecondary }]}>
-          Doit être avant l'heure prévue au hub
-        </Text>
-
-        {/* Consent disclaimer */}
-        <View style={[s.consent, { backgroundColor: colors.primary + '08' }]}>
-          <Icon name="info" size={16} color={colors.primary} />
-          <Text style={[s.consentText, { color: colors.textSecondary }]}>
-            Cette demande reste soumise à l'accord des parties. Vous pouvez refuser toute remise hors hub non compatible avec votre trajet.
+        {/* ⚠️ UN VRAI BOUTON, PAS UN LIEN DISCRET. */}
+        <TouchableOpacity
+          onPress={() => decider(false)}
+          disabled={envoi}
+          style={[s.refus, { borderColor: colors.border }]}
+          accessibilityRole="button"
+        >
+          <Text style={[s.refusTexte, { color: colors.text }]}>
+            {t('offHub.refuse').replace('{hub}', hubDeRepli)}
           </Text>
-        </View>
-
-        {/* Actions */}
-        <Button title="Envoyer la proposition" onPress={handleSend} variant="gradient" disabled={!canSend} />
-        <TouchableOpacity onPress={onClose} style={s.cancelBtn}>
-          <Text style={[s.cancelText, { color: colors.textSecondary }]}>Annuler</Text>
         </TouchableOpacity>
       </View>
     </BottomSheet>
@@ -136,20 +132,29 @@ export function OffHubProposalSheet({
 }
 
 const s = StyleSheet.create({
-  content: { gap: Spacing.lg },
+  content: { gap: Spacing.md },
   title: { ...Typography.h2, textAlign: 'center' },
-  warning: { padding: Spacing.md, borderRadius: BorderRadius.sm },
-  warningText: { ...Typography.caption, lineHeight: 18, textAlign: 'center' },
+  bloc: { padding: Spacing.md, borderRadius: BorderRadius.md, gap: 4 },
   label: { ...Typography.captionMedium },
-  toggleRow: { flexDirection: 'row', borderRadius: BorderRadius.sm, padding: 3, gap: 0 },
-  toggleBtn: { flex: 1, paddingVertical: Spacing.md, borderRadius: BorderRadius.sm - 2, alignItems: 'center', gap: 2 },
-  toggleText: { ...Typography.captionMedium },
-  toggleHint: { fontSize: 10, lineHeight: 14 },
-  input: { borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, ...Typography.body, minHeight: 48 },
-  timeInput: { borderWidth: 1.5, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, ...Typography.bodyMedium, width: 100, textAlign: 'center' },
-  timeHint: { ...Typography.caption, marginTop: -Spacing.sm },
-  consent: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: Spacing.md, borderRadius: BorderRadius.sm },
-  consentText: { ...Typography.caption, lineHeight: 18, flex: 1 },
-  cancelBtn: { alignItems: 'center', paddingVertical: Spacing.sm },
-  cancelText: { ...Typography.bodyMedium, textDecorationLine: 'underline' },
+  adresse: { ...Typography.bodyMedium },
+  motif: { ...Typography.caption, fontStyle: 'italic' },
+  ligne: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  ligneTexte: { ...Typography.caption, flex: 1 },
+  repli: { padding: Spacing.md, borderRadius: BorderRadius.md },
+  repliTexte: { ...Typography.captionMedium },
+  input: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    minHeight: 64,
+    textAlignVertical: 'top',
+    ...Typography.body,
+  },
+  refus: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    paddingVertical: Spacing.md,
+    alignItems: 'center',
+  },
+  refusTexte: { ...Typography.bodyMedium },
 });

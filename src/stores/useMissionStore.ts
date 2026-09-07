@@ -12,7 +12,7 @@
 // le grand livre. Tant qu'ils ne le sont pas, ils ne modifient que l'écran de ce
 // téléphone : rien de ce qu'ils affichent n'engage la plateforme.
 import { create } from 'zustand';
-import type { Mission, MissionStatus, CancellationReason, OffHubProposal, SupportOutcome } from '@/types/mission';
+import type { Mission, MissionStatus, CancellationReason, SupportOutcome } from '@/types/mission';
 import { ACTIVE_STATUSES, COMPLETED_STATUSES } from '@/types/mission';
 import { sequenceur } from '@/utils/derniereLectureGagne';
 import type { DeclarantRole } from '@/types/incident';
@@ -30,7 +30,6 @@ function samePair(p: SeparatedPair, a: string, b: string): boolean {
   return (p.a === a && p.b === b) || (p.a === b && p.b === a);
 }
 
-const MOCK_OFFHUB_ACCEPT_DELAY = 3000;
 const AUTO_COMPLETE_DELAY = 2000;
 
 interface MissionState {
@@ -61,7 +60,6 @@ interface MissionState {
   cancelMission: (id: string, reason: CancellationReason) => void;
   reportSellerAbsence: (id: string) => void;
   reportBuyerAbsence: (id: string, extend?: boolean) => void;
-  proposeOffHub: (id: string, proposal: Omit<OffHubProposal, 'status'>) => void;
   openSupportReview: (missionId: string, reportId: string, reportedUserId?: string) => void;
   resolveSupportReview: (missionId: string, outcome: SupportOutcome) => void;
   /** Apply the money + disposition outcome of an incident form (centralized). */
@@ -222,26 +220,6 @@ export const useMissionStore = create<MissionState>((set, get) => ({
       })));
       get().cancelMission(id, 'buyer_no_show');
     }
-  },
-
-  proposeOffHub: (id, proposal) => {
-    const offHubProposal: OffHubProposal = { ...proposal, status: 'pending' };
-    set((state) => updateActive(state, id, (m) => ({ ...m, offHubProposal, updatedAt: new Date().toISOString() })));
-
-    // Mock auto-accept after delay
-    setTimeout(() => {
-      const mission = get().activeMissions.find((m) => m.id === id);
-      if (!mission || mission.offHubProposal?.status !== 'pending') return;
-
-      const acceptedProposal: OffHubProposal = { ...mission.offHubProposal!, status: 'accepted' };
-      const hubKey = proposal.target === 'seller' ? 'pickupHub' : 'deliveryHub';
-      set((state) => updateActive(state, id, (m) => ({
-        ...m,
-        offHubProposal: acceptedProposal,
-        [hubKey]: { ...m[hubKey], isOffHub: true, offHubAddress: proposal.address, name: `Hors hub — ${proposal.address}` },
-        updatedAt: new Date().toISOString(),
-      })));
-    }, MOCK_OFFHUB_ACCEPT_DELAY);
   },
 
   // §4 step 2 — Mise en attente: hold the mission + both payment legs while

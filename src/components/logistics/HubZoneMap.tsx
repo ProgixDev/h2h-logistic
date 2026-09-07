@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle, Line, G } from 'react-native-svg';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { hubZoneDiameterM, hubZoneRadiusM } from '@/constants/hubZone';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import type { Hub } from '@/types/hub';
@@ -35,19 +34,19 @@ export function HubZoneMap({ hub, userCoords, inZone = false }: HubZoneMapProps)
   const { colors } = useColorScheme();
   const { t } = useTranslation();
 
-  const diameter = hubZoneDiameterM(hub);
-  const radiusM = hubZoneRadiusM(hub);
+  
+  const radiusM = hub.zoneRadiusM;
   const metersPerPx = radiusM / ZONE_R;
-  const label = hub.centralPointLabel ?? t('zone.centralPointDefault');
+  const label = hub.displayDetail ?? t('zone.centralPointDefault');
   const userColor = inZone ? colors.success : colors.warning;
 
   // Project the user's offset (north/east metres from the point central) onto the
   // canvas; clamp to MAX_R so an out-of-zone dot stays visible at the ring edge.
   let userPx: { x: number; y: number } | null = null;
   if (userCoords) {
-    const northM = (userCoords.latitude - hub.latitude) * METERS_PER_DEG_LAT;
+    const northM = (userCoords.latitude - hub.point.lat) * METERS_PER_DEG_LAT;
     const eastM =
-      (userCoords.longitude - hub.longitude) * METERS_PER_DEG_LAT * Math.cos((hub.latitude * Math.PI) / 180);
+      (userCoords.longitude - hub.point.lng) * METERS_PER_DEG_LAT * Math.cos((hub.point.lat * Math.PI) / 180);
     let x = CENTER + eastM / metersPerPx;
     let y = CENTER - northM / metersPerPx;
     const d = Math.hypot(x - CENTER, y - CENTER);
@@ -106,7 +105,7 @@ export function HubZoneMap({ hub, userCoords, inZone = false }: HubZoneMapProps)
         <View style={s.legendRow}>
           <View style={[s.dot, { backgroundColor: colors.primary + '55' }]} />
           <Text style={[s.legendText, { color: colors.textSecondary }]} numberOfLines={1}>
-            {fill(t('zone.mapZoneLabel'), { diameter })}
+            {fill(t('zone.mapZoneLabel'), { radius: radiusM })}
           </Text>
         </View>
         {userCoords && (

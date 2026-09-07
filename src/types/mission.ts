@@ -67,12 +67,16 @@ export interface MissionHub {
   offHubAddress?: string;
 }
 
-export interface OffHubProposal {
-  target: 'seller' | 'buyer';
-  address: string;
-  proposedTime: string;
-  status: 'pending' | 'accepted' | 'rejected';
-}
+/* 🔴 `OffHubProposal` A ÉTÉ SUPPRIMÉ LE 06/09/2026, ET C'ÉTAIT UNE FICTION.
+ * Le type vivait UNIQUEMENT en mémoire : `useMissionStore.proposeOffHub` posait
+ * un statut « pending », puis un `setTimeout` de trois secondes le passait à
+ * « accepted » et RÉÉCRIVAIT le hub de la mission — sans que rien ne parte, sans
+ * que personne ne réponde. L'autre partie n'a jamais rien vu.
+ *
+ * ⚠️ Une demande hors hub est désormais une LIGNE : `public.demandes_hors_hub`,
+ * avec son demandeur, son décideur, son échéance et sa réponse. Voir
+ * `services/horsHub.ts` et docs/hubs-fonctionnement.md §5.
+ */
 
 /** Support decision (§5/§7) — always taken by a human, never automatic. */
 export type SupportOutcome = 'danger_confirmed' | 'good_faith' | 'abusive';
@@ -101,7 +105,6 @@ export interface Mission {
   sellerTimerEnd?: string;
   proposalExpiresAt?: string;
   cancellationReason?: CancellationReason;
-  offHubProposal?: OffHubProposal;
   isReturn?: boolean;
   // ─── Support review / payment hold (danger-grave report routing) ───
   /** Mission put « en attente » by support after a serious report. */

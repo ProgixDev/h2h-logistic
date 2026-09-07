@@ -25,7 +25,10 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
-import { mockHubs } from '@/services/mock/hubs';
+import { chargerHubs } from '@/services/hubs';
+import { declarerPresenceHub } from '@/services/presenceHub';
+import { useHubPresence } from '@/hooks/useHubPresence';
+import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
 import { enregistrerScan, messageDeScan, nouvelleCle } from '@/services/scans';
 
@@ -76,6 +79,45 @@ export default function PickupScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // 🔴 LE HUB COMPLET VIENT DE LA BASE, PLUS DE `mockHubs`. Cet écran résolvait
+  // le point de rendez-vous dans une liste de vingt-cinq lieux INVENTÉS, avec de
+  // vraies adresses et de vrais téléphones — et c'était la seule source de
+  // coordonnées de la carte de présence. Un cotransporteur envoyé là serait allé
+  // sonner chez quelqu'un.
+  //
+  // 🔴 ET CES DEUX HOOKS SONT ICI, AU-DESSUS DU `if (!mission) return`, PAS PLUS
+  // BAS. Écrits après la sortie anticipée, ils changeaient le NOMBRE DE HOOKS
+  // entre deux rendus : le premier rendu (mission absente du magasin) en posait
+  // N, le second N + 2, et React lève « Rendered more hooks than during the
+  // previous render ». C'est le défaut que `lintSansErreur.test.ts` a été écrit
+  // pour attraper, et qui faisait tomber l'écran de conversation à chaque
+  // ouverture à froid.
+  //
+  // ⚠️ CHARGÉ, DONC ABSENT UN INSTANT : l'écran montre moins tant qu'il n'est pas
+  // là, il ne se vide pas.
+  const [fullHub, setFullHub] = useState<Hub | null>(null);
+  const hubVise = mission?.pickupHub?.id;
+  useEffect(() => {
+    let vivant = true;
+    if (!hubVise) return;
+    chargerHubs()
+      .then((hubs) => { if (vivant) setFullHub(hubs.find((h) => h.id === hubVise) ?? null); })
+      .catch((e) => console.error('[mission] hub de recuperation illisible', e));
+    return () => { vivant = false; };
+  }, [hubVise]);
+
+  // 🔴 CES DEUX-LÀ SONT AU-DESSUS DU `if (!mission)`, ET C'EST OBLIGATOIRE.
+  // Un hook posé après une sortie anticipée change le NOMBRE de hooks entre deux
+  // rendus — React lève « Rendered more hooks than during the previous render ».
+  // C'est le défaut que l'en-tête de ce fichier décrit déjà, et le premier jet
+  // de la déclaration de présence l'a réintroduit en plaçant son `useState`
+  // à côté de la fonction qui s'en sert.
+  //
+  // ⚠️ `useHubPresence` NE DÉCIDE DE RIEN. Il donne la position du téléphone
+  // pour l'afficher et pour l'ENVOYER ; le verdict de zone revient du serveur.
+  const { coords } = useHubPresence(fullHub);
+  const [declaration, setDeclaration] = useState(false);
+
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
 
@@ -91,9 +133,6 @@ export default function PickupScreen() {
   }
 
   const missionCode = `HTH-${mission.id.slice(-4).toUpperCase()}`;
-  // Le hub complet (adresse, horaires, coordonnées, zone) — `MissionHub` n'en
-  // porte que le nom et le créneau.
-  const fullHub = mockHubs.find((h) => h.id === mission.pickupHub.id) ?? null;
   const openIncident = (type: string) =>
     router.push({ pathname: '/incident/[type]' as any, params: { type, missionId: mission.id } });
 
@@ -211,24 +250,77 @@ export default function PickupScreen() {
         <View style={s.hubInfo}>
           <Text style={[s.hubName, { color: colors.text }]}>{mission.pickupHub.name}</Text>
           <Text style={[s.hubCity, { color: colors.textSecondary }]}>
-            {fullHub ? `${fullHub.address}, ` : ''}{mission.pickupHub.city}
+            {/* 🔴 LE DÉTAIL AFFICHÉ, pas l'adresse ni les horaires : c'est la
+                ligne du protocole qui dit où se présenter. Un point de
+                rendez-vous n'ouvre ni ne ferme — les horaires décrivaient un
+                entrepôt, et l'adresse ne distingue pas quatre entrées de gare. */}
+            {fullHub?.displayDetail ?? mission.pickupHub.city}
           </Text>
-          {!!fullHub?.openingHours && (
-            <Text style={[s.hubCity, { color: colors.textSecondary }]}>
-              {fullHub.openingHours}
-            </Text>
-          )}
         </View>
       </View>
     </Card>
   );
 
-  const validatePresence = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setPresenceValidated(true);
-    showToast('Présence validée au hub ✓', 'success');
-    AccessibilityInfo.announceForAccessibility('Présence validée au hub. Vous pouvez scanner le QR du vendeur.');
-    setStep('approach');
+  // 🔴 CE BOUTON N'ENREGISTRAIT RIEN. Il posait un état local et affichait
+  // « Présence validée au hub ✓ » — un message qui n'était vrai nulle part
+  // ailleurs que sur cet écran. `20260906130000` avait construit la table
+  // `hub_presence`, la fonction `declarer_presence_hub`, la règle de révélation
+  // GPS et le miroir dans le journal du colis ; rien ne les appelait, ni ici ni
+  // côté place de marché.
+  //
+  // Le guide client (§3) veut « un élément de preuve en cas d'absence, de retard
+  // ou de réclamation ». Une preuve qui ne quitte pas le téléphone de celui
+  // qu'elle engage n'en est pas une.
+  //
+  // ⚠️ ET LE MOT « VALIDÉE » ÉTAIT LE PLUS FAUX DES DEUX. Le serveur distingue
+  // DÉCLARER (toujours enregistré) de VALIDER (seulement dans la zone). Hors
+  // zone, le guide dit que « sa présence ne peut pas ENCORE être validée » — pas
+  // que rien ne s'est passé. On écrit donc la ligne quoi qu'il arrive, et on
+  // rapporte ce que le serveur a répondu.
+  const validatePresence = async () => {
+    if (declaration) return;
+    setDeclaration(true);
+    try {
+      // ⚠️ SANS POSITION, PAS DE DÉCLARATION. Le serveur refuse un appel sans
+      // coordonnées, et il a raison : une présence sans position ne prouve rien.
+      // On le dit plutôt que d'envoyer un point inventé.
+      if (!coords) {
+        showToast(t('presence.noLocation'), 'error');
+        return;
+      }
+      const r = await declarerPresenceHub(mission.id, 'recuperation', {
+        lat: coords.latitude,
+        lng: coords.longitude,
+      });
+      await Haptics.notificationAsync(
+        r.dansLaZone
+          ? Haptics.NotificationFeedbackType.Success
+          : Haptics.NotificationFeedbackType.Warning,
+      );
+      // 🔴 LE VERDICT VIENT DU SERVEUR, PAS DE `isInHubZone`. Les helpers locaux
+      // servent à afficher la distance avant d'appuyer ; ils ne décident pas.
+      showToast(
+        r.dansLaZone
+          ? t('presence.recorded')
+          : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM))),
+        r.dansLaZone ? 'success' : 'warning',
+      );
+      AccessibilityInfo.announceForAccessibility(
+        r.dansLaZone ? t('presence.recorded') : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM))),
+      );
+      // ⚠️ ON AVANCE MÊME HORS ZONE. Bloquer le scan sur une erreur GPS
+      // immobiliserait la co-livraison en retirant l'outil censé aider les deux
+      // personnes à se trouver — et l'arrivée est déjà enregistrée.
+      setPresenceValidated(true);
+      setStep('approach');
+    } catch (e) {
+      // Le serveur dit pourquoi : hors hub, étape qui ne vous concerne pas,
+      // aucun hub fixé pour cette étape.
+      console.error('[presence] declaration impossible', e);
+      showToast(e instanceof Error ? e.message : t('presence.failed'), 'error');
+    } finally {
+      setDeclaration(false);
+    }
   };
 
   // ─── PAGE 1 : DÉCLARER SA PRÉSENCE ─────────────────────────

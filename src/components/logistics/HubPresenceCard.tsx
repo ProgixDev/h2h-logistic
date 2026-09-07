@@ -4,7 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
 import { Icon } from '@/components/ui/Icon';
-import { HubZoneMap } from '@/components/logistics/HubZoneMap';
+import { HubMap } from '@/components/hub/HubMap';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useHubPresence } from '@/hooks/useHubPresence';
@@ -27,7 +27,7 @@ import type { Hub } from '@/types/hub';
  *
  * ⚠️ CE N'EST PAS UN COPIER-COLLER DU CODE, et ça ne peut pas l'être : les deux
  * apps ont des socles différents (thème, i18n, et surtout la carte — la
- * marketplace a `react-native-maps`, pas cette app, qui dessine sa zone en SVG).
+ * marketplace tient sur `react-native-maps`, celle-ci sur `expo-maps`).
  * Ce qui est repris, c'est la MISE EN PAGE et les MOTS, pas les composants.
  *
  * 🟢 LE BOUTON RESTE DANS LA CARTE ICI. Côté marketplace il en est sorti le
@@ -143,7 +143,11 @@ export function HubPresenceCard({
       )}
 
       {/* Plan de la zone — position PROPRE uniquement. */}
-      <HubZoneMap hub={hub} userCoords={coords} inZone={inZone} />
+      <HubMap
+        hub={hub}
+        moi={coords ? { lat: coords.latitude, lng: coords.longitude } : null}
+        dansLaZone={inZone}
+      />
 
       {/* Distance, quand elle est connue et qu'on n'est pas dans la zone. */}
       {!loading && !inZone && distanceMeters != null && (

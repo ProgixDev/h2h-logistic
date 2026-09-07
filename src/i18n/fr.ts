@@ -174,11 +174,34 @@ export const fr = {
     statusLate: 'En retard',
     distanceAway: 'Vous êtes à {distance} m du hub',
     confidentiality: 'Votre position n\'est utilisée que pendant le créneau pour faciliter la rencontre. Elle n\'est partagée avec l\'autre partie qu\'une fois les deux présences déclarées et les deux positions dans la zone du hub.',
+    // 🔴 « ENREGISTRÉE », PAS « VALIDÉE ». Le serveur distingue les deux :
+    // déclarer s'enregistre toujours, valider n'arrive que dans la zone.
+    // L'ancien message disait « Présence validée au hub ✓ » alors que rien
+    // n'était écrit nulle part.
+    recorded: 'Présence enregistrée ✓',
+    // ⚠️ HORS ZONE, ON ENREGISTRE QUAND MÊME — le guide dit « ne peut pas
+    // ENCORE être validée », pas « rien ne s'est passé ». Refuser d'écrire
+    // détruirait la preuve que ce bouton existe pour produire.
+    recordedOutside: 'Présence enregistrée — vous êtes à {m} m du point. Rapprochez-vous pour qu\'elle soit validée.',
+    noLocation: 'Position indisponible : activez la localisation pour déclarer votre présence.',
+    failed: 'Présence non enregistrée.',
+  },
+  offHub: {
+    decisionTitle: "Demande de rendez-vous hors hub",
+    proposedPoint: "Point de rencontre proposé",
+    noFee: "Aucun frais supplémentaire n'est proposé.",
+    fee: "Frais supplémentaires proposés : {amount} €",
+    fallback: "Si vous refusez ou ne répondez pas, le rendez-vous reste au {hub}.",
+    reasonLabel: "Motif (facultatif, joint à votre réponse)",
+    reasonPlaceholder: "Ex. : trop loin de mon trajet",
+    accept: "Accepter ce point de rencontre",
+    refuse: "Refuser et rester au {hub}",
+    requestSent: "Demande envoyée. Sans réponse, le rendez-vous reste au hub prévu.",
   },
   zone: {
     title: 'Zone du hub',
     inZone: 'Vous êtes dans la zone du hub',
-    outOfZone: 'Rapprochez-vous du point central ({label}) — zone de {diameter} m',
+    outOfZone: 'Rapprochez-vous du point de rendez-vous ({label}) — zone de {radius} m autour du point',
     distanceAway: 'À {distance} m du point central',
     explainer: 'Vous êtes dans la zone du hub lorsque vous êtes à moins de {radius} mètres du point central.',
     confirmPresence: 'Confirmer ma présence dans la zone',
@@ -190,7 +213,9 @@ export const fr = {
     devSimIn: 'DEV : simuler dans la zone',
     devSimOut: 'DEV : simuler hors zone',
     mapPointCentral: 'Point central · {label}',
-    mapZoneLabel: 'Zone du hub · diamètre {diameter} m',
+    mapZoneLabel: 'Zone du hub · rayon {radius} m',
+    you: "Vous",
+    other: "L'autre partie",
     youLabel: 'Vous',
     mapUnavailable: 'Aperçu de la zone indisponible',
     howItWorksTitle: 'Comment ça marche',
@@ -198,8 +223,8 @@ export const fr = {
     step2: 'Confirmez votre présence dans l’application',
     step3: 'Rencontrez-vous en toute sécurité',
     reassurance: 'Lieu public, éclairé et fréquenté',
-    legend: 'Zone de rencontre · diamètre {diameter} m · rayon {radius} m',
-    sizeChip: 'Zone {diameter} m',
+    legend: 'Zone de rencontre · {radius} m autour du point central',
+    sizeChip: 'Zone {radius} m',
   },
   report: {
     title: 'Signaler cet utilisateur',

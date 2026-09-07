@@ -156,7 +156,7 @@ export default function HubDeliveryScreen() {
                 ]}>
                   <View style={styles.hubTop}>
                     <View style={styles.hubNameRow}>
-                      <Icon name={iconeHub(item.type)} size={20} color={colors.textSecondary} />
+                      <Icon name={iconeHub(item.placeType)} size={20} color={colors.textSecondary} />
                       <Text style={[styles.hubName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                     </View>
                     {selected && (
