@@ -45,6 +45,7 @@ type LigneMission = {
   is_return: boolean;
   off_hub_address: string | null;
   is_off_hub: boolean;
+  hors_hub_etapes: string[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,7 +57,7 @@ const CHAMPS = `
   pickup_hub_id, delivery_hub_id, pickup_scheduled_at, delivery_scheduled_at,
   tolerance_minutes, price_cents, transporter_earning_cents,
   seller_timer_end, proposal_expires_at, is_return,
-  off_hub_address, is_off_hub, created_at, updated_at
+  off_hub_address, is_off_hub, hors_hub_etapes, created_at, updated_at
 `;
 
 type LigneProfil = {
@@ -119,9 +120,19 @@ const participant = (
 };
 
 /**
- * ⚠️ UN POINT DE RENDEZ-VOUS SANS HUB EST LÉGITIME : `public.hubs` est vide, le
- * réseau se recrute. La remise se fait alors en main propre, et l'écran doit le
+ * ⚠️ UN POINT DE RENDEZ-VOUS SANS HUB EST LÉGITIME : toute co-livraison ne passe
+ * pas par un hub. La remise se fait alors en main propre, et l'écran doit le
  * dire plutôt que d'afficher un nom vide.
+ *
+ * 🔴 LA RAISON ÉCRITE ICI JUSQU'AU 08/09/2026 A CESSÉ D'ÊTRE VRAIE : « `public.hubs`
+ * est vide, le réseau se recrute ». L'annuaire porte 155 points, et un hub ne se
+ * recrute pas — H2H le désigne.
+ *
+ * 🔴 ET `hors` EST DÉSORMAIS PROPRE À L'ÉTAPE. Les deux appels recevaient le même
+ * `missions.is_off_hub`, un booléen de mission : `pickupHub.isOffHub` valait donc
+ * `true` alors que le hub de récupération existait, parce que l'ACHETEUR avait
+ * convenu d'une remise ailleurs. Ces deux champs sont séparés depuis toujours
+ * dans ce fichier — c'est le serveur qui ne savait pas les distinguer.
  */
 const pointDeRencontre = (
   hubId: string | null,
@@ -170,11 +181,11 @@ function versMission(
     },
     pickupHub: pointDeRencontre(
       l.pickup_hub_id, l.pickup_scheduled_at, l.tolerance_minutes,
-      l.is_off_hub, l.off_hub_address, hubs,
+      (l.hors_hub_etapes ?? []).includes('recuperation'), l.off_hub_address, hubs,
     ),
     deliveryHub: pointDeRencontre(
       l.delivery_hub_id, l.delivery_scheduled_at, l.tolerance_minutes,
-      l.is_off_hub, l.off_hub_address, hubs,
+      (l.hors_hub_etapes ?? []).includes('remise'), l.off_hub_address, hubs,
     ),
     price,
     transporterEarning: part,
