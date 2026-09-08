@@ -18,6 +18,8 @@
 // ce qu'un cotransporteur croit avoir gagné, et ce sur quoi il décide de
 // republier son trajet.
 
+import { formatCurrency } from '@/utils/formatting';
+
 /** Ce qu'on a besoin de savoir d'une mission : rien d'autre. */
 export type MissionRemuneree = {
   status: string;
@@ -58,5 +60,10 @@ export function participationMoyenne(missions: readonly MissionRemuneree[]): num
 /** Ce que la tuile affiche — « — » tant qu'aucune co-livraison n'a abouti. */
 export function participationMoyenneLabel(missions: readonly MissionRemuneree[]): string {
   const m = participationMoyenne(missions);
-  return m === null ? '—' : `${m.toFixed(2).replace('.', ',')} €`;
+  // ⚠️ UNE SEULE IMPLÉMENTATION DE L'EURO DANS L'APPLICATION. Cette ligne
+  // fabriquait la sienne — `toFixed(2).replace('.', ',')` — et elle était
+  // JUSTE ; mais c'est en gardant deux mises en forme concurrentes qu'on laisse
+  // repousser celle qui écrit « 12.50€ ». Sortie identique à l'œil, l'espace
+  // insécable en plus.
+  return m === null ? '—' : formatCurrency(m);
 }

@@ -21,6 +21,7 @@ import { useIncidentsStore } from '@/stores/useIncidentsStore';
 import { canCancelFree, contestationDeadline } from '@/constants/delaysRules';
 import { interpolerLibelle } from '@/utils/tolerance';
 import { computeSettlement } from '@/utils/settlement';
+import { formatCurrency } from '@/utils/formatting';
 import { getIncidentFormSpec, roleFromAnswer, type SpecField } from '@/constants/formulairesIncident';
 import { SETTLEMENT_PARTY_LABELS } from '@/types/settlement';
 import type { CommonFormData, MissionFormStatus } from '@/types/incident';
@@ -350,7 +351,7 @@ export default function IncidentFormScreen() {
                   <Text style={[styles.settlementParty, { color: colors.textSecondary }]}>{SETTLEMENT_PARTY_LABELS[line.party]}</Text>
                   <Text style={[styles.settlementLabel, { color: colors.text }]}>{line.label}</Text>
                   {line.amountEur != null && (
-                    <Text style={[styles.settlementAmount, { color: amountColor }]}>{line.amountEur} €</Text>
+                    <Text style={[styles.settlementAmount, { color: amountColor }]}>{formatCurrency(line.amountEur)}</Text>
                   )}
                 </View>
               );

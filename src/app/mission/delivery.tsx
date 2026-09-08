@@ -31,6 +31,7 @@ import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
 import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
+import { formatCurrency } from '@/utils/formatting';
 import { enregistrerScan, messageDeScan, nouvelleCle } from '@/services/scans';
 
 // 🔴 07/09/2026 — « presence » ARRIVE ENFIN SUR LA REMISE. La récupération
@@ -79,7 +80,11 @@ export default function DeliveryScreen() {
     return () => clearInterval(id);
   }, []);
   const [earningsReleased, setEarningsReleased] = useState(false);
-  const [displayedEarnings, setDisplayedEarnings] = useState('0.00');
+  // 🔴 UN NOMBRE, PAS UNE CHAINE DEJA FORMATEE. Le compteur ecrivait ici le
+  // resultat d'un `toFixed(2)`, que l'ecran affichait suivi d'un « € » : le
+  // cotransporteur lisait « 12.50€ » — point anglais — sur l'ecran meme qui
+  // lui annonce ce qu'il a gagne. La mise en forme appartient au rendu.
+  const [displayedEarnings, setDisplayedEarnings] = useState(0);
 
   // ⚠️ CHARGÉ, DONC ABSENT UN INSTANT : l'écran montre moins tant que le hub
   // n'est pas là, il ne se vide pas.
@@ -133,7 +138,7 @@ export default function DeliveryScreen() {
       const elapsed = Date.now() - start;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayedEarnings((target * eased).toFixed(2));
+      setDisplayedEarnings(target * eased);
       if (progress < 1) requestAnimationFrame(tick);
     };
     setTimeout(tick, 600);
@@ -569,7 +574,7 @@ export default function DeliveryScreen() {
                 Vous avez gagné pour cette co-livraison
               </Text>
               <Text style={[s.earningsAmount, { color: colors.success }]}>
-                {displayedEarnings}€
+                {formatCurrency(displayedEarnings)}
               </Text>
               <Text style={[s.earningsCaption, { color: colors.textSecondary }]}>
                 {earningsReleased ? 'Paiement libéré sur votre portefeuille' : 'Le montant sera crédité sur votre portefeuille'}

@@ -15,7 +15,7 @@ import { ToleranceWindow } from '@/components/logistics/ToleranceWindow';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { formatTime } from '@/utils/formatting';
+import { formatCurrency, formatTime } from '@/utils/formatting';
 import { distanceBetween } from '@/utils/navigationHelpers';
 import { formatRouteDistance } from '@/services/routing';
 
@@ -96,7 +96,7 @@ const STEPS: StepConfig[] = [
     status: 'delivered',
     iconName: 'trophy',
     label: 'Co-livraison terminée',
-    getDesc: (m) => `Paiement libéré : ${m.transporterEarning.toFixed(2)}€`,
+    getDesc: (m) => `Paiement libéré : ${formatCurrency(m.transporterEarning)}`,
   },
 ];
 

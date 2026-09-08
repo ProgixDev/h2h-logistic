@@ -20,7 +20,7 @@ import { impactCo2 } from '@/utils/impactEcologique';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { formatCo2 } from '@/utils/carbon';
-import { formatCurrency, formatDate } from '@/utils/formatting';
+import { formatCurrency, formatCurrencyCompact, formatDate } from '@/utils/formatting';
 
 type Period = 'today' | 'week' | 'month' | 'total';
 const PERIODS: { key: Period; label: string }[] = [
@@ -325,7 +325,7 @@ function EarningsChart({
                   textAnchor="middle"
                   fontFamily="Poppins_500Medium"
                 >
-                  {d.amount.toFixed(0)}€
+                  {formatCurrencyCompact(d.amount)}
                 </SvgText>
               )}
               <SvgText

@@ -27,6 +27,7 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
+import { formatAmount } from '@/utils/formatting';
 import type { DemandeHorsHub } from '@/services/horsHub';
 
 interface OffHubDecisionSheetProps {
@@ -82,7 +83,7 @@ export function OffHubDecisionSheet({
           <Text style={[s.ligneTexte, { color: colors.textSecondary }]}>
             {demande.fraisCents == null
               ? t('offHub.noFee')
-              : t('offHub.fee').replace('{amount}', (demande.fraisCents / 100).toFixed(2))}
+              : t('offHub.fee').replace('{amount}', formatAmount(demande.fraisCents / 100))}
           </Text>
         </View>
 
