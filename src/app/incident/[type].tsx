@@ -55,7 +55,11 @@ export default function IncidentFormScreen() {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [fieldPhotos, setFieldPhotos] = useState<Record<string, string>>({});
   const [extras, setExtras] = useState<CommonExtras>({ accuracyConfirmed: false });
-  const [toast, setToast] = useState<string | null>(null);
+  // ⚠️ LE BANDEAU PORTE SA NATURE. Il etait rendu en 'success' quoi qu'il
+  // arrive : un refus du serveur s'affichait en vert avec une coche, ce qui
+  // se lit exactement comme l'inverse de ce qu'il dit.
+  const [toast, setToast] = useState<{ texte: string; type: 'success' | 'error' } | null>(null);
+  const direErreur = (texte: string) => setToast({ texte, type: 'error' });
 
   // 🔴 LES DÉCLARATIONS DÉJÀ DÉPOSÉES VIENNENT DE LA BASE, PAS D'UN MAGASIN
   // LOCAL. C'est parmi elles qu'on cherche celle qu'une contestation vise, et
@@ -197,7 +201,7 @@ export default function IncidentFormScreen() {
     try {
       cheminsPreuves = await televerserPreuves(mission?.shipmentId, urisPreuves);
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Envoi des photos impossible.');
+      direErreur(e instanceof Error ? e.message : 'Envoi des photos impossible.');
       return;
     }
 
@@ -206,7 +210,7 @@ export default function IncidentFormScreen() {
     // seule parole du cotransporteur particulier.
     if (spec.type === 'buyer_absent' && mission?.shipmentId) {
       if (cheminsPreuves.length === 0) {
-        setToast("Une photo du lieu est requise pour constater l'absence.");
+        direErreur("Une photo du lieu est requise pour constater l'absence.");
         return;
       }
       try {
@@ -217,7 +221,7 @@ export default function IncidentFormScreen() {
         // « seul le cotransporteur particulier assigne constate l absence » —
         // et un formulaire qui part quand même ferait croire au cotransporteur
         // que l'absence est enregistrée.
-        setToast(e instanceof Error ? e.message : "Constat d'absence impossible.");
+        direErreur(e instanceof Error ? e.message : "Constat d'absence impossible.");
         return;
       }
     }
@@ -238,7 +242,7 @@ export default function IncidentFormScreen() {
       // ⚠️ LES REFUS DU SERVEUR SONT DES RÈGLES, PAS DES PANNES : « tolerance
       // non ecoulee », « le formulaire X n est pas ouvert au role Y ». On les
       // montre tels quels — c'est la seule information utile au cotransporteur.
-      setToast(e instanceof Error ? e.message : "Envoi du formulaire impossible.");
+      direErreur(e instanceof Error ? e.message : "Envoi du formulaire impossible.");
       return;
     }
 
@@ -246,7 +250,7 @@ export default function IncidentFormScreen() {
     if (OUTCOME_TYPES.includes(spec.type) && !isWait && technicalId) {
       applyIncidentOutcome(technicalId, spec.type);
     }
-    setToast('Formulaire envoyé.');
+    setToast({ texte: 'Formulaire envoyé.', type: 'success' });
     setTimeout(() => router.back(), 1600);
   };
 
@@ -379,7 +383,15 @@ export default function IncidentFormScreen() {
         </View>
       )}
 
-      {toast && <Toast message={toast} type="success" visible onHide={() => setToast(null)} duration={2500} />}
+      {toast && (
+        <Toast
+          message={toast.texte}
+          type={toast.type}
+          visible
+          onHide={() => setToast(null)}
+          duration={toast.type === 'error' ? 5000 : 2500}
+        />
+      )}
     </SafeAreaWrapper>
   );
 }

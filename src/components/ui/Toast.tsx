@@ -6,6 +6,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withDelay,
+  withSequence,
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
@@ -55,16 +56,38 @@ export function Toast({
 
   useEffect(() => {
     if (visible) {
-      // Slide in
-      translateY.value = withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) });
-      opacity.value = withTiming(1, { duration: 300 });
-
-      // Auto dismiss
-      translateY.value = withDelay(
-        duration,
-        withTiming(-100, { duration: 300, easing: Easing.in(Easing.cubic) }),
+      // 🔴 CE BANDEAU N'A JAMAIS ÉTÉ VISIBLE, DEPUIS LE 10/04/2026. L'entrée et
+      // la sortie étaient DEUX AFFECTATIONS SUCCESSIVES de la même valeur
+      // partagée, dans le même bloc :
+      //
+      //     translateY.value = withTiming(0, …);              // entrée
+      //     translateY.value = withDelay(duration, withTiming(-100, …));  // sortie
+      //
+      // Reanimated annule l'animation en cours dès qu'on réaffecte `.value` :
+      // la seconde ligne effaçait la première. Le bandeau restait donc à
+      // `translateY: -100` et `opacity: 0` pendant toute la durée, puis
+      // « sortait » vers l'endroit où il était déjà. `onHide` se déclenchait
+      // bien à la fin — tout se comportait comme prévu, SAUF l'affichage.
+      //
+      // ⚠️ CE N'EST PAS UN DÉFAUT COSMÉTIQUE. C'est le seul canal par lequel
+      // l'écran d'incident rend les refus du serveur — « tolerance non
+      // ecoulee », « le formulaire X n est pas ouvert au role Y ». Le message
+      // partait, personne ne le lisait : un formulaire qui ne s'envoie pas
+      // sans dire pourquoi.
+      //
+      // ⚠️ `withSequence` ENCHAÎNE au lieu de remplacer, et le rappel de fin ne
+      // signale `onHide` que si l'animation s'est terminée (`fini`) — un
+      // bandeau balayé à la main ne doit pas la déclencher deux fois.
+      translateY.value = withSequence(
+        withTiming(0, { duration: 300, easing: Easing.out(Easing.cubic) }),
+        withDelay(duration, withTiming(-100, { duration: 300, easing: Easing.in(Easing.cubic) })),
       );
-      opacity.value = withDelay(duration, withTiming(0, { duration: 300 }, () => { runOnJS(onHide)(); }));
+      opacity.value = withSequence(
+        withTiming(1, { duration: 300 }),
+        withDelay(duration, withTiming(0, { duration: 300 }, (fini) => {
+          if (fini) runOnJS(onHide)();
+        })),
+      );
     } else {
       translateY.value = -100;
       opacity.value = 0;

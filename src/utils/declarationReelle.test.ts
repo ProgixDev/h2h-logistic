@@ -93,7 +93,13 @@ test('⚠️ ET L’ÉCRAN N’AFFIRME PLUS L’ENVOI QUAND LE SERVEUR A REFUSÉ
   const brut = readFileSync(ECRAN, 'utf8');
   const apresDeclarer = brut.slice(brut.indexOf('await declarer({'));
   const catchAvantSucces = apresDeclarer.indexOf('catch');
-  const toastSucces = apresDeclarer.indexOf("setToast('Formulaire envoyé.')");
+  // ⚠️ ON CHERCHE LE TEXTE, PAS LA FORME DE L'APPEL. La première version visait
+  // `setToast('Formulaire envoyé.')` littéralement ; le jour où le bandeau a
+  // gagné sa nature (`{ texte, type }`), la garde a cessé de trouver sa cible
+  // et a échoué — pour un changement qui la satisfaisait pourtant. Une garde
+  // doit tenir au sens, pas à la ponctuation.
+  const toastSucces = apresDeclarer.indexOf("'Formulaire envoyé.'");
+  assert.ok(toastSucces > -1, 'le message de succès a disparu de l’écran');
   assert.ok(catchAvantSucces > -1, 'l’envoi n’est plus protégé par un catch');
   assert.ok(
     catchAvantSucces < toastSucces,
