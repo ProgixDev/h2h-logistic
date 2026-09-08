@@ -390,7 +390,7 @@ export default function DeliveryScreen() {
               <View style={s.buyerInfo}>
                 <Text style={[s.buyerName, { color: colors.text }]}>{mission.buyer.name}</Text>
                 <Text style={[s.buyerHint, { color: colors.textSecondary }]}>
-                  L'acheteur va vous présenter son QR code
+                  L’acheteur va vous présenter son QR code
                 </Text>
               </View>
               {mission.buyer.isFavorite && <Icon name="star" size={16} color={colors.warning} />}
@@ -476,7 +476,7 @@ export default function DeliveryScreen() {
           </View>
           <View style={s.lockedContent}>
             <Icon name="chat" size={56} color={colors.primary} />
-            <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d'aide ?</Text>
+            <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d’aide ?</Text>
             <Text style={[s.lockedSub, { color: colors.textSecondary }]}>
               Contactez le support via le chat. Nous allons vous aider à finaliser cette co-livraison.
             </Text>

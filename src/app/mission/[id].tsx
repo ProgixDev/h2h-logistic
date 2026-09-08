@@ -173,7 +173,7 @@ function SellerWaitingScreen({ mission, colors, router }: { mission: Mission; co
           Le vendeur doit confirmer sa présence au hub dans les 20 prochaines minutes.
         </Text>
         <Text style={[sw.warmText, { color: colors.textSecondary }]}>
-          Patience, nous attendons la réponse du vendeur. Nous vous notifierons dès qu'il confirme.
+          Patience, nous attendons la réponse du vendeur. Nous vous notifierons dès qu’il confirme.
         </Text>
       </View>
     </View>
@@ -195,10 +195,10 @@ function ExpiredScreen({ mission, colors, router }: { mission: Mission; colors: 
         <Text style={sw.expiredEmoji}>⏰</Text>
         <Text style={[sw.expiredTitle, { color: colors.text }]}>Co-livraison annulée</Text>
         <Text style={[sw.expiredSub, { color: colors.textSecondary }]}>
-          Le vendeur n'a pas confirmé à temps.
+          Le vendeur n’a pas confirmé à temps.
         </Text>
         <Text style={[sw.warmText, { color: colors.textSecondary }]}>
-          Pas d'inquiétude, de nouvelles co-livraisons arrivent régulièrement.
+          Pas d’inquiétude, de nouvelles co-livraisons arrivent régulièrement.
         </Text>
       </View>
 

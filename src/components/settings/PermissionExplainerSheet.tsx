@@ -66,7 +66,7 @@ export function PermissionExplainerSheet({
         <Text style={[styles.title, { color: colors.text }]}>{copy.title}</Text>
         <Text style={[styles.body, { color: colors.textSecondary }]}>{copy.body}</Text>
         <Text style={[styles.reassure, { color: colors.textSecondary }]}>
-          Vous pouvez autoriser l'accès quand vous voulez depuis les réglages du téléphone.
+          Vous pouvez autoriser l’accès quand vous voulez depuis les réglages du téléphone.
         </Text>
         <Button title="Ouvrir les réglages" onPress={onOpenSettings} variant="gradient" />
         <Button title="Plus tard" onPress={onClose} variant="outline" />

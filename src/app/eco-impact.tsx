@@ -133,7 +133,7 @@ export default function EcoImpactScreen() {
             <Text style={[styles.sectionTitle, { color: colors.text }]}>Comment on calcule</Text>
           </View>
           <Text style={[styles.howBody, { color: colors.textSecondary }]}>
-            L'estimation compare une co-livraison effectuée sur un trajet déjà prévu avec un trajet dédié
+            L’estimation compare une co-livraison effectuée sur un trajet déjà prévu avec un trajet dédié
             équivalent. Le résultat est indicatif et peut varier selon le mode de déplacement, la distance
             et les paramètres retenus.
           </Text>

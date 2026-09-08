@@ -78,7 +78,7 @@ export function DailyConfirmation({ route, onConfirm, onSkip }: DailyConfirmatio
           variant="gradient"
         />
         <TouchableOpacity onPress={onSkip} hitSlop={12} style={s.skipBtn}>
-          <Text style={[s.skipText, { color: colors.textSecondary }]}>Pas aujourd'hui</Text>
+          <Text style={[s.skipText, { color: colors.textSecondary }]}>Pas aujourd’hui</Text>
         </TouchableOpacity>
       </View>
     </Card>

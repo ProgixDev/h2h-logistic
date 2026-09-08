@@ -429,14 +429,14 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         {/* No-show alerts */}
         {isPickupLate && (
           <Card style={{ backgroundColor: colors.error + '08', borderColor: colors.error + '30' }}>
-            <Text style={[gs.alertTitle, { color: colors.error }]}>Le vendeur ne s'est pas présenté</Text>
-            <Text style={[gs.alertDesc, { color: colors.textSecondary }]}>Pas d'inquiétude, aucune pénalité pour vous.</Text>
+            <Text style={[gs.alertTitle, { color: colors.error }]}>Le vendeur ne s’est pas présenté</Text>
+            <Text style={[gs.alertDesc, { color: colors.textSecondary }]}>Pas d’inquiétude, aucune pénalité pour vous.</Text>
             <Button title="Signaler l'absence" onPress={handleReportSellerAbsence} variant="danger" />
           </Card>
         )}
         {isDeliveryLate && (
           <Card style={{ backgroundColor: colors.warning + '08', borderColor: colors.warning + '30' }}>
-            <Text style={[gs.alertTitle, { color: colors.warning }]}>L'acheteur ne s'est pas présenté</Text>
+            <Text style={[gs.alertTitle, { color: colors.warning }]}>L’acheteur ne s’est pas présenté</Text>
             <Text style={[gs.alertDesc, { color: colors.textSecondary }]}>{"Vous pouvez attendre ou déclarer l'absence de l'acheteur."}</Text>
             <Button title="Déclarer l'absence de l'acheteur" onPress={() => openIncident('buyer_absent')} variant="danger" />
             <View style={{ height: Spacing.sm }} />

@@ -530,7 +530,7 @@ export default function PickupScreen() {
           </View>
           <View style={s.lockedContent}>
             <Icon name="chat" size={56} color={colors.primary} />
-            <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d'aide ?</Text>
+            <Text style={[s.lockedTitle, { color: colors.text }]}>Besoin d’aide ?</Text>
             <Text style={[s.lockedSub, { color: colors.textSecondary }]}>
               Merci de contacter le support via le chat. Nous allons vous aider à résoudre cette co-livraison.
             </Text>

@@ -69,8 +69,8 @@ export default function ResponsabilitesScreen() {
       <Header title="Vos responsabilités" showBack />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.intro, { color: colors.textSecondary }]}>
-          Quelques repères pour des co-livraisons sereines. Rien ici n'est une sanction — juste des
-          habitudes qui rendent l'expérience meilleure pour tout le monde.
+          Quelques repères pour des co-livraisons sereines. Rien ici n’est une sanction — juste des
+          habitudes qui rendent l’expérience meilleure pour tout le monde.
         </Text>
         {SECTIONS.map((section, idx) => (
           <Card key={idx} style={{ backgroundColor: colors.primary + '06' }}>

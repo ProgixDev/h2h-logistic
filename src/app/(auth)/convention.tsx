@@ -317,7 +317,7 @@ export default function ConventionScreen() {
               mission, perte de colis…), HandtoHand peut imputer des frais
               opérationnels, des pénalités ou des remboursements sur vos
               compensations ou via prélèvement, dans les limites prévues à
-              l'article 26.
+              l’article 26.
             </Text>
           </View>
 
@@ -485,7 +485,7 @@ export default function ConventionScreen() {
                   { color: colors.textSecondary, marginTop: 4 },
                 ]}
               >
-                Vous pouvez finaliser votre inscription en bas de l'écran.
+                Vous pouvez finaliser votre inscription en bas de l’écran.
               </Text>
               <View style={styles.readyMeta}>
                 <Text

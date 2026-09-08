@@ -92,7 +92,7 @@ export default function PublishReviewScreen() {
           </View>
           <Text style={[styles.successTitle, { color: colors.text }]}>Trajet publié !</Text>
           <Text style={[styles.successSub, { color: colors.textSecondary }]}>
-            Vous serez notifié lorsqu'une co-livraison compatible est proposée.
+            Vous serez notifié lorsqu’une co-livraison compatible est proposée.
           </Text>
         </Animated.View>
         <Toast

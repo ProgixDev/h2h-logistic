@@ -174,7 +174,7 @@ export default function SettingsScreen() {
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Autorisations</Text>
           <Text style={[styles.sectionHint, { color: colors.textSecondary }]}>
-            Vous pouvez autoriser l'accès quand vous voulez depuis les réglages du téléphone.
+            Vous pouvez autoriser l’accès quand vous voulez depuis les réglages du téléphone.
           </Text>
         </View>
         {permItems.map((item) => (
@@ -221,7 +221,7 @@ export default function SettingsScreen() {
         <View style={[styles.note, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '20' }]}>
           <Icon name="shield" size={18} color={colors.primary} />
           <Text style={[styles.noteText, { color: colors.textSecondary }]}>
-            Vos appels se font directement dans l'application. Vos numéros de téléphone ne sont jamais partagés avec les autres utilisateurs.
+            Vos appels se font directement dans l’application. Vos numéros de téléphone ne sont jamais partagés avec les autres utilisateurs.
           </Text>
         </View>
 

@@ -193,7 +193,7 @@ export function QRScanner({ onScan, onManualEntry, mode = 'seller-qr', instructi
       <View style={styles.permissionContainer}>
         <Icon name="camera" size={56} color={colors.textSecondary} />
         <Text style={[styles.permissionText, { color: colors.text }]}>
-          Autorisez l'accès à la caméra pour scanner les QR codes.
+          Autorisez l’accès à la caméra pour scanner les QR codes.
         </Text>
         <Button title="Autoriser la caméra" onPress={requestPermission} variant="gradient" />
         {/* 🔴 UNE ISSUE DEPUIS CET ÉCRAN-CI, ET PAS SEULEMENT DEPUIS LA CAMÉRA.

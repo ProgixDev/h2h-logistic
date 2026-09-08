@@ -134,6 +134,11 @@ export const OTPInput = forwardRef<OTPInputHandle, OTPInputProps>(
   },
 );
 
+// ⚠️ UN COMPOSANT `forwardRef` N'A PAS DE NOM POUR REACT. Sans cette ligne,
+// il apparaît « ForwardRef » dans l'arbre des composants et dans les traces
+// d'erreur — c'est-à-dire au moment précis où le nom sert.
+OTPInput.displayName = 'OTPInput';
+
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',

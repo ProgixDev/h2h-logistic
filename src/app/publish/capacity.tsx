@@ -129,7 +129,7 @@ export default function PublishCapacityScreen() {
         {canNext && (
           <Card style={{ ...styles.summaryCard, backgroundColor: colors.primary + '08' }}>
             <Text style={[styles.summaryText, { color: colors.primary }]}>
-              Capacité déclarée : jusqu'à {pkg} colis, taille {maxSize}, {maxWeight} kg maximum.
+              Capacité déclarée : jusqu’à {pkg} colis, taille {maxSize}, {maxWeight} kg maximum.
             </Text>
           </Card>
         )}

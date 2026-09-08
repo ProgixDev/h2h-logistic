@@ -49,7 +49,7 @@ export default function PublishOptionsScreen() {
             <View style={styles.toggleInfo}>
               <Text style={[styles.toggleTitle, { color: colors.text }]}>Étudier une remise hors hub</Text>
               <Text style={[styles.toggleDesc, { color: colors.textSecondary }]}>
-                Vous acceptez d'étudier, au cas par cas, une récupération ou remise en dehors d'un hub prévu.
+                Vous acceptez d’étudier, au cas par cas, une récupération ou remise en dehors d’un hub prévu.
               </Text>
             </View>
             <Switch

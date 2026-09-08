@@ -125,7 +125,7 @@ export default function CallScreen() {
           <Icon name="mic-off" size={56} color="#FFFFFF" />
           <Text style={styles.deniedTitle}>Micro indisponible</Text>
           <Text style={styles.deniedSub}>
-            L'accès au micro est nécessaire pour les appels. Réessayer ?
+            L’accès au micro est nécessaire pour les appels. Réessayer ?
           </Text>
           <Pressable onPress={retryPermission} style={styles.deniedBtn} accessibilityRole="button">
             <Text style={styles.deniedBtnText}>Réessayer</Text>

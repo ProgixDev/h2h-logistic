@@ -204,7 +204,7 @@ export default function HubReportScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Photos</Text>
           <Text style={[styles.sectionHint, { color: colors.textSecondary }]}>
-            Jusqu'à {MAX_PHOTOS} photos pour illustrer (optionnel)
+            Jusqu’à {MAX_PHOTOS} photos pour illustrer (optionnel)
           </Text>
           <View style={styles.photoGrid}>
             {photos.map((uri) => (

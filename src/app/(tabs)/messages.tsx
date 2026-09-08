@@ -205,7 +205,7 @@ export default function MessagesScreen() {
             hitSlop={8}
           >
             <Text style={[s.historyText, { color: colors.primary }]}>
-              {showHistory ? 'Masquer' : 'Afficher'} l'historique des conversations
+              {showHistory ? 'Masquer' : 'Afficher'} l’historique des conversations
             </Text>
           </Pressable>
         }

@@ -118,7 +118,7 @@ export default function SplashScreen() {
       </View>
 
       <Animated.View style={[styles.footer, subtitleAnimatedStyle]}>
-        <Text style={styles.tagline}>L'app des cotransporteurs particuliers</Text>
+        <Text style={styles.tagline}>L’app des cotransporteurs particuliers</Text>
       </Animated.View>
     </LinearGradient>
   );

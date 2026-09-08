@@ -144,7 +144,7 @@ export default function PublishScheduleScreen() {
         ))}
 
         <Text style={[styles.info, { color: colors.textSecondary }]}>
-          Indiquez l'heure à laquelle vous serez réellement au hub. Pas l'heure de départ de chez vous.
+          Indiquez l’heure à laquelle vous serez réellement au hub. Pas l’heure de départ de chez vous.
         </Text>
 
         {/* Recurring days */}
@@ -166,7 +166,7 @@ export default function PublishScheduleScreen() {
               })}
             </View>
             <Text style={[styles.daysHint, { color: colors.textSecondary }]}>
-              Ces horaires s'appliqueront chaque jour sélectionné.
+              Ces horaires s’appliqueront chaque jour sélectionné.
             </Text>
           </View>
         )}

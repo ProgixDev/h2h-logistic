@@ -82,7 +82,7 @@ export default function AuthEntryScreen() {
 
         <Text style={[styles.legal, { color: colors.textSecondary }]}>
           En continuant, vous acceptez nos{' '}
-          <Text style={styles.legalLink}>Conditions d'utilisation</Text> et notre{' '}
+          <Text style={styles.legalLink}>Conditions d’utilisation</Text> et notre{' '}
           <Text style={styles.legalLink}>Politique de confidentialité</Text>.
         </Text>
       </Animated.View>

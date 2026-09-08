@@ -62,7 +62,7 @@ export function OTPEntry({ onSubmit, onMaxAttempts, buyerName }: OTPEntryProps) 
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: colors.text }]}>Code de l'acheteur</Text>
+      <Text style={[styles.title, { color: colors.text }]}>Code de l’acheteur</Text>
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         {buyerName
           ? `Demandez le code à ${buyerName} et saisissez-le ci-dessous`

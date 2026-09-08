@@ -82,7 +82,7 @@ export default function PublishCitiesScreen() {
 
         {form.departureCity === form.arrivalCity && form.departureCity && (
           <Text style={[styles.errorHint, { color: colors.error }]}>
-            La ville d'arrivée doit être différente du départ.
+            La ville d’arrivée doit être différente du départ.
           </Text>
         )}
 

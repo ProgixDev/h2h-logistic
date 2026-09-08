@@ -180,7 +180,7 @@ export default function NavigateScreen() {
     return (
       <View style={[s.center, { backgroundColor: colors.background }]}>
         <Icon name="navigate" size={48} color={colors.primary} />
-        <Text style={[s.loadingText, { color: colors.textSecondary }]}>Calcul de l'itinéraire...</Text>
+        <Text style={[s.loadingText, { color: colors.textSecondary }]}>Calcul de l’itinéraire...</Text>
       </View>
     );
   }
