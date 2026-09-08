@@ -1,8 +1,14 @@
 // LES HUBS DE REMISE — même correction que pour la récupération.
 //
 // 🔴 CET ÉCRAN LISAIT LES VINGT-CINQ HUBS INVENTÉS de `services/mock/hubs.ts`.
-// `public.hubs` est vide : les points relais sont des gens qui se portent
-// candidats, et le recrutement se fait au lancement.
+//
+// ⚠️ ET LA PHRASE QUI SUIVAIT A CESSÉ D'ÊTRE VRAIE : « `public.hubs` est vide :
+// les points relais sont des gens qui se portent candidats ». C'est l'inversion
+// corrigée le 06/09/2026 — un hub est un point de rendez-vous que H2H DÉSIGNE,
+// un relais est autre chose — et l'annuaire porte 153 points actifs.
+//
+// 🔴 « AUCUN » ET « ILLISIBLE » ÉTAIENT LE MÊME ÉCRAN, et le `catch` le disait
+// lui-même. Ils ont maintenant deux réponses distinctes.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -12,6 +18,7 @@ import { Header } from '@/components/layout/Header';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -33,20 +40,28 @@ export default function HubDeliveryScreen() {
 
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const ville = form.arrivalCity ?? '';
 
   useEffect(() => {
     let annule = false;
     setChargement(true);
     chargerHubsParVille(ville)
-      .then((h) => { if (!annule) setHubs(h); })
+      .then((h) => { if (annule) return; setHubs(h); setErreur(null); })
       .catch((e: unknown) => {
+        // 🔴 LA TRACE NE SUFFISAIT PAS, ET CE FICHIER LE DISAIT LUI-MÊME :
+        // « il n'y a aujourd'hui aucun moyen de les distinguer à l'écran ».
+        // Une policy refusée et une ville sans point donnaient le même écran.
+        // `erreur` les sépare enfin.
         console.error('[hubs] lecture impossible', e);
-        if (!annule) setHubs([]);
+        if (annule) return;
+        setHubs([]);
+        setErreur(e instanceof Error ? e.message : String(e));
       })
       .finally(() => { if (!annule) setChargement(false); });
     return () => { annule = true; };
-  }, [ville]);
+  }, [ville, tick]);
 
   // 🔴 UNE REMISE SANS HUB EST LÉGITIME : `route_stops.hub_id` est nullable, et
   // la remise se fait alors en main propre — ce que l'application sait déjà
@@ -124,17 +139,30 @@ export default function HubDeliveryScreen() {
           ListEmptyComponent={
             chargement ? (
               <Text style={[styles.info, { color: colors.textSecondary }]}>
-                Recherche des points relais…
+                Recherche des points de rendez-vous…
               </Text>
+            ) : erreur ? (
+              /* 🔴 « AUCUN » ET « ILLISIBLE » NE SONT PLUS LE MÊME ÉCRAN. */
+              <EmptyState
+                iconName="alert-circle"
+                title="Liste indisponible"
+                description={
+                  'Les points de rendez-vous n’ont pas pu être chargés — '
+                  + 'ce n’est pas qu’il n’y en a aucun ici.'
+                }
+                actionLabel="Réessayer"
+                onAction={() => setTick((t) => t + 1)}
+              />
             ) : (
-              /* 🔴 MÊME ÉTAT VIDE QU'À LA RÉCUPÉRATION, et pour la même raison :
-                 le réseau se constitue au lancement. Une étape obligatoire sur
-                 une liste vide est une impasse, pas une exigence. */
+              /* 🔴 MÊME ÉTAT VIDE QU'À LA RÉCUPÉRATION : une étape obligatoire
+                 sur une liste vide est une impasse, pas une exigence.
+                 ⚠️ MAIS PLUS POUR LA RAISON ÉCRITE ICI. « Le réseau se
+                 constitue, des habitants se portent candidats » décrivait
+                 l'inversion corrigée le 06/09/2026 : un point de rendez-vous est
+                 DÉSIGNÉ, et l'annuaire en porte 153 actifs. */
               <View style={{ gap: Spacing.md }}>
                 <Text style={[styles.info, { color: colors.textSecondary }]}>
-                  Aucun point relais à {ville} pour l’instant. Le réseau se
-                  constitue — des habitants se portent candidats pour accueillir
-                  les colis.
+                  Aucun point de rendez-vous à {ville} pour l’instant.
                 </Text>
                 <Button
                   title="Continuer sans point relais"

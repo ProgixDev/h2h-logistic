@@ -5,11 +5,17 @@
 // même pas des uuid. Un cotransporteur particulier pouvait donc choisir « Gare
 // de Nice-Ville » et s'y rendre — pour rien.
 //
-// ⚠️ `public.hubs` EST VIDE, ET CE N'EST PAS UN OUBLI : les hubs ne sont pas des
-// lieux qu'on choisit, ce sont des gens qui se portent candidats. Le
-// recrutement se fait au lancement. La liste sera donc vide pour l'instant, et
-// c'est la vérité — on la dit, et on laisse publier sans hub plutôt que de
-// bloquer sur un choix impossible.
+// ⚠️ LA RAISON ÉCRITE ICI A CESSÉ D'ÊTRE VRAIE. Elle disait : « `public.hubs`
+// est vide, et ce n'est pas un oubli : les hubs ne sont pas des lieux qu'on
+// choisit, ce sont des gens qui se portent candidats. » C'est l'inversion que
+// `20260906120000` a corrigée — un hub est un point de rendez-vous que H2H
+// DÉSIGNE — et l'annuaire porte 153 points actifs. Une liste vide veut donc dire
+// « aucun DANS CETTE VILLE », ce qui reste légitime : on laisse publier sans hub
+// plutôt que de bloquer sur un choix impossible.
+//
+// 🔴 ET « VIDE » NE VEUT PLUS DIRE « ILLISIBLE ». Le `catch` de cet écran notait
+// lui-même qu'il n'y avait « aucun moyen de les distinguer à l'écran ». Il y en
+// a un maintenant.
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -19,6 +25,7 @@ import { Header } from '@/components/layout/Header';
 import { ProgressSteps } from '@/components/ui/ProgressSteps';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { STEP_LABELS } from '@/types/route';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -40,23 +47,28 @@ export default function HubPickupScreen() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [hubs, setHubs] = useState<Hub[]>([]);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
   const ville = form.departureCity ?? '';
 
   useEffect(() => {
     let annule = false;
     setChargement(true);
     chargerHubsParVille(ville)
-      .then((h) => { if (!annule) setHubs(h); })
+      .then((h) => { if (annule) return; setHubs(h); setErreur(null); })
       .catch((e: unknown) => {
-        // ⚠️ SANS CETTE TRACE, une policy refusée est indiscernable d'une ville
-        // sans point relais — et il n'y a aujourd'hui aucun moyen de les
-        // distinguer à l'écran.
+        // 🔴 LA TRACE NE SUFFISAIT PAS, ET CE FICHIER LE DISAIT LUI-MÊME :
+        // « il n'y a aujourd'hui aucun moyen de les distinguer à l'écran ».
+        // Une policy refusée et une ville sans point donnaient le même écran.
+        // `erreur` les sépare enfin.
         console.error('[hubs] lecture impossible', e);
-        if (!annule) setHubs([]);
+        if (annule) return;
+        setHubs([]);
+        setErreur(e instanceof Error ? e.message : String(e));
       })
       .finally(() => { if (!annule) setChargement(false); });
     return () => { annule = true; };
-  }, [ville]);
+  }, [ville, tick]);
 
   const selectedId = form.pickupHub?.hubId;
 
@@ -150,20 +162,35 @@ export default function HubPickupScreen() {
             ListEmptyComponent={
               chargement ? (
                 <Text style={[styles.empty, { color: colors.textSecondary }]}>
-                  Recherche des points relais…
+                  Recherche des points de rendez-vous…
                 </Text>
+              ) : erreur ? (
+                /* 🔴 « AUCUN MOYEN DE LES DISTINGUER À L'ÉCRAN » — c'était écrit
+                   dans le `catch` de ce fichier, et c'était vrai : une policy
+                   refusée et une ville sans point donnaient la même phrase.
+                   Elles en ont deux maintenant. */
+                <EmptyState
+                  iconName="alert-circle"
+                  title="Liste indisponible"
+                  description={
+                    'Les points de rendez-vous n’ont pas pu être chargés — '
+                    + 'ce n’est pas qu’il n’y en a aucun ici.'
+                  }
+                  actionLabel="Réessayer"
+                  onAction={() => setTick((t) => t + 1)}
+                />
               ) : (
-                /* 🔴 L'ÉTAT VIDE EST L'ÉTAT NORMAL AUJOURD'HUI, et il ne doit
-                   pas être une impasse. Les points relais sont des gens qui se
-                   portent candidats, et le recrutement se fait au lancement :
-                   dire « aucun hub trouvé » puis bloquer le bouton laisserait
-                   un cotransporteur particulier devant une étape qu'il ne peut
-                   pas franchir, sans comprendre pourquoi. */
+                /* 🔴 L'ÉTAT VIDE NE DOIT PAS ÊTRE UNE IMPASSE : dire « aucun
+                   point » puis bloquer le bouton laisserait un cotransporteur
+                   particulier devant une étape qu'il ne peut pas franchir.
+                   ⚠️ ET LA RAISON ÉCRITE ICI A CESSÉ D'ÊTRE VRAIE. « Les points
+                   relais sont des gens qui se portent candidats, le recrutement
+                   se fait au lancement » : un point de rendez-vous ne se recrute
+                   pas — H2H le désigne — et l'annuaire en porte 153 actifs. Il
+                   peut simplement n'y en avoir aucun DANS CETTE VILLE. */
                 <View style={{ gap: Spacing.md }}>
                   <Text style={[styles.empty, { color: colors.textSecondary }]}>
-                    Aucun point relais à {ville} pour l’instant. Le réseau se
-                    constitue — des habitants se portent candidats pour accueillir
-                    les colis.
+                    Aucun point de rendez-vous à {ville} pour l’instant.
                   </Text>
                   <Button
                     title="Continuer sans point relais"
