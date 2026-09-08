@@ -241,7 +241,8 @@ export default function PickupScreen() {
     /* Fiche hub — nom, ADRESSE et HORAIRES, comme sur la marketplace.
        ⚠️ `MissionHub` ne porte QUE le nom, la ville et le créneau : le reste
        vit dans `mockHubs`, résolu par id. Le même chemin que `HubZoneCheck`
-       empruntait avant d'être retiré du détail. Adresse et horaires restent
+       empruntait avant d'être retiré du détail — puis SUPPRIMÉ le 08/09/2026,
+       n'étant plus importé nulle part. Adresse et horaires restent
        facultatifs — un hub introuvable ne doit pas vider l'écran, seulement
        montrer moins. */
     <Card>

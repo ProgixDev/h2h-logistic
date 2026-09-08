@@ -12,7 +12,8 @@
 //
 // 🔴 ET LE SIMULATEUR EST BORNÉ AU DÉVELOPPEMENT, DANS LE HOOK. `simulation`
 // forçait une position DANS la zone ; le garde-fou `__DEV__` vivait chez
-// l'appelant (`HubZoneCheck`), donc le chemin de code partait quand même dans le
+// l'appelant (`HubZoneCheck`, supprimé depuis — plus aucun import), donc le
+// chemin de code partait quand même dans le
 // binaire. Depuis que la présence est une PREUVE écrite en base, une position
 // forcée n'est plus une commodité de démonstration : c'est une fausse
 // déclaration. Le verrou est ici, au plus près de ce qu'il protège.
