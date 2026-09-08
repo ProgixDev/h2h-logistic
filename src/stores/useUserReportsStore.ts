@@ -6,6 +6,7 @@ import type { UserReportPayload, UserReportReason } from '@/constants/signalemen
 // restent : ce sont des données d'écran, et elles n'ont jamais été le défaut.
 import { getUserReportReason, isSupportReason } from '@/constants/signalementUtilisateur';
 import { signalerUtilisateur } from '@/services/signalements';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { useMissionStore } from '@/stores/useMissionStore';
 
 export type SupportStatus = 'new' | 'in_review' | 'resolved';
@@ -94,6 +95,12 @@ export const useUserReportsStore = create<UserReportsState>((set, get) => ({
         // et bloquer sans l'avoir demandé fermerait un fil dont le support
         // peut avoir besoin.
         bloquerEnsuite: false,
+        // 🔴 MÊME OUBLI QUE POUR LES HUBS. `report/user.tsx` collecte des
+        // photos, le payload les porte, et l'appel les laissait tomber — alors
+        // que `signaler_utilisateur` accepte `p_proofs` depuis 08/2026. Parmi
+        // les motifs proposés : « Danger, menace ou comportement agressif ».
+        profilId: useAuthStore.getState().user?.id ?? null,
+        photoUris: payload.photoUris,
       });
       const result = { id: envoye.id, createdAt: envoye.creeLe };
       // Support/priority motifs open a « dossier support »; classic ones don't
