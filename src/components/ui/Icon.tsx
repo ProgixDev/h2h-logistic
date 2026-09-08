@@ -81,7 +81,19 @@ const ICON_MAP = {
   // `iconeHub()` quand la base rend un type que ce client ne connaît pas encore.
   'hub-parking': { set: 'mat', name: 'parking' },
   'hub-gare': { set: 'mat', name: 'train-variant' },
-  'hub-station': { set: 'mat', name: 'gas-station-outline' },
+  // 🔴 `gas-station-outline` DISAIT « CARBURANT », ET LA DONNÉE DIT « ARRÊT ».
+  // Les trois `station` en production sont « Saint-Raphaël Gare Routière
+  // (Quai A) » — une gare ROUTIÈRE —, « de recharge » — une borne ÉLECTRIQUE —
+  // et « de Fréjus ». Aucune pompe à essence. Le script d'enrichissement le
+  // confirme dans l'autre sens : il verse `bus_station`/`transit_station` dans
+  // `station`, et `gas_station` dans `commerce`.
+  //
+  // ⚠️ NEUTRE PLUTÔT QUE `bus-stop`, qui existe pourtant : tant que le modèle
+  // n'est pas tranché (garder `station` fourre-tout, ajouter `arret`, ou verser
+  // les arrêts dans `aire_covoiturage`), une icône de bus affirmerait une
+  // réponse que personne n'a donnée. « Un point sur une ligne » est vrai des
+  // trois. Même raisonnement que `constants/typesDeLieu.ts` côté place de marché.
+  'hub-station': { set: 'mat', name: 'transit-connection-variant' },
   'hub-entree': { set: 'mat', name: 'door-open' },
   'hub-rond-point': { set: 'mat', name: 'rotate-right' },
   'hub-commerce': { set: 'ion', name: 'storefront-outline' },
