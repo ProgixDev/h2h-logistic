@@ -3,8 +3,12 @@
 // 🔴 CET ÉCRAN AFFICHAIT `mockHubs` : VINGT-SIX ADRESSES INVENTÉES. C'est
 // exactement ce contre quoi `services/hubs.ts` met en garde — « mieux vaut une
 // liste vide que vingt-cinq adresses où un cotransporteur irait pour rien ».
-// Un hub ne se place pas, il se recrute (`candidater_hub`) ; `public.hubs` est
-// donc vide tant que personne n'a candidaté, et cet écran le montrait plein.
+// 🔴 ET LA PHRASE QUI SUIVAIT ÉTAIT L'INVERSION ELLE-MÊME : « un hub ne se place
+// pas, il se recrute (`candidater_hub`) ». C'est le contraire — un hub est une
+// zone de rencontre que H2H DÉSIGNE, et `candidater_hub` n'existe plus depuis le
+// 06/09/2026 : elle recrutait ce qui s'appelle aujourd'hui un point relais.
+// `public.hubs` porte 155 points curés, pas zéro : ce que cet écran montrait de
+// faux, ce n'était plus le nombre, c'était la raison.
 //
 // ⚠️ IL RESTE DORMANT, ET C'EST ASSUMÉ. Aucun écran n'y mène aujourd'hui : il
 // n'existe pas encore de geste où l'on CHOISIT un hub — les trajets affichent
