@@ -54,7 +54,16 @@ export type HubPlaceType =
   | 'place'
   | 'port'
   | 'eglise'
-  | 'aire_covoiturage';
+  | 'aire_covoiturage'
+  // 🔴 LA ONZIÈME, LE 08/09/2026, ET ELLE VIENT ENCORE DE LA DONNÉE.
+  // `station` désignait un ÉQUIPEMENT dans les exemples du protocole — les trois
+  // lignes en base sont une gare routière, une borne de recharge et « de
+  // Fréjus ». Le script d'enrichissement y versait pourtant des ARRÊTS DE BUS,
+  // faute de valeur : sur les 44 propositions retenues, 23 étaient typées
+  // `station` et les 23 portent le type Places `bus_stop`, sans exception.
+  // « Hub Station École Louis Pergaud » aurait envoyé chercher une
+  // station-service devant une école. Voir `20260908235910`.
+  | 'arret';
 
 export type Hub = {
   id: string;
@@ -107,4 +116,8 @@ export const libelleTypeDeLieu = (t: HubPlaceType | string): string =>
     port: 'Port',
     eglise: 'Église',
     aire_covoiturage: 'Aire de covoiturage',
+    // 🔴 « Arrêt » AVEC SON ACCENT, mot pour mot comme la colonne calculée
+    // `hubs.name` (`20260908235920`). Un écran qui écrirait « Arret » ferait
+    // exister deux libellés pour le même lieu.
+    arret: 'Arrêt',
   })[t] ?? 'Point de rendez-vous';

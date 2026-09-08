@@ -49,7 +49,7 @@ import { join, dirname } from 'node:path';
  *     sha256sum src/types/hub.ts
  * puis copier `hub.ts` ET cette valeur dans l'autre dépôt.
  */
-const EMPREINTE = 'd1a268494bcb39ac3dc970da2919dfe3418b8af27a000e0543b06b74432ef059';
+const EMPREINTE = 'f8fa602dea7eaa234fea75f2f32eb2e4bcc0d084da6404d84c651b1c79195bfe';
 
 /** Le dépôt voisin, quand il est présent sur la machine. */
 const VOISIN = 'hand-to-hand';

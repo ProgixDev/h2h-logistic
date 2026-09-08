@@ -88,12 +88,17 @@ const ICON_MAP = {
   // confirme dans l'autre sens : il verse `bus_station`/`transit_station` dans
   // `station`, et `gas_station` dans `commerce`.
   //
-  // ⚠️ NEUTRE PLUTÔT QUE `bus-stop`, qui existe pourtant : tant que le modèle
-  // n'est pas tranché (garder `station` fourre-tout, ajouter `arret`, ou verser
-  // les arrêts dans `aire_covoiturage`), une icône de bus affirmerait une
-  // réponse que personne n'a donnée. « Un point sur une ligne » est vrai des
-  // trois. Même raisonnement que `constants/typesDeLieu.ts` côté place de marché.
+  // ⚠️ ET LE MODÈLE A ÉTÉ TRANCHÉ LE MÊME JOUR : les arrêts sont partis dans
+  // `arret` (voir juste dessous). Il reste ici deux ÉQUIPEMENTS sans rien de
+  // visuel en commun — une gare routière et une borne de recharge —, d'où un
+  // pictogramme qui dit le nœud sur la ligne plutôt que l'un des deux.
   'hub-station': { set: 'mat', name: 'transit-connection-variant' },
+  // 🔴 ICI L'ICÔNE PEUT ÊTRE PRÉCISE, ET C'EST TOUT L'INTÉRÊT DE LA SÉPARATION.
+  // Le 08/09 au matin, `station` mêlait arrêts, bornes et gares routières : on
+  // avait donc choisi un pictogramme NEUTRE, faute de pouvoir dire lequel des
+  // trois. `arret` ne désigne qu'une chose — les 23 points qui l'attendent
+  // portent tous le type Places `bus_stop` —, donc l'icône peut le dire.
+  'hub-arret': { set: 'mat', name: 'bus-stop' },
   'hub-entree': { set: 'mat', name: 'door-open' },
   'hub-rond-point': { set: 'mat', name: 'rotate-right' },
   'hub-commerce': { set: 'ion', name: 'storefront-outline' },

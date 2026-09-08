@@ -48,6 +48,7 @@ const ICONES: Record<HubPlaceType, IconName> = {
   port: 'hub-port',
   eglise: 'hub-eglise',
   aire_covoiturage: 'hub-covoiturage',
+  arret: 'hub-arret',
 };
 
 /** L'icône d'un type de lieu — jamais `undefined`, même sur une valeur inconnue. */
