@@ -222,6 +222,13 @@ test('⚠️ LA PRÉSENCE PART AU SERVEUR, ELLE NE RESTE PAS SUR LE TÉLÉPHONE'
       `${chemin} : le message qui n’était vrai nulle part est revenu`,
     );
     // Sans position, pas de déclaration : une présence sans point ne prouve rien.
-    assert.match(src, /if \(!coords\)/, `${chemin} : une présence sans position passerait`);
+    // ⚠️ DEPUIS LE 10/09/2026 la position est relue à l'appui
+    // (`positionPourDeclarer`) — la garde suit la nouvelle forme de la même
+    // règle : un échec de relevé sort AVANT l'appel au serveur.
+    assert.match(
+      src,
+      /if \(!p\.ok\) \{[^}]*return;\s*\}\s*const r = await declarerPresenceHub\(/,
+      `${chemin} : une présence sans position passerait`,
+    );
   }
 });

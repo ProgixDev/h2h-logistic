@@ -43,10 +43,14 @@ const MAGASIN_AUTH = ['src', 'stores', 'useAuthStore.ts'];
 test('🔴 LE NOMBRE DE CO-LIVRAISONS VIENT DU JOURNAL, PAS D’UN LITTÉRAL', () => {
   const code = sansCommentaires(...ACCUEIL);
 
+  // ⚠️ LE CROCHET, PLUS LE GETTER, depuis le 10/09/2026 : appelé pendant le
+  // rendu, `getEarningsForPeriod()` était mémoïsé par le React Compiler et
+  // gardait « 0 » — voir `crochetsDesMagasins.test.ts`. Même calcul, même
+  // journal, mais abonné à la donnée.
   assert.match(
     code,
-    /getEarningsForPeriod\(/,
-    'le tableau de bord n appelle plus getEarningsForPeriod : les chiffres redeviennent decoratifs',
+    /useEarningsForPeriod\(/,
+    'le tableau de bord ne lit plus useEarningsForPeriod : les chiffres redeviennent decoratifs',
   );
 
   // 🔴 LA FORME EXACTE QUI MENTAIT. Un ternaire sur la période qui rend des

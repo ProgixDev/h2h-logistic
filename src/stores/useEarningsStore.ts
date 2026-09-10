@@ -15,6 +15,7 @@
 //
 // ⚠️ VOCABULAIRE : « participation », jamais « gains » ni « revenu ».
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { EarningsSummary, DailyEarning } from '@/types/earnings';
 import {
   chargerParticipations,
@@ -23,7 +24,7 @@ import {
 } from '@/services/participations';
 import { sequenceur } from '@/utils/derniereLectureGagne';
 
-type Period = 'today' | 'week' | 'month' | 'total';
+export type Period = 'today' | 'week' | 'month' | 'total';
 
 interface EarningsState {
   summary: EarningsSummary | null;
@@ -125,20 +126,39 @@ export const useEarningsStore = create<EarningsState>((set, get) => ({
     }
   },
 
-  getEarningsForPeriod: (period) => {
-    const { journal, summary } = get();
-    switch (period) {
-      case 'today': return depuis(journal, debutDeJournee());
-      case 'week': return depuis(journal, new Date(Date.now() - 7 * JOUR_MS));
-      case 'month': return depuis(journal, new Date(Date.now() - 30 * JOUR_MS));
-      case 'total':
-        return {
-          amount: summary?.totalEarnings ?? 0,
-          deliveries: summary?.totalMissions ?? 0,
-        };
-    }
-  },
+  // ⚠️ POUR LES GESTIONNAIRES D'ÉVÉNEMENTS. Pendant un rendu :
+  // `useEarningsForPeriod` — voir `useMissionStore`, « CE QUE LES ÉCRANS LISENT ».
+  getEarningsForPeriod: (period) => selectEarningsForPeriod(get(), period),
 }));
+
+/**
+ * Ce qui a été porté au crédit sur la période — fonction PURE de l'état.
+ *
+ * 🔴 L'ACCUEIL AFFICHAIT « 0,00 € — 0 co-livraison » CE MOIS-CI à un
+ * cotransporteur crédité de 3,83 € le 03/09 (vu le 10/09/2026). L'écran appelait
+ * `getEarningsForPeriod()` pendant son rendu ; le React Compiler mémoïse l'appel
+ * sur la référence de la fonction, qui ne change jamais, et gardait le résultat
+ * calculé avant l'arrivée du journal.
+ */
+export function selectEarningsForPeriod(
+  s: Pick<EarningsState, 'journal' | 'summary'>,
+  period: Period,
+): { amount: number; deliveries: number } {
+  switch (period) {
+    case 'today': return depuis(s.journal, debutDeJournee());
+    case 'week': return depuis(s.journal, new Date(Date.now() - 7 * JOUR_MS));
+    case 'month': return depuis(s.journal, new Date(Date.now() - 30 * JOUR_MS));
+    case 'total':
+      return {
+        amount: s.summary?.totalEarnings ?? 0,
+        deliveries: s.summary?.totalMissions ?? 0,
+      };
+  }
+}
+
+/** La seule lecture permise pendant un rendu. `useShallow` : l'objet rendu est neuf à chaque lecture. */
+export const useEarningsForPeriod = (period: Period): { amount: number; deliveries: number } =>
+  useEarningsStore(useShallow((s) => selectEarningsForPeriod(s, period)));
 
 function debutDeJournee(): Date {
   const d = new Date();

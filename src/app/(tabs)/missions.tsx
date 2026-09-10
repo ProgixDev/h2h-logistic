@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -11,7 +11,12 @@ import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useMissionStore } from '@/stores/useMissionStore';
+import {
+  useMissionStore,
+  useProposals,
+  useActiveMissions,
+  useCompletedMissions,
+} from '@/stores/useMissionStore';
 import { formatCurrency, formatTime, formatDate } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
 
@@ -21,14 +26,23 @@ export default function MissionsScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { charger, isLoading, erreur, getProposals, getActiveMissions, getCompletedMissions } = useMissionStore();
+  const { charger, isLoading, erreur } = useMissionStore();
   const [tab, setTab] = useState<Tab>('new');
 
-  useEffect(() => { void charger(); }, [charger]);
+  // 🔴 À CHAQUE RETOUR SUR L'ONGLET, PAS SEULEMENT AU PREMIER. Monté une fois,
+  // l'onglet ne relisait plus rien : une proposition — quinze minutes pour
+  // l'accepter — arrivée pendant qu'on regardait l'accueil n'apparaissait
+  // qu'après avoir tué l'application (vu le 10/09/2026). La relecture de fond
+  // vit dans `(tabs)/_layout.tsx`.
+  useFocusEffect(useCallback(() => { void charger(); }, [charger]));
 
-  const proposals = getProposals();
-  const active = getActiveMissions();
-  const completed = getCompletedMissions();
+  // 🔴 DES CROCHETS, PAS `getProposals()`. Appelés pendant le rendu, les
+  // `get…()` du magasin sont mémoïsés par le React Compiler sur leur référence,
+  // qui ne change jamais : la liste du premier rendu restait affichée pour
+  // toujours. Voir `useMissionStore`, « CE QUE LES ÉCRANS LISENT ».
+  const proposals = useProposals();
+  const active = useActiveMissions();
+  const completed = useCompletedMissions();
 
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'new', label: 'Nouvelles', count: proposals.length },
@@ -89,7 +103,10 @@ export default function MissionsScreen() {
         refreshing={isLoading}
         onRefresh={() => { void charger(); }}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        // ⚠️ `flexGrow: 1` : vide, la liste n'avait aucune hauteur — et une liste
+        // sans hauteur ne se tire pas. Le « tirer pour rafraîchir » ne marchait
+        // donc jamais là où il sert le plus, sur « Aucune co-livraison ».
+        contentContainerStyle={[styles.list, { flexGrow: 1 }]}
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 80).duration(300)}>

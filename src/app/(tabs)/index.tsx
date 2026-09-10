@@ -30,9 +30,14 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
-import { useMissionStore } from '@/stores/useMissionStore';
+import {
+  useMissionStore,
+  usePendingMissions,
+  useActiveMissions,
+  useCompletedMissions,
+} from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
-import { useEarningsStore } from '@/stores/useEarningsStore';
+import { useEarningsStore, useEarningsForPeriod } from '@/stores/useEarningsStore';
 import { formatCurrency, formatTime } from '@/utils/formatting';
 import { type AppNotification } from '@/types/notification';
 import { useNotificationStore } from '@/stores/useNotificationStore';
@@ -59,8 +64,14 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { user, transporterStatus, toggleOnline } = useAuthStore();
-  const { missions, charger: chargerMissions, getActiveMissions, getPendingMissions, getCompletedMissions } =
-    useMissionStore();
+  const { missions, charger: chargerMissions } = useMissionStore();
+  // 🔴 DES CROCHETS, PAS `getActiveMissions()` : appelés pendant le rendu, les
+  // `get…()` sont mémoïsés par le React Compiler sur leur référence — l'accueil
+  // affichait « Aucune co-livraison en cours » à côté d'un magasin qui en
+  // contenait trois (vu le 10/09/2026). Voir `useMissionStore`.
+  const enAttente = usePendingMissions();
+  const enCours = useActiveMissions();
+  const completedMissions = useCompletedMissions();
   // ⚠️ TRAJETS, CO-LIVRAISONS, PARTICIPATIONS ET NOTIFICATIONS VIENNENT DE LA
   // BASE. Ne reste en démonstration que l'impact écologique (`loadMockData`).
   //
@@ -75,7 +86,7 @@ export default function HomeScreen() {
   // l'écran est précisément ce qui a laissé « 12 co-livraisons » survivre.
   const { routes, hydrate: chargerTrajets } = useRouteStore();
   const { notifications, nonLues, charger: chargerNotifs } = useNotificationStore();
-  const { summary, charger: chargerParticipations, getEarningsForPeriod } = useEarningsStore();
+  const { summary, charger: chargerParticipations } = useEarningsStore();
   // 🔴 CALCULÉ SUR LES VRAIES CO-LIVRAISONS TERMINÉES, plus sur une graine
   // inventée : voir `impactEcologique`. Une allégation de CO₂ évité affichée à
   // quelqu'un qui n'a rien transporté n'est pas une donnée de démonstration.
@@ -86,9 +97,8 @@ export default function HomeScreen() {
   const [dailyConfirmed, setDailyConfirmed] = useState<Record<string, boolean>>({});
 
   const isOnline = transporterStatus === 'active';
-  const activeMissions = [...getPendingMissions(), ...getActiveMissions()];
+  const activeMissions = [...enAttente, ...enCours];
   const activeRoutes = routes.filter((r) => r.status === 'active');
-  const completedMissions = getCompletedMissions();
   const impact = impactCo2(completedMissions, routes);
   const totalDeliveries = user?.totalDeliveries ?? completedMissions.length;
   const unreadNotifs = nonLues;
@@ -113,8 +123,12 @@ export default function HomeScreen() {
   // ⚠️ « day » ICI, « today » DANS LE MAGASIN. Les deux vocabulaires existaient
   // déjà ; la conversion est le prix à payer pour ne pas renommer un type
   // public au passage.
+  //
+  // 🔴 ET UN CROCHET, PAS `getEarningsForPeriod()` : l'appel était mémoïsé
+  // avant l'arrivée du journal, et l'accueil affichait « 0,00 € — 0
+  // co-livraison » ce mois-ci à quelqu'un crédité de 3,83 € (vu le 10/09/2026).
   const { amount: earningsAmount, deliveries: earningsDeliveries } =
-    getEarningsForPeriod(earningsPeriod === 'day' ? 'today' : earningsPeriod);
+    useEarningsForPeriod(earningsPeriod === 'day' ? 'today' : earningsPeriod);
 
   useEffect(() => {
     void chargerMissions();

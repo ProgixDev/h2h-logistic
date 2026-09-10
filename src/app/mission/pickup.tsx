@@ -24,10 +24,11 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useMissionStore, useMissionById } from '@/stores/useMissionStore';
 import { chargerHubs } from '@/services/hubs';
 import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
+import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
 import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
 import { enregistrerScan, messageDeScan, nouvelleCle } from '@/services/scans';
@@ -51,13 +52,15 @@ export default function PickupScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getMissionById, charger } = useMissionStore();
+  const charger = useMissionStore((s) => s.charger);
 
-  const mission = getMissionById(id ?? '');
+  // ⚠️ UN CROCHET, PAS `getMissionById()` : voir `useMissionStore`. Figée au
+  // premier rendu, la mission ne voyait jamais son statut avancer.
+  const mission = useMissionById(id);
   // ⚠️ HORS HUB, ON SAUTE LA PAGE 1 : un rendez-vous hors hub n'a ni zone ni
   // point central à montrer, et sa présence ne se vérifie pas au GPS. L'y
   // envoyer donnerait une page vide dont on ne pourrait pas sortir.
-  const offHubPickup = getMissionById(id ?? '')?.pickupHub.isOffHub === true;
+  const offHubPickup = mission?.pickupHub.isOffHub === true;
   const [step, setStep] = useState<PickupStep>(offHubPickup ? 'approach' : 'presence');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
@@ -115,8 +118,13 @@ export default function PickupScreen() {
   //
   // ⚠️ `useHubPresence` NE DÉCIDE DE RIEN. Il donne la position du téléphone
   // pour l'afficher et pour l'ENVOYER ; le verdict de zone revient du serveur.
-  const { coords } = useHubPresence(fullHub);
+  //
+  // ⚠️ SUIVI GPS SEULEMENT SUR LA PAGE DE PRÉSENCE, et pas hors hub : ailleurs,
+  // personne ne lit la position, et la batterie paierait pour rien.
+  const presence = useHubPresence(fullHub, { actif: !offHubPickup && step === 'presence' });
   const [declaration, setDeclaration] = useState(false);
+  // Le dernier verdict HORS ZONE du serveur — la page le montre et reste là.
+  const [horsZone, setHorsZone] = useState<{ distanceM: number; rayonM: number } | null>(null);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -285,13 +293,20 @@ export default function PickupScreen() {
       // ⚠️ SANS POSITION, PAS DE DÉCLARATION. Le serveur refuse un appel sans
       // coordonnées, et il a raison : une présence sans position ne prouve rien.
       // On le dit plutôt que d'envoyer un point inventé.
-      if (!coords) {
-        showToast(t('presence.noLocation'), 'error');
+      //
+      // 🔴 ET LA POSITION EST LUE MAINTENANT, pas à l'ouverture de l'écran : le
+      // hook relit le téléphone si son suivi est périmé, et dit POURQUOI s'il
+      // n'obtient rien — permission, localisation éteinte, ou pas encore de
+      // relevé. Voir `utils/positionDuTelephone.ts`.
+      const p = await presence.positionPourDeclarer();
+      if (!p.ok) {
+        showToast(t(CLE_MESSAGE_GPS[p.motif]), 'error');
         return;
       }
       const r = await declarerPresenceHub(mission.id, 'recuperation', {
-        lat: coords.latitude,
-        lng: coords.longitude,
+        lat: p.releve.latitude,
+        lng: p.releve.longitude,
+        precisionM: p.releve.precisionM,
       });
       await Haptics.notificationAsync(
         r.dansLaZone
@@ -300,20 +315,23 @@ export default function PickupScreen() {
       );
       // 🔴 LE VERDICT VIENT DU SERVEUR, PAS DE `isInHubZone`. Les helpers locaux
       // servent à afficher la distance avant d'appuyer ; ils ne décident pas.
-      showToast(
-        r.dansLaZone
-          ? t('presence.recorded')
-          : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM))),
-        r.dansLaZone ? 'success' : 'warning',
-      );
-      AccessibilityInfo.announceForAccessibility(
-        r.dansLaZone ? t('presence.recorded') : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM))),
-      );
-      // ⚠️ ON AVANCE MÊME HORS ZONE. Bloquer le scan sur une erreur GPS
-      // immobiliserait la co-livraison en retirant l'outil censé aider les deux
-      // personnes à se trouver — et l'arrivée est déjà enregistrée.
-      setPresenceValidated(true);
-      setStep('approach');
+      const message = r.dansLaZone
+        ? t('presence.recorded')
+        : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM)));
+      showToast(message, r.dansLaZone ? 'success' : 'warning');
+      AccessibilityInfo.announceForAccessibility(message);
+      if (r.dansLaZone) {
+        setHorsZone(null);
+        setPresenceValidated(true);
+        setStep('approach');
+        return;
+      }
+      // 🔴 HORS ZONE, ON RESTE SUR LA PAGE (vu à l'émulateur le 10/09/2026).
+      // L'écran passait au scan après un toast de deux secondes : rien ne
+      // disait que la présence n'était pas validée, ni qu'on pouvait
+      // réessayer. La carte montre maintenant le verdict, la distance relue en
+      // continu, « réessayer », et « continuer sans présence validée ».
+      setHorsZone({ distanceM: r.distanceM, rayonM: r.rayonM });
     } catch (e) {
       // Le serveur dit pourquoi : hors hub, étape qui ne vous concerne pas,
       // aucun hub fixé pour cette étape.
@@ -343,24 +361,26 @@ export default function PickupScreen() {
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           {hubCard}
 
-          {fullHub ? (
-            <HubPresenceCard
-              hub={fullHub}
-              scheduledTime={mission.pickupHub.scheduledTime}
-              toleranceMinutes={mission.pickupHub.toleranceMinutes}
-              onConfirm={validatePresence}
-            />
-          ) : (
-            /* ⚠️ HUB INTROUVABLE DANS LE RÉFÉRENTIEL : pas de zone à dessiner,
-               mais la présence doit rester déclarable — sinon le scan reste
-               verrouillé et la co-livraison s'arrête sur un écran muet. */
-            <Button
-              title={t('presence.button')}
-              onPress={validatePresence}
-              variant="gradient"
-              style={{ minHeight: 52 }}
-            />
-          )}
+          {/* ⚠️ HUB INTROUVABLE DANS LE RÉFÉRENTIEL (`fullHub` nul) : la carte
+              se passe du plan, mais la présence reste déclarable — sinon le
+              scan reste verrouillé et la co-livraison s'arrête sur un écran
+              muet. */}
+          <HubPresenceCard
+            hub={fullHub}
+            presence={presence}
+            scheduledTime={mission.pickupHub.scheduledTime}
+            toleranceMinutes={mission.pickupHub.toleranceMinutes}
+            horsZone={horsZone}
+            enCours={declaration}
+            onConfirm={validatePresence}
+            onContinuer={() => {
+              // ⚠️ L'ARRIVÉE EST DÉJÀ ENREGISTRÉE, distance comprise. Bloquer
+              // le scan sur une erreur GPS immobiliserait la co-livraison en
+              // retirant l'outil censé aider les deux personnes à se trouver.
+              setPresenceValidated(true);
+              setStep('approach');
+            }}
+          />
         </ScrollView>
 
         {toast && (

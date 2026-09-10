@@ -24,11 +24,12 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useMissionStore, useMissionById } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { chargerHubs } from '@/services/hubs';
 import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
+import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
 import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
 import { formatCurrency } from '@/utils/formatting';
@@ -55,22 +56,22 @@ export default function DeliveryScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getMissionById, charger } = useMissionStore();
+  const charger = useMissionStore((s) => s.charger);
   const { routes } = useRouteStore();
 
-  const mission = getMissionById(id ?? '');
+  // ⚠️ UN CROCHET, PAS `getMissionById()` : voir `useMissionStore`.
+  const mission = useMissionById(id);
   // ⚠️ HORS HUB, ON SAUTE LA PAGE 1, comme à la récupération : un rendez-vous
   // hors hub n'a ni zone ni point central à montrer, et sa présence ne se
   // vérifie pas au GPS. L'y envoyer donnerait une page vide dont on ne
   // pourrait pas sortir.
-  const offHubDelivery = getMissionById(id ?? '')?.deliveryHub.isOffHub === true;
+  const offHubDelivery = mission?.deliveryHub.isOffHub === true;
   const [step, setStep] = useState<DeliveryStep>(offHubDelivery ? 'approach' : 'presence');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'warning' | 'error' } | null>(null);
   const [scannerResetSignal, setScannerResetSignal] = useState(0);
   const [packageAttempts, setPackageAttempts] = useState(0);
   const [locked, setLocked] = useState(false);
   const [envoiEnCours, setEnvoiEnCours] = useState(false);
-  const [proximity] = useState(180);
   // 🔴 BATTEMENT DE 10 s — IL FAIT VIVRE LA RÈGLE D'ABSENCE, exactement comme
   // à la récupération. Sans lui, le cotransporteur particulier qui ATTEND
   // l'acheteur ne verrait jamais les signalements s'ouvrir.
@@ -107,8 +108,12 @@ export default function DeliveryScreen() {
   //
   // ⚠️ `useHubPresence` NE DÉCIDE DE RIEN. Il donne la position du téléphone
   // pour l'afficher et pour l'ENVOYER ; le verdict de zone revient du serveur.
-  const { coords } = useHubPresence(fullHub);
+  //
+  // ⚠️ SUIVI GPS SEULEMENT SUR LA PAGE DE PRÉSENCE, et pas hors hub.
+  const presence = useHubPresence(fullHub, { actif: !offHubDelivery && step === 'presence' });
   const [declaration, setDeclaration] = useState(false);
+  // Le dernier verdict HORS ZONE du serveur — la page le montre et reste là.
+  const [horsZone, setHorsZone] = useState<{ distanceM: number; rayonM: number } | null>(null);
 
   const checkScale = useSharedValue(0);
   const checkStyle = useAnimatedStyle(() => ({ transform: [{ scale: checkScale.value }] }));
@@ -254,13 +259,17 @@ export default function DeliveryScreen() {
       // ⚠️ SANS POSITION, PAS DE DÉCLARATION. Le serveur refuse un appel sans
       // coordonnées, et il a raison : une présence sans position ne prouve
       // rien. On le dit plutôt que d'envoyer un point inventé.
-      if (!coords) {
-        showToast(t('presence.noLocation'), 'error');
+      //
+      // 🔴 LUE MAINTENANT, PAS À L'OUVERTURE — voir `mission/pickup`.
+      const p = await presence.positionPourDeclarer();
+      if (!p.ok) {
+        showToast(t(CLE_MESSAGE_GPS[p.motif]), 'error');
         return;
       }
       const r = await declarerPresenceHub(mission.id, 'remise', {
-        lat: coords.latitude,
-        lng: coords.longitude,
+        lat: p.releve.latitude,
+        lng: p.releve.longitude,
+        precisionM: p.releve.precisionM,
       });
       await Haptics.notificationAsync(
         r.dansLaZone
@@ -272,10 +281,13 @@ export default function DeliveryScreen() {
         : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM)));
       showToast(message, r.dansLaZone ? 'success' : 'warning');
       AccessibilityInfo.announceForAccessibility(message);
-      // ⚠️ ON AVANCE MÊME HORS ZONE. Bloquer le scan sur une erreur GPS
-      // immobiliserait la co-livraison en retirant l'outil censé aider les
-      // deux personnes à se trouver — et l'arrivée est déjà enregistrée.
-      setStep('approach');
+      if (r.dansLaZone) {
+        setHorsZone(null);
+        setStep('approach');
+        return;
+      }
+      // 🔴 HORS ZONE, ON RESTE SUR LA PAGE — voir `mission/pickup`.
+      setHorsZone({ distanceM: r.distanceM, rayonM: r.rayonM });
     } catch (e) {
       // Le serveur dit pourquoi : hors hub, étape qui ne vous concerne pas,
       // aucun hub fixé pour cette étape.
@@ -318,24 +330,20 @@ export default function DeliveryScreen() {
         <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
           {hubCard}
 
-          {fullHub ? (
-            <HubPresenceCard
-              hub={fullHub}
-              scheduledTime={mission.deliveryHub.scheduledTime}
-              toleranceMinutes={mission.deliveryHub.toleranceMinutes}
-              onConfirm={validatePresence}
-            />
-          ) : (
-            /* ⚠️ HUB INTROUVABLE DANS LE RÉFÉRENTIEL : pas de zone à dessiner,
-               mais la présence doit rester déclarable — sinon le scan reste
-               verrouillé et la co-livraison s'arrête sur un écran muet. */
-            <Button
-              title={t('presence.button')}
-              onPress={validatePresence}
-              variant="gradient"
-              style={{ minHeight: 52 }}
-            />
-          )}
+          {/* ⚠️ HUB INTROUVABLE DANS LE RÉFÉRENTIEL (`fullHub` nul) : la carte
+              se passe du plan, mais la présence reste déclarable. */}
+          <HubPresenceCard
+            hub={fullHub}
+            presence={presence}
+            scheduledTime={mission.deliveryHub.scheduledTime}
+            toleranceMinutes={mission.deliveryHub.toleranceMinutes}
+            horsZone={horsZone}
+            enCours={declaration}
+            onConfirm={validatePresence}
+            // ⚠️ L'ARRIVÉE EST DÉJÀ ENREGISTRÉE, distance comprise : bloquer
+            // la remise sur une erreur GPS immobiliserait la co-livraison.
+            onContinuer={() => setStep('approach')}
+          />
         </ScrollView>
 
         {toast && (
@@ -357,9 +365,6 @@ export default function DeliveryScreen() {
       mission.deliveryHub.toleranceMinutes,
     ).end;
 
-    const proximityColor = proximity > 500 ? colors.primary : colors.success;
-    const proximityLabel = proximity > 500 ? 'Vous approchez du hub' : 'Vous êtes à proximité !';
-
     return (
       <View style={[s.screen, { backgroundColor: colors.background }]}>
         <View style={{ paddingTop: insets.top, paddingHorizontal: Spacing.lg }}>
@@ -376,13 +381,10 @@ export default function DeliveryScreen() {
             toleranceMinutes={mission.deliveryHub.toleranceMinutes}
           />
 
-          <View style={[s.proximityCard, { backgroundColor: proximityColor + '12' }]}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="location-filled" size={16} color={proximityColor} />
-              <Text style={[s.proximityText, { color: proximityColor }]}>{proximityLabel}</Text>
-            </View>
-          </View>
-
+          {/* 🔴 « VOUS ÊTES À PROXIMITÉ ! » A DISPARU. Il lisait `useState(180)` —
+              une distance écrite à la main, jamais mesurée — et l'affichait à
+              tout le monde, où qu'il soit. La distance réelle est sur la page
+              de présence, relue en continu. */}
           <Card>
             <View style={s.buyerRow}>
               {mission.buyer.avatar ? (
@@ -617,8 +619,6 @@ const s = StyleSheet.create({
   hubName: { ...Typography.bodyMedium },
   hubCity: { ...Typography.caption },
 
-  proximityCard: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg, borderRadius: BorderRadius.md, alignItems: 'center' },
-  proximityText: { ...Typography.bodyMedium },
   incidentLinks: { alignItems: 'center', gap: Spacing.sm, paddingTop: Spacing.xs },
   incidentLink: { ...Typography.captionMedium, textDecorationLine: 'underline', textAlign: 'center' },
   // Jamais souligne : ce n'est pas un lien, c'est la raison de leur absence.

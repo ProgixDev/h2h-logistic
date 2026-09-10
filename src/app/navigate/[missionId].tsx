@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button';
 
 import { getRoute, type RouteResult } from '@/services/routing';
 import { isVoiceEnabled, setVoiceEnabled } from '@/services/voiceGuidance';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useMissionById } from '@/stores/useMissionStore';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
@@ -31,10 +31,10 @@ export default function NavigateScreen() {
   const { missionId } = useLocalSearchParams<{ missionId: string }>();
   const router = useRouter();
   const { colors } = useColorScheme();
-  const { getMissionById } = useMissionStore();
-
   const isDemo = missionId === 'demo';
-  const mission = isDemo ? null : getMissionById(missionId ?? '');
+  // ⚠️ UN CROCHET, PAS `getMissionById()` : voir `useMissionStore`.
+  const trouvee = useMissionById(missionId);
+  const mission = isDemo ? null : trouvee;
 
   const [state, setState] = useState<NavState>('loading');
   const [routeData, setRouteData] = useState<RouteResult | null>(null);

@@ -183,7 +183,23 @@ export const fr = {
     // ENCORE être validée », pas « rien ne s'est passé ». Refuser d'écrire
     // détruirait la preuve que ce bouton existe pour produire.
     recordedOutside: 'Présence enregistrée — vous êtes à {m} m du point. Rapprochez-vous pour qu\'elle soit validée.',
-    noLocation: 'Position indisponible : activez la localisation pour déclarer votre présence.',
+    // 🔴 TROIS CAUSES, TROIS PHRASES. « Activez la localisation » était dit à
+    // tout le monde — y compris à qui l'avait activée et attendait seulement un
+    // relevé. Voir `utils/positionDuTelephone.ts`.
+    gpsPermission: 'La localisation est refusée pour H2H Logistic. Autorisez-la dans les réglages du téléphone, puis réessayez.',
+    gpsServices: 'La localisation du téléphone est désactivée. Activez-la, puis réessayez.',
+    gpsNoFix: 'Position pas encore trouvée. Patientez quelques secondes, à découvert si possible, puis réessayez.',
+    gpsSearching: 'Recherche de votre position…',
+    openSettings: 'Ouvrir les réglages',
+    accuracy: 'précision ±{m} m',
+    // 🔴 HORS ZONE, ON RESTE SUR LA PAGE. Passer au scan en affichant un toast
+    // de deux secondes laissait croire que tout était en ordre.
+    outsideTitle: 'Présence enregistrée, pas encore validée',
+    outsideBody: 'Vous étiez à {m} m du point central ; la zone fait {radius} m. Rapprochez-vous, puis appuyez de nouveau.',
+    retry: 'Je suis dans la zone — réessayer',
+    continueUnvalidated: 'Continuer sans présence validée',
+    continueUnvalidatedHint: 'Votre arrivée reste enregistrée, avec la distance mesurée.',
+    sending: 'Enregistrement…',
     failed: 'Présence non enregistrée.',
   },
   offHub: {

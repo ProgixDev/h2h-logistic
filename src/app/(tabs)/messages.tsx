@@ -9,7 +9,7 @@ import { ConversationGroup } from '@/components/chat/ConversationGroup';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useMissionStore, useActiveMissions, useCompletedMissions } from '@/stores/useMissionStore';
 import { apercuFil, type Apercu } from '@/services/messagerie';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { Mission, MissionParticipant, MissionStatus } from '@/types/mission';
@@ -51,7 +51,12 @@ export default function MessagesScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { getActiveMissions, getCompletedMissions, charger } = useMissionStore();
+  const charger = useMissionStore((s) => s.charger);
+  // ⚠️ DES CROCHETS, PAS `getActiveMissions()` — le `useMemo` plus bas dépendait
+  // des fonctions elles-mêmes, dont la référence ne change jamais : la liste
+  // restait celle du premier rendu. Voir `useMissionStore`.
+  const actives = useActiveMissions();
+  const terminees = useCompletedMissions();
 
   const moiId = useAuthStore((e) => e.user?.id ?? null);
   // 🔴 LES APERÇUS ÉTAIENT INVENTÉS. `getConversationPreview` rendait un
@@ -71,9 +76,7 @@ export default function MessagesScreen() {
   // ⚠️ UNE LECTURE PAR FIL, ET SEULEMENT POUR LES MISSIONS AFFICHÉES. On ne
   // recharge que lorsque l'ensemble des expéditions change — pas à chaque
   // rendu, sinon la liste redemanderait le serveur en défilant.
-  const missionsAffichees = showHistory
-    ? [...getActiveMissions(), ...getCompletedMissions()]
-    : getActiveMissions();
+  const missionsAffichees = showHistory ? [...actives, ...terminees] : actives;
   const clesExpeditions = missionsAffichees.map((m) => m.shipmentId).sort().join(',');
 
   useEffect(() => {
@@ -101,9 +104,9 @@ export default function MessagesScreen() {
   }, [clesExpeditions, moiId]);
 
   const groups = useMemo<GroupItem[]>(() => {
-    const active = getActiveMissions().map((m) => ({ mission: m, completed: false }));
+    const active = actives.map((m) => ({ mission: m, completed: false }));
     const past = showHistory
-      ? getCompletedMissions().map((m) => ({ mission: m, completed: true }))
+      ? terminees.map((m) => ({ mission: m, completed: true }))
       : [];
 
     const all = [...active, ...past];
@@ -117,7 +120,7 @@ export default function MessagesScreen() {
       const buyer = g.mission.buyer.name.toLowerCase();
       return title.includes(q) || seller.includes(q) || buyer.includes(q);
     });
-  }, [showHistory, search, getActiveMissions, getCompletedMissions]);
+  }, [showHistory, search, actives, terminees]);
 
   const handleOpenChat = (mission: Mission, participant: MissionParticipant, role: 'seller' | 'buyer') => {
     router.push({

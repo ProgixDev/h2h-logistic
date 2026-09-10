@@ -14,15 +14,14 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useEarningsStore } from '@/stores/useEarningsStore';
+import { useEarningsStore, useEarningsForPeriod, type Period } from '@/stores/useEarningsStore';
 import { demanderVersement, ouvrirCompteVersement } from '@/services/participations';
 import { impactCo2 } from '@/utils/impactEcologique';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useCompletedMissions } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { formatCo2 } from '@/utils/carbon';
 import { formatCurrency, formatCurrencyCompact, formatDate } from '@/utils/formatting';
 
-type Period = 'today' | 'week' | 'month' | 'total';
 const PERIODS: { key: Period; label: string }[] = [
   { key: 'today', label: "Aujourd'hui" },
   { key: 'week', label: 'Cette semaine' },
@@ -36,13 +35,14 @@ export default function EarningsScreen() {
   const { colors } = useColorScheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { summary, journal, dailyEarnings, erreur, charger, getEarningsForPeriod } =
-    useEarningsStore();
+  const { summary, journal, dailyEarnings, erreur, charger } = useEarningsStore();
   // 🔴 CALCULÉ SUR LES VRAIES CO-LIVRAISONS TERMINÉES — voir `impactEcologique`.
-  const { getCompletedMissions } = useMissionStore();
+  // ⚠️ DES CROCHETS, PAS `get…()` pendant le rendu : voir `useMissionStore`.
+  const terminees = useCompletedMissions();
   const { routes } = useRouteStore();
-  const impact = impactCo2(getCompletedMissions(), routes);
+  const impact = impactCo2(terminees, routes);
   const [period, setPeriod] = useState<Period>('week');
+  const periodData = useEarningsForPeriod(period);
   const [showEconomy, setShowEconomy] = useState(false);
   const [selectedBar, setSelectedBar] = useState<number | null>(null);
   const [retraitEnCours, setRetraitEnCours] = useState(false);
@@ -99,8 +99,6 @@ export default function EarningsScreen() {
 
   const periodCo2Kg =
     period === 'total' ? impact.total : impact.ceMois;
-
-  const periodData = getEarningsForPeriod(period);
 
   return (
     <View style={[s.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>

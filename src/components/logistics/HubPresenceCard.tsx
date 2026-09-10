@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import dayjs from 'dayjs';
@@ -7,7 +7,8 @@ import { Icon } from '@/components/ui/Icon';
 import { HubMap } from '@/components/hub/HubMap';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useHubPresence } from '@/hooks/useHubPresence';
+import type { HubPresence } from '@/hooks/useHubPresence';
+import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
 import { getToleranceWindow, isWithinTolerance } from '@/utils/tolerance';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
@@ -36,26 +37,52 @@ import type { Hub } from '@/types/hub';
  * cotransporteur particulier peut déclarer sa présence.
  */
 interface HubPresenceCardProps {
-  hub: Hub;
+  /**
+   * `null` : hub absent du référentiel. Pas de plan à dessiner, mais la
+   * présence reste déclarable — sinon le scan resterait verrouillé et la
+   * co-livraison s'arrêterait sur un écran muet.
+   */
+  hub: Hub | null;
+  /**
+   * 🔴 LA POSITION VIENT DE L'ÉCRAN, PAS D'ICI. La carte lisait son propre GPS
+   * à côté de celui de l'écran : deux relevés, et c'était celui de l'écran — lu
+   * une fois, à l'ouverture — qui partait au serveur, pendant que la carte
+   * affichait l'autre. Un seul lecteur : ce qu'on voit est ce qu'on envoie.
+   */
+  presence: HubPresence;
   scheduledTime: string;
   /** Celle de la mission. PAS de valeur par défaut — voir `utils/tolerance.ts`. */
   toleranceMinutes: number;
   /** Présence déjà enregistrée — la carte montre l'état confirmé. */
   confirmed?: boolean;
-  /** Enregistre la présence. Reçoit l'horodatage ISO. */
-  onConfirm: (isoTimestamp: string) => void;
+  /**
+   * Le dernier verdict du SERVEUR, quand il était hors zone. La carte le montre
+   * et propose de réessayer — au lieu d'un toast de deux secondes suivi du
+   * passage au scan, qui laissait croire que tout était en ordre.
+   */
+  horsZone?: { distanceM: number; rayonM: number } | null;
+  /** Une déclaration part : bouton occupé. */
+  enCours?: boolean;
+  /** Déclare (ou redéclare) la présence. */
+  onConfirm: () => void;
+  /** Hors zone : passer quand même au scan — l'arrivée reste enregistrée. */
+  onContinuer?: () => void;
 }
 
 export function HubPresenceCard({
   hub,
+  presence,
   scheduledTime,
   toleranceMinutes,
   confirmed = false,
+  horsZone = null,
+  enCours = false,
   onConfirm,
+  onContinuer,
 }: HubPresenceCardProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
-  const { coords, distanceMeters, inZone, loading } = useHubPresence(hub);
+  const { coords, distanceMeters, inZone, loading, etat, precisionM } = presence;
 
   const { start, end } = getToleranceWindow(scheduledTime, toleranceMinutes);
   const withinWindow = isWithinTolerance(scheduledTime, toleranceMinutes);
@@ -71,10 +98,19 @@ export function HubPresenceCard({
       : t('presence.statusTolerance');
   const statusColor = past ? colors.error : minutesToScheduled >= 0 ? colors.primary : colors.warning;
 
+  // ⚠️ UN RETOUR D'APPUI, PAS DE SUCCÈS : le verdict n'est pas encore rendu.
+  // L'écran vibre « succès » ou « avertissement » selon ce que dit le serveur.
   const handleConfirm = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onConfirm(new Date().toISOString());
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    onConfirm();
   };
+
+  const libelleBouton = enCours
+    ? t('presence.sending')
+    : horsZone
+      ? t('presence.retry')
+      : t('presence.button');
+  const boutonActif = withinWindow && !enCours;
 
   return (
     <View style={[s.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -109,15 +145,36 @@ export function HubPresenceCard({
         </View>
       ) : (
         <>
+          {/* 🔴 LE VERDICT DU SERVEUR, QUAND IL ÉTAIT HORS ZONE — et on RESTE
+              ICI. L'arrivée est enregistrée ; la validation, non. Le guide dit
+              « ne peut pas ENCORE être validée » : il faut pouvoir réessayer. */}
+          {horsZone && (
+            <View
+              style={[s.outsideBox, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}
+              accessibilityLiveRegion="polite"
+            >
+              <View style={s.outsideTitleRow}>
+                <Icon name="alert-circle" size={16} color={colors.warning} />
+                <Text style={[s.outsideTitle, { color: colors.text }]}>{t('presence.outsideTitle')}</Text>
+              </View>
+              <Text style={[s.outsideBody, { color: colors.text }]}>
+                {t('presence.outsideBody')
+                  .replace('{m}', String(Math.round(horsZone.distanceM)))
+                  .replace('{radius}', String(Math.round(horsZone.rayonM)))}
+              </Text>
+            </View>
+          )}
+
           {/* ⚠️ Désactivé HORS CRÉNEAU seulement — pas hors zone. Une présence
               déclarée trop tôt n'a pas de sens ; une présence déclarée à 30 m du
               point central en a un, et le plan ci-dessous le montre déjà. */}
           <Pressable
             onPress={handleConfirm}
-            disabled={!withinWindow}
-            style={{ opacity: withinWindow ? 1 : 0.5 }}
+            disabled={!boutonActif}
+            style={{ opacity: boutonActif ? 1 : 0.5 }}
             accessibilityRole="button"
-            accessibilityLabel={t('presence.button')}
+            accessibilityLabel={libelleBouton}
+            accessibilityState={{ disabled: !boutonActif, busy: enCours }}
           >
             <LinearGradient
               colors={[colors.primary, colors.primaryGradientEnd]}
@@ -125,17 +182,37 @@ export function HubPresenceCard({
               end={{ x: 1, y: 0 }}
               style={s.primaryBtn}
             >
-              <Icon name="checkmark-circle" size={18} color="#FFFFFF" />
-              <Text style={s.primaryBtnText}>{t('presence.button')}</Text>
+              {enCours ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Icon name={horsZone ? 'refresh' : 'checkmark-circle'} size={18} color="#FFFFFF" />
+              )}
+              <Text style={s.primaryBtnText}>{libelleBouton}</Text>
             </LinearGradient>
           </Pressable>
 
-          <View style={[s.essentialRow, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30' }]}>
-            <Icon name="alert-circle" size={14} color={colors.warning} />
-            <Text style={[s.essentialText, { color: colors.text }]}>
-              {t('presence.essentialMessage')}
-            </Text>
-          </View>
+          {horsZone && onContinuer ? (
+            <Pressable
+              onPress={onContinuer}
+              disabled={enCours}
+              accessibilityRole="button"
+              accessibilityLabel={t('presence.continueUnvalidated')}
+              accessibilityHint={t('presence.continueUnvalidatedHint')}
+              style={s.continueBtn}
+            >
+              <Text style={[s.continueText, { color: colors.primary }]}>{t('presence.continueUnvalidated')}</Text>
+              <Text style={[s.hint, { color: colors.textSecondary, textAlign: 'center' }]}>
+                {t('presence.continueUnvalidatedHint')}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={[s.essentialRow, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30' }]}>
+              <Icon name="alert-circle" size={14} color={colors.warning} />
+              <Text style={[s.essentialText, { color: colors.text }]}>
+                {t('presence.essentialMessage')}
+              </Text>
+            </View>
+          )}
 
           {!withinWindow && !past && (
             <Text style={[s.hint, { color: colors.textSecondary }]}>{t('presence.earlyRecommend')}</Text>
@@ -143,19 +220,48 @@ export function HubPresenceCard({
         </>
       )}
 
-      {/* Plan de la zone — position PROPRE uniquement. */}
-      <HubMap
-        hub={hub}
-        moi={coords ? { lat: coords.latitude, lng: coords.longitude } : null}
-        dansLaZone={inZone}
-      />
+      {/* 🔴 POURQUOI IL N'Y A PAS DE POSITION — dans les mots de la cause, et
+          AVANT l'appui : on apprend qu'il faut autoriser la localisation en
+          arrivant sur la page, pas en échouant devant l'autre partie. */}
+      {!confirmed && etat !== 'ok' && (
+        <View style={[s.gpsRow, { backgroundColor: colors.textSecondary + '10' }]} accessibilityLiveRegion="polite">
+          {loading ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Icon name="location-filled" size={14} color={colors.warning} />
+          )}
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[s.gpsText, { color: colors.text }]}>
+              {loading ? t('presence.gpsSearching') : t(CLE_MESSAGE_GPS[etat])}
+            </Text>
+            {etat === 'permission' && (
+              <Pressable onPress={() => { void Linking.openSettings(); }} accessibilityRole="link">
+                <Text style={[s.gpsLink, { color: colors.primary }]}>{t('presence.openSettings')}</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
 
-      {/* Distance, quand elle est connue et qu'on n'est pas dans la zone. */}
-      {!loading && !inZone && distanceMeters != null && (
+      {/* Plan de la zone — position PROPRE uniquement. */}
+      {hub && (
+        <HubMap
+          hub={hub}
+          moi={coords ? { lat: coords.latitude, lng: coords.longitude } : null}
+          dansLaZone={inZone}
+        />
+      )}
+
+      {/* Distance, quand elle est connue et qu'on n'est pas dans la zone —
+          RELUE EN CONTINU : c'est elle qui dit quand réessayer. */}
+      {!inZone && distanceMeters != null && (
         <View style={[s.distanceRow, { backgroundColor: colors.warning + '12' }]}>
           <Icon name="location-filled" size={14} color={colors.warning} />
           <Text style={[s.distanceText, { color: colors.warning }]}>
             {t('presence.distanceAway').replace('{distance}', String(Math.round(distanceMeters)))}
+            {precisionM != null
+              ? ` · ${t('presence.accuracy').replace('{m}', String(Math.round(precisionM)))}`
+              : ''}
           </Text>
         </View>
       )}
@@ -240,6 +346,25 @@ const s = StyleSheet.create({
     borderRadius: BorderRadius.sm,
   },
   distanceText: { ...Typography.captionMedium },
+
+  outsideBox: { padding: Spacing.md, borderRadius: BorderRadius.sm, borderWidth: 1, gap: 6 },
+  outsideTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
+  outsideTitle: { ...Typography.bodyMedium, fontFamily: 'Poppins_600SemiBold', flex: 1 },
+  outsideBody: { ...Typography.caption },
+
+  continueBtn: { alignItems: 'center', gap: 2, paddingVertical: Spacing.sm, minHeight: 44, justifyContent: 'center' },
+  continueText: { ...Typography.captionMedium, fontFamily: 'Poppins_600SemiBold', textDecorationLine: 'underline' },
+
+  gpsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: BorderRadius.sm,
+  },
+  gpsText: { ...Typography.caption },
+  gpsLink: { ...Typography.captionMedium, textDecorationLine: 'underline' },
 
   confidentialityRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   confidentialityText: { ...Typography.caption, fontSize: 11, flex: 1 },

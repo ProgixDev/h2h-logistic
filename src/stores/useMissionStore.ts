@@ -12,6 +12,7 @@
 // le grand livre. Tant qu'ils ne le sont pas, ils ne modifient que l'écran de ce
 // téléphone : rien de ce qu'ils affichent n'engage la plateforme.
 import { create } from 'zustand';
+import { useShallow } from 'zustand/react/shallow';
 import type { Mission, MissionStatus, CancellationReason, SupportOutcome } from '@/types/mission';
 import { ACTIVE_STATUSES, COMPLETED_STATUSES } from '@/types/mission';
 import { sequenceur } from '@/utils/derniereLectureGagne';
@@ -82,6 +83,40 @@ function isProposalSeparated(m: Mission, pairs: SeparatedPair[]): boolean {
       samePair(p, m.transporter.id, m.buyer.id) ||
       samePair(p, m.transporter.id, m.seller.id),
   );
+}
+
+// ─── CE QUE LES ÉCRANS LISENT — des fonctions PURES de l'état ───────────────
+//
+// 🔴 LES LISTES DU COTRANSPORTEUR NE BOUGEAIENT PLUS APRÈS LEUR PREMIER RENDU.
+// Constaté sur appareil le 10/09/2026 : une proposition arrivée en cours de
+// session n'apparaissait qu'après avoir TUÉ l'application ; acceptée, elle
+// restait « Nouvelle » avec son compte à rebours ; l'accueil affichait « Aucune
+// co-livraison en cours » alors que le magasin venait d'en charger trois.
+//
+// ⚠️ LA CAUSE : LE REACT COMPILER (`app.json`, `experiments.reactCompiler`). Les
+// écrans appelaient `getProposals()` pendant le rendu. La fonction lit `get()`,
+// mais sa RÉFÉRENCE ne change jamais : le compilateur mémoïse donc l'appel sur
+// elle, et le résultat du premier rendu est servi pour toujours — le magasin se
+// met à jour, l'écran se re-rend, et la liste reste celle d'avant.
+//
+// D'où ces sélecteurs, fonctions de l'ÉTAT, et les crochets en fin de fichier,
+// seuls à devoir être lus pendant un rendu. Les `get…()` du magasin délèguent
+// ici et restent pour les gestionnaires d'événements.
+export function selectProposals(s: Pick<MissionState, 'proposals' | 'separatedPairs'>): Mission[] {
+  return s.proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, s.separatedPairs));
+}
+
+export function selectActiveMissions(s: Pick<MissionState, 'activeMissions'>): Mission[] {
+  return s.activeMissions.filter((m) => ACTIVE_STATUSES.includes(m.status));
+}
+
+export function findMissionById(
+  s: Pick<MissionState, 'proposals' | 'activeMissions' | 'completedMissions'>,
+  id: string,
+): Mission | undefined {
+  return s.proposals.find((m) => m.id === id)
+    ?? s.activeMissions.find((m) => m.id === id)
+    ?? s.completedMissions.find((m) => m.id === id);
 }
 
 // 🔴 NEUF ÉCRANS APPELLENT `charger()`, ET DEUX LECTURES QUI SE CROISENT
@@ -377,19 +412,24 @@ export const useMissionStore = create<MissionState>((set, get) => ({
   isUserSuspended: (userId) => get().suspendedUserIds.includes(userId),
   arePairSeparated: (a, b) => get().separatedPairs.some((p) => samePair(p, a, b)),
 
-  getMissionById: (id) => {
-    const s = get();
-    return s.proposals.find((m) => m.id === id) ?? s.activeMissions.find((m) => m.id === id) ?? s.completedMissions.find((m) => m.id === id);
-  },
-
-  getProposals: () => {
-    const { proposals, separatedPairs } = get();
-    return proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, separatedPairs));
-  },
-  getActiveMissions: () => get().activeMissions.filter((m) => ACTIVE_STATUSES.includes(m.status)),
+  // ⚠️ POUR LES GESTIONNAIRES D'ÉVÉNEMENTS SEULEMENT. Pendant un rendu, lire
+  // les crochets ci-dessous — voir « CE QUE LES ÉCRANS LISENT ».
+  getMissionById: (id) => findMissionById(get(), id),
+  getProposals: () => selectProposals(get()),
+  getActiveMissions: () => selectActiveMissions(get()),
   getCompletedMissions: () => get().completedMissions,
-  getPendingMissions: () => {
-    const { proposals, separatedPairs } = get();
-    return proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, separatedPairs));
-  },
+  getPendingMissions: () => selectProposals(get()),
 }));
+
+// ─── LES CROCHETS — la seule lecture permise pendant un rendu ───────────────
+//
+// ⚠️ `useShallow` POUR LES LISTES FILTRÉES. `filter` rend un tableau neuf à
+// chaque lecture ; zustand 5 exige une valeur stable, et comparerait sinon deux
+// tableaux identiques comme différents — boucle de rendus. `useShallow` compare
+// le CONTENU.
+export const useProposals = (): Mission[] => useMissionStore(useShallow(selectProposals));
+export const usePendingMissions = useProposals;
+export const useActiveMissions = (): Mission[] => useMissionStore(useShallow(selectActiveMissions));
+export const useCompletedMissions = (): Mission[] => useMissionStore((s) => s.completedMissions);
+export const useMissionById = (id: string | undefined): Mission | undefined =>
+  useMissionStore((s) => (id ? findMissionById(s, id) : undefined));

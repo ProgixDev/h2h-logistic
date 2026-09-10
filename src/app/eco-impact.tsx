@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { Card } from '@/components/ui/Card';
 import { Icon } from '@/components/ui/Icon';
 import { impactCo2 } from '@/utils/impactEcologique';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useCompletedMissions } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { equivalence, formatCo2 } from '@/utils/carbon';
 import { Typography } from '@/constants/Typography';
@@ -38,9 +38,10 @@ function shortMonth(key: string): string {
 export default function EcoImpactScreen() {
   const { colors } = useColorScheme();
   // 🔴 CALCULÉ SUR LES VRAIES CO-LIVRAISONS TERMINÉES — voir `impactEcologique`.
-  const { getCompletedMissions } = useMissionStore();
+  // ⚠️ UN CROCHET, PAS `getCompletedMissions()` : voir `useMissionStore`.
+  const terminees = useCompletedMissions();
   const { routes } = useRouteStore();
-  const impact = impactCo2(getCompletedMissions(), routes);
+  const impact = impactCo2(terminees, routes);
   const totalKgSavedAllTime = impact.total;
   const totalKgSavedThisMonth = impact.ceMois;
   const monthlyHistory = impact.parMois;

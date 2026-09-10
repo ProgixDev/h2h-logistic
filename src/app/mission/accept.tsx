@@ -12,7 +12,7 @@ import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
-import { useMissionStore } from '@/stores/useMissionStore';
+import { useMissionStore, useMissionById } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
 import { StarsAnimation } from '@/components/mission/StarsAnimation';
@@ -24,10 +24,18 @@ export default function AcceptMissionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { getMissionById, acceptMission, rejectMission, isLoading } = useMissionStore();
+  const { acceptMission, rejectMission, isLoading, charger } = useMissionStore();
   const { routes } = useRouteStore();
 
-  const mission = getMissionById(id ?? '');
+  // ⚠️ UN CROCHET, PAS `getMissionById()` : voir `useMissionStore`.
+  const mission = useMissionById(id);
+
+  // Ouvert depuis une notification, l'écran peut précéder la première lecture
+  // des co-livraisons : on la demande plutôt que d'annoncer « introuvable ».
+  const manquante = !mission;
+  useEffect(() => {
+    if (manquante) void charger();
+  }, [manquante, charger]);
 
   if (!mission) {
     return (
