@@ -47,6 +47,11 @@ export interface PublishFormData {
   deliveryHubs: RouteHub[];
   // Step 5
   pickupTime?: string;
+  /**
+   * Trajet unique : le JOUR du départ, « AAAA-MM-JJ » au calendrier de Paris.
+   * 🔴 Il n'était pas demandé — le trajet se datait tout seul d'aujourd'hui.
+   */
+  departureDate?: string;
   deliveryTimes: Record<string, string>; // hubId → "HH:mm"
   recurringDays: number[]; // 1=Mon…7=Sun
   // Defaulted from the carrier's profile transport — no longer a publish step

@@ -175,7 +175,8 @@ function versMission(
       id: l.shipment_id ?? l.id,
       description: l.package_description ?? 'Colis',
       size: l.parcel_format ?? 'M',
-      weight: Number(l.package_weight_kg ?? 0),
+      // ⚠️ `null` RESTE `null` — `Number(null ?? 0)` affichait « 0 kg ».
+      weight: l.package_weight_kg == null ? null : Number(l.package_weight_kg),
       photo: l.package_photo ?? undefined,
       trackingNumber: l.tracking_number ?? undefined,
     },

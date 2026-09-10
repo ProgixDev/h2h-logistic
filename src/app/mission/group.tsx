@@ -30,7 +30,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
-import { formatCurrency } from '@/utils/formatting';
+import { formatCurrency, tailleEtPoids } from '@/utils/formatting';
 import type { Mission, MissionParticipant } from '@/types/mission';
 
 const QUICK_MESSAGES = [
@@ -549,7 +549,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
                   <View style={[gs.pkgT, { backgroundColor: colors.primary + '10' }]}><Icon name="package" size={22} color={colors.primary} /></View>
                   <View style={{ flex: 1, gap: 2 }}>
                     <Text style={[gs.pkgTitle, { color: colors.text }]} numberOfLines={1}>{mission.package.description}</Text>
-                    <Text style={[gs.pkgSub, { color: colors.textSecondary }]}>Taille {mission.package.size} — {mission.package.weight} kg</Text>
+                    <Text style={[gs.pkgSub, { color: colors.textSecondary }]}>Taille {tailleEtPoids(mission.package.size, mission.package.weight)}</Text>
                   </View>
                 </View>
                 <Text style={{ color: colors.textSecondary }}>{packageExpanded ? '▴' : '▾'}</Text>

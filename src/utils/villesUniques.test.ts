@@ -31,26 +31,24 @@ function sansCommentaires(...morceaux: string[]): string {
     .replace(/^\s*\/\/.*$/gm, '');
 }
 
-const ECRANS = [
-  ['src', 'app', '(auth)', 'complete-profile.tsx'],
-  ['src', 'app', 'publish', 'cities.tsx'],
-];
-
 test('🔴 AUCUN ÉCRAN NE REDÉFINIT SA PROPRE LISTE DE VILLES', () => {
-  for (const ecran of ECRANS) {
-    const code = sansCommentaires(...ecran);
+  // L'inscription (« Ville principale », où l'on HABITE) lit la liste partagée.
+  const inscription = sansCommentaires('src', 'app', '(auth)', 'complete-profile.tsx');
+  assert.doesNotMatch(inscription, /const CITIES\s*=\s*\[/, 'l inscription redefinit CITIES');
+  assert.match(
+    inscription,
+    /import \{ CITIES \} from '@\/constants\/Cities'/,
+    'l inscription n importe pas la liste partagee',
+  );
 
-    assert.doesNotMatch(
-      code,
-      /const CITIES\s*=\s*\[/,
-      `${ecran.join('/')} redefinit CITIES : les deux listes vont diverger`,
-    );
-    assert.match(
-      code,
-      /import \{ CITIES \} from '@\/constants\/Cities'/,
-      `${ecran.join('/')} n importe pas la liste partagee`,
-    );
-  }
+  // 🔴 LA PUBLICATION D'UN TRAJET (par où l'on PASSE) LIT L'ANNUAIRE DES HUBS,
+  // depuis le 10/09/2026. Elle proposait les dix villes de `CITIES` — dont
+  // Monaco, sans aucun hub — quand l'annuaire en couvre près de trois cents.
+  const publication = sansCommentaires('src', 'app', 'publish', 'cities.tsx');
+  assert.doesNotMatch(publication, /\bCITIES\b/, 'la publication repropose une liste ecrite a la main');
+  assert.doesNotMatch(publication, /const \w+\s*=\s*\[\s*'[A-Z]/, 'la publication ecrit ses villes a la main');
+  assert.match(publication, /chargerVillesAvecHubs\(\)/, 'la publication ne lit plus les villes de l annuaire');
+  assert.match(publication, /<TextInput[\s\S]*?onChangeText=\{setSearch\}/, 'la recherche de ville n a plus de champ');
 });
 
 test('⚠️ LA LISTE PARTAGÉE CONTIENT LES TROIS VILLES QUI MANQUAIENT', () => {

@@ -35,6 +35,31 @@ export async function basculerEnLigne(enLigne: boolean): Promise<boolean> {
 }
 
 /**
+ * L'état EN LIGNE tel que le serveur le tient — celui qui décide des propositions.
+ *
+ * 🔴 L'APPLICATION NE LE LISAIT JAMAIS (vu à l'émulateur le 10/09/2026). Elle
+ * repartait de son stockage local, « hors ligne » par défaut après une
+ * installation ou une déconnexion — pendant que le serveur, lui, tenait le
+ * cotransporteur EN LIGNE et lui proposait des co-livraisons. L'interrupteur
+ * disait le contraire de la vérité, dans le sens qui coûte le plus : on se croit
+ * en pause, on ne regarde plus, et une proposition expire.
+ *
+ * ⚠️ PAS DE LIGNE = EN LIGNE. C'est la règle du serveur
+ * (`coalesce(cp.is_online, true)` dans `app.trajets_compatibles`) : un
+ * cotransporteur qui n'a jamais basculé est proposé. L'écran doit dire la même
+ * chose.
+ */
+export async function lireEnLigne(profilId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('courier_profiles')
+    .select('is_online')
+    .eq('profile_id', profilId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as { is_online: boolean } | null)?.is_online ?? true;
+}
+
+/**
  * Enregistre ce que le cotransporteur possède vraiment : son véhicule et ses
  * modes de transport.
  *

@@ -17,7 +17,7 @@ import {
   useActiveMissions,
   useCompletedMissions,
 } from '@/stores/useMissionStore';
-import { formatCurrency, formatTime, formatDate } from '@/utils/formatting';
+import { formatCurrency, formatTime, formatDate, tailleEtPoids } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
 
 type Tab = 'new' | 'active' | 'completed';
@@ -182,7 +182,7 @@ function ProposalCard({ mission, colors, router }: { mission: Mission; colors: a
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             <Icon name="package" size={14} color={colors.textSecondary} />
             <Text style={[styles.proposalPkg, { color: colors.textSecondary }]}>
-              Colis {mission.package.size} — {mission.package.weight} kg
+              Colis {tailleEtPoids(mission.package.size, mission.package.weight)}
             </Text>
           </View>
           <Text style={[styles.proposalTime, { color: colors.textSecondary }]}>

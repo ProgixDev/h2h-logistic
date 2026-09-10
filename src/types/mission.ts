@@ -47,7 +47,13 @@ export interface MissionPackage {
   id: string;
   description: string;
   size: string;
-  weight: number;
+  /**
+   * Kilogrammes, ou `null` s'il n'a pas été déclaré.
+   * 🔴 `null`, PAS `0` : aucune étape de la place de marché ne relève encore le
+   * poids d'un colis (`missions.package_weight_kg` n'est jamais écrit), et
+   * « 0 kg » s'affichait sur chaque co-livraison (vu le 10/09/2026).
+   */
+  weight: number | null;
   photo?: string;
   thumbnail?: string;
   condition?: string;

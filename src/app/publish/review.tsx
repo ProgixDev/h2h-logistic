@@ -24,6 +24,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { libelleDate } from '@/utils/heureDeParis';
 
 const DAYS_MAP: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' };
 
@@ -153,6 +154,16 @@ export default function PublishReviewScreen() {
             onEdit={() => goToStep(4)}
             colors={colors}
           />
+
+          {/* Jour du trajet unique — il était fixé sans être montré. */}
+          {form.type === 'one_time' && form.departureDate && (
+            <ReviewRow
+              label="Jour"
+              value={libelleDate(form.departureDate)}
+              onEdit={() => goToStep(5)}
+              colors={colors}
+            />
+          )}
 
           {/* Schedule */}
           <ReviewRow

@@ -34,6 +34,7 @@ import { useRouteStore } from '@/stores/useRouteStore';
 import { Icon } from '@/components/ui/Icon';
 import { chargerHubsParVille } from '@/services/hubs';
 import { iconeHub, libelleHub } from '@/constants/HubTypes';
+import { HubsMap, carteDisponible } from '@/components/hub/HubsMap';
 import type { Hub } from '@/types/hub';
 
 type ViewMode = 'list' | 'map';
@@ -109,7 +110,9 @@ export default function HubPickupScreen() {
           Sélectionnez un hub validé dans votre ville de départ ({form.departureCity}).
         </Text>
 
-        {/* View mode toggle */}
+        {/* View mode toggle — seulement si la carte native est là : proposer
+            un onglet qui n'affiche qu'un écriteau, c'était le défaut. */}
+        {carteDisponible && hubs.length > 0 && (
         <View style={[styles.toggleRow, { backgroundColor: colors.border + '30' }]}>
           <TouchableOpacity
             onPress={() => setViewMode('list')}
@@ -124,32 +127,33 @@ export default function HubPickupScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="map-overview" size={14} color={viewMode === 'map' ? colors.text : colors.textSecondary} /><Text style={[styles.toggleText, { color: viewMode === 'map' ? colors.text : colors.textSecondary }]}>Carte</Text></View>
           </TouchableOpacity>
         </View>
+        )}
 
-        {viewMode === 'map' ? (
-          /* ─── Map View (MapLibre placeholder) ─── */
-          <View style={[styles.mapContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Icon name="map-overview" size={48} color={colors.textSecondary} />
-            <Text style={[styles.mapText, { color: colors.textSecondary }]}>
-              Carte MapLibre — {hubs.length} hubs
-            </Text>
-            <Text style={[styles.mapHint, { color: colors.textSecondary }]}>
-              Nécessite un development build
-            </Text>
-            {/* Hub pins as simple list below map */}
-            {hubs.map((hub) => {
-              const selected = hub.id === selectedId;
-              return (
-                <TouchableOpacity
-                  key={hub.id}
-                  onPress={() => selectHub(hub)}
-                  style={[styles.mapPin, { backgroundColor: selected ? colors.primary + '15' : 'transparent', borderBottomColor: colors.border }]}
-                >
-                  <Icon name={iconeHub(hub.placeType)} size={18} color={colors.textSecondary} />
-                  <Text style={[styles.mapPinName, { color: colors.text }]} numberOfLines={1}>{hub.name}</Text>
-                  {selected && <Text style={[styles.mapPinCheck, { color: colors.primary }]}>✓</Text>}
-                </TouchableOpacity>
+        {viewMode === 'map' && carteDisponible && hubs.length > 0 ? (
+          /* ─── Carte : un appui sur l'épingle choisit le hub ─── */
+          <View style={styles.mapContainer}>
+            <HubsMap hubs={hubs} choisiId={selectedId} onChoisir={selectHub} />
+            {(() => {
+              const choisi = hubs.find((h) => h.id === selectedId);
+              return choisi ? (
+                <View style={[styles.hubCard, { backgroundColor: colors.surface, borderColor: colors.primary }]}>
+                  <View style={styles.hubTop}>
+                    <View style={styles.hubNameRow}>
+                      <Icon name={iconeHub(choisi.placeType)} size={20} color={colors.textSecondary} />
+                      <Text style={[styles.hubName, { color: colors.text }]} numberOfLines={1}>{choisi.name}</Text>
+                    </View>
+                    <View style={[styles.checkCircle, { backgroundColor: colors.primary, borderColor: colors.primary }]}>
+                      <Text style={styles.checkIcon}>✓</Text>
+                    </View>
+                  </View>
+                  <Text style={[styles.hubAddress, { color: colors.textSecondary }]} numberOfLines={3}>{choisi.displayDetail}</Text>
+                </View>
+              ) : (
+                <Text style={[styles.info, { color: colors.textSecondary, textAlign: 'center' }]}>
+                  Touchez une épingle pour choisir ce hub.
+                </Text>
               );
-            })}
+            })()}
           </View>
         ) : (
           /* ─── List View ─── */
@@ -208,10 +212,12 @@ export default function HubPickupScreen() {
               const selected = item.id === selectedId;
               return (
                 <TouchableOpacity onPress={() => selectHub(item)} activeOpacity={0.8}>
+                  {/* ⚠️ RIEN NE CHANGE DE TAILLE À LA SÉLECTION — même correction
+                      qu'aux hubs de remise : bordure d'épaisseur fixe, case
+                      toujours présente. La carte sautait sous le doigt. */}
                   <View style={[
                     styles.hubCard,
                     { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border },
-                    selected && { borderWidth: 2 },
                   ]}>
                     {/* Top row */}
                     <View style={styles.hubTop}>
@@ -219,21 +225,26 @@ export default function HubPickupScreen() {
                         <Icon name={iconeHub(item.placeType)} size={20} color={colors.textSecondary} />
                         <Text style={[styles.hubName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                       </View>
-                      {selected ? (
-                        <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
-                          <Text style={styles.checkIcon}>✓</Text>
-                        </View>
-                      ) : (
-                        null
-                      )}
+                      <View
+                        style={[
+                          styles.checkCircle,
+                          selected
+                            ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                            : { borderColor: colors.border },
+                        ]}
+                      >
+                        {selected && <Text style={styles.checkIcon}>✓</Text>}
+                      </View>
                     </View>
 
                     {/* 🔴 LE DÉTAIL AFFICHÉ, pas l adresse et les horaires. Le
                         protocole de nommage dit que le nom seul ne suffit
                         jamais : c est cette ligne qui dit où se présenter. Les
-                        horaires décrivaient un entrepôt. */}
+                        horaires décrivaient un entrepôt.
+                        ⚠️ ET PLUS LA VILLE EN DESSOUS : le détail l'écrit déjà
+                        (« Chemin du Génie, Marseille »), et c'est la ville qu'on
+                        vient de choisir — « Marseille » s'affichait deux fois. */}
                     <Text style={[styles.hubAddress, { color: colors.textSecondary }]} numberOfLines={3}>{item.displayDetail}</Text>
-                    <Text style={[styles.hubHours, { color: colors.textSecondary }]}>{item.city}</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -262,28 +273,20 @@ const styles = StyleSheet.create({
   toggleText: { ...Typography.captionMedium },
 
   // Map
-  mapContainer: { flex: 1, borderRadius: BorderRadius.lg, borderWidth: 1, padding: Spacing.lg, alignItems: 'center', gap: Spacing.sm },
-  mapEmoji: { fontSize: 48, marginTop: Spacing.xl },
-  mapText: { ...Typography.bodyMedium },
-  mapHint: { ...Typography.caption, marginBottom: Spacing.md },
-  mapPin: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, paddingVertical: Spacing.md, paddingHorizontal: Spacing.sm, borderBottomWidth: 0.5, width: '100%', borderRadius: BorderRadius.sm },
-  mapPinIcon: { fontSize: 18 },
-  mapPinName: { ...Typography.body, flex: 1 },
-  mapPinCheck: { fontSize: 16, fontWeight: '700' },
+  mapContainer: { flex: 1, gap: Spacing.md },
 
   // List
   list: { paddingBottom: Spacing.md },
   empty: { ...Typography.body, textAlign: 'center', paddingVertical: Spacing.xxl },
 
   // Hub card
-  hubCard: { borderWidth: 1.5, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.xs },
-  hubTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hubCard: { borderWidth: 2, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.xs },
+  hubTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 24 },
   hubNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1, marginRight: Spacing.sm },
   hubTypeIcon: { fontSize: 20 },
   hubName: { ...Typography.bodyMedium, flex: 1 },
   hubAddress: { ...Typography.caption, paddingLeft: 28 },
-  hubHours: { ...Typography.caption, paddingLeft: 28 },
-  checkCircle: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  checkCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   checkIcon: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
 
   // Partner

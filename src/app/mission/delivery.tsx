@@ -26,7 +26,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore, useMissionById } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
-import { chargerHubs } from '@/services/hubs';
+import { chargerHub } from '@/services/hubs';
 import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
 import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
@@ -94,8 +94,9 @@ export default function DeliveryScreen() {
   useEffect(() => {
     let vivant = true;
     if (!hubVise) return;
-    chargerHubs()
-      .then((hubs) => { if (vivant) setFullHub(hubs.find((h) => h.id === hubVise) ?? null); })
+    // ⚠️ UN HUB, PAS L'ANNUAIRE : voir `chargerHub`.
+    chargerHub(hubVise)
+      .then((h) => { if (vivant) setFullHub(h); })
       .catch((e) => console.error('[mission] hub de remise illisible', e));
     return () => { vivant = false; };
   }, [hubVise]);

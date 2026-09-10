@@ -11,7 +11,8 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
-import { normaliserHeure, heureValide } from '@/utils/heureTrajet';
+import { normaliserHeure, heureValide, saisieHeure } from '@/utils/heureTrajet';
+import { joursAVenir, estPasse } from '@/utils/heureDeParis';
 
 const DAYS = [
   { key: 1, short: 'L', label: 'Lun' },
@@ -50,6 +51,15 @@ export default function PublishScheduleScreen() {
   const [pickupTime, setPickupTime] = useState(form.pickupTime ?? '');
   const [deliveryTimes, setDeliveryTimes] = useState<Record<string, string>>(form.deliveryTimes);
   const [days, setDays] = useState<number[]>(form.recurringDays);
+  // 🔴 UN TRAJET UNIQUE CHOISIT SON JOUR. Il se datait tout seul d'aujourd'hui
+  // (ou de demain si l'heure était passée), sans le dire. Quatorze jours à
+  // l'avance, au calendrier de Paris — celui du serveur.
+  const [jours] = useState(() => joursAVenir(Date.now(), 14));
+  const [departureDate, setDepartureDate] = useState<string>(
+    form.departureDate && jours.some((j) => j.date === form.departureDate)
+      ? form.departureDate
+      : jours[0].date,
+  );
 
   const toggleDay = useCallback((day: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -64,12 +74,16 @@ export default function PublishScheduleScreen() {
   const allTimesSet =
     heureValide(pickupTime) && form.deliveryHubs.every((h) => heureValide(deliveryTimes[h.hubId]));
   const daysOk = !isRecurring || days.length > 0;
-  const canNext = allTimesSet && daysOk;
+  // ⚠️ UN DÉPART DÉJÀ PASSÉ serait un trajet périmé à la seconde de sa création.
+  const departPasse =
+    !isRecurring && heureValide(pickupTime) && estPasse(departureDate, normaliserHeure(pickupTime)!, Date.now());
+  const canNext = allTimesSet && daysOk && !departPasse;
 
   const handleNext = () => {
     // ⚠️ ON ENREGISTRE LA FORME NORMALISÉE. « 7h30 » saisi devient « 07:30 »
     // stocké : tout ce qui lit `schedule.pickupTime` en aval fait `split(':')`.
     setFormField('pickupTime', normaliserHeure(pickupTime)!);
+    setFormField('departureDate', isRecurring ? undefined : departureDate);
     setFormField(
       'deliveryTimes',
       Object.fromEntries(
@@ -91,6 +105,42 @@ export default function PublishScheduleScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: colors.text }]}>Vos horaires de passage</Text>
 
+        {/* Jour du trajet unique */}
+        {!isRecurring && (
+          <View style={styles.daysSection}>
+            <Text style={[styles.daysTitle, { color: colors.text }]}>Jour du trajet</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.dateRow}
+            >
+              {jours.map((j) => {
+                const actif = j.date === departureDate;
+                return (
+                  <TouchableOpacity
+                    key={j.date}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setDepartureDate(j.date);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: actif }}
+                    style={[
+                      styles.dateChip,
+                      {
+                        backgroundColor: actif ? colors.primary : 'transparent',
+                        borderColor: actif ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.dayText, { color: actif ? '#FFFFFF' : colors.text }]}>{j.libelle}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
+
         {/* Pickup hub time */}
         <View style={[styles.hubSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Text style={[styles.hubLabel, { color: colors.textSecondary }]}>Hub de récupération</Text>
@@ -100,13 +150,20 @@ export default function PublishScheduleScreen() {
             <TextInput
               style={[styles.timeInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
               value={pickupTime}
-              onChangeText={setPickupTime}
+              onChangeText={(t) => setPickupTime(saisieHeure(t))}
               placeholder="07:05"
               placeholderTextColor={colors.textSecondary}
-              keyboardType="numbers-and-punctuation"
+              // ⚠️ `number-pad`, PAS `numbers-and-punctuation` : ce dernier
+              // n'existe que sur iOS, Android ouvrait le clavier texte.
+              keyboardType="number-pad"
               maxLength={5}
             />
           </View>
+          {departPasse && (
+            <Text style={[styles.errorHint, { color: colors.error }]}>
+              Cette heure est déjà passée ce jour-là : choisissez un autre jour ou une heure à venir.
+            </Text>
+          )}
           {heureValide(pickupTime) && (
             <View style={[styles.toleranceBar, { backgroundColor: colors.primary + '10' }]}>
               <Text style={[styles.toleranceText, { color: colors.primary }]}>
@@ -126,10 +183,10 @@ export default function PublishScheduleScreen() {
               <TextInput
                 style={[styles.timeInput, { color: colors.text, borderColor: colors.border, backgroundColor: colors.background }]}
                 value={deliveryTimes[hub.hubId] ?? ''}
-                onChangeText={(t) => setDeliveryTime(hub.hubId, t)}
+                onChangeText={(t) => setDeliveryTime(hub.hubId, saisieHeure(t))}
                 placeholder="12:30"
                 placeholderTextColor={colors.textSecondary}
-                keyboardType="numbers-and-punctuation"
+                keyboardType="number-pad"
                 maxLength={5}
               />
             </View>
@@ -197,6 +254,9 @@ const styles = StyleSheet.create({
   daysRow: { flexDirection: 'row', gap: Spacing.sm },
   dayChip: { width: 40, height: 40, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   dayText: { ...Typography.captionMedium },
+  dateRow: { gap: Spacing.sm, paddingRight: Spacing.lg },
+  dateChip: { height: 40, paddingHorizontal: Spacing.md, borderRadius: 20, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
+  errorHint: { ...Typography.caption },
   daysHint: { ...Typography.caption },
   footer: { paddingHorizontal: Spacing.xxl },
 });

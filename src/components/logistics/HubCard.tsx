@@ -28,6 +28,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { iconeHub, libelleHub } from '@/constants/HubTypes';
+import { villeSiAbsente } from '@/utils/detailHub';
 
 interface HubCardProps {
   hub: Hub;
@@ -106,8 +107,10 @@ export function HubCard({
           {/* ⚠️ LES HORAIRES ONT DISPARU, et ce n'est pas une perte : un point de
               rendez-vous n'ouvre ni ne ferme. Ce qui conditionne l'accès — « côté
               boutique », « portail principal » — se dit dans le détail affiché. */}
+          {/* ⚠️ LA VILLE SEULEMENT SI LE DÉTAIL NE LA DIT PAS DÉJÀ — voir
+              `villeSiAbsente`. « Marseille » s'affichait deux fois. */}
           <Text style={[styles.hours, { color: colors.textSecondary }]}>
-            {hub.city}
+            {villeSiAbsente(hub.displayDetail, hub.city)}
           </Text>
           <View style={styles.footerRight}>
             {distance && (

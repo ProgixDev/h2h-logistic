@@ -113,21 +113,29 @@ export default function HubDeliveryScreen() {
           Sélectionnez uniquement les hubs compatibles avec votre trajet prévu.
         </Text>
 
-        {/* Selected chips */}
-        {form.deliveryHubs.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
-            {form.deliveryHubs.map((hub) => (
-              <TouchableOpacity key={hub.hubId} onPress={() => removeHub(hub.hubId)} style={[styles.chip, { backgroundColor: colors.primary + '12', borderColor: colors.primary }]}>
-                <Text style={[styles.chipText, { color: colors.primary }]}>{hub.hubName}</Text>
-                <Text style={[styles.chipX, { color: colors.primary }]}>✕</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        )}
+        {/* 🔴 LA LISTE SAUTAIT SOUS LE DOIGT (vu à l'émulateur le 10/09/2026).
+            Cette rangée n'existait qu'à partir du premier hub choisi : le
+            premier appui insérait ~50 px AU-DESSUS de la liste, et la carte
+            visée filait sous le doigt. La rangée garde désormais sa hauteur,
+            vide ou pleine. */}
+        <View style={styles.chipsSlot}>
+          {form.deliveryHubs.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+              {form.deliveryHubs.map((hub) => (
+                <TouchableOpacity key={hub.hubId} onPress={() => removeHub(hub.hubId)} style={[styles.chip, { backgroundColor: colors.primary + '12', borderColor: colors.primary }]}>
+                  <Text style={[styles.chipText, { color: colors.primary }]}>{hub.hubName}</Text>
+                  <Text style={[styles.chipX, { color: colors.primary }]}>✕</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={[styles.info, { color: colors.textSecondary }]}>Aucun hub sélectionné</Text>
+          )}
+        </View>
 
         {/* Counter */}
         <Text style={[styles.counter, { color: colors.primary }]}>
-          {selectedIds.length}/{MAX_HUBS} hubs sélectionnés
+          {selectedIds.length}/{MAX_HUBS} hubs sélectionnés{atMax ? ' — maximum atteint' : ''}
         </Text>
 
         <FlatList
@@ -177,24 +185,35 @@ export default function HubDeliveryScreen() {
             const dimmed = atMax && !selected;
             return (
               <TouchableOpacity onPress={() => toggleHub(item)} activeOpacity={0.8} disabled={dimmed}>
+                {/* ⚠️ RIEN NE CHANGE DE TAILLE À LA SÉLECTION : la bordure garde
+                    son épaisseur (seule sa couleur change), la case existe
+                    toujours (vide ou cochée), et « maximum atteint » est dit
+                    une fois dans le compteur plutôt que sous chaque carte. */}
                 <View style={[
                   styles.hubCard,
                   { backgroundColor: colors.surface, borderColor: selected ? colors.primary : colors.border, opacity: dimmed ? 0.45 : 1 },
-                  selected && { borderWidth: 2 },
                 ]}>
                   <View style={styles.hubTop}>
                     <View style={styles.hubNameRow}>
                       <Icon name={iconeHub(item.placeType)} size={20} color={colors.textSecondary} />
                       <Text style={[styles.hubName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
                     </View>
-                    {selected && (
-                      <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
-                        <Text style={styles.checkIcon}>✓</Text>
-                      </View>
-                    )}
+                    <View
+                      style={[
+                        styles.checkCircle,
+                        selected
+                          ? { backgroundColor: colors.primary, borderColor: colors.primary }
+                          : { borderColor: colors.border },
+                      ]}
+                    >
+                      {selected && <Text style={styles.checkIcon}>✓</Text>}
+                    </View>
                   </View>
-                  <Text style={[styles.hubAddress, { color: colors.textSecondary }]}>{item.address}</Text>
-                  {dimmed && <Text style={[styles.maxLabel, { color: colors.textSecondary }]}>Maximum atteint</Text>}
+                  {/* 🔴 LE DÉTAIL CONTRÔLÉ, PAS L'ADRESSE GOOGLE BRUTE. `address`
+                      rendait « Deli & Cia, Gare De Nice, Av. Thiers » — le nom
+                      d'une sandwicherie du hall. `displayDetail` est la ligne
+                      du protocole, vérifiée : c'est celle de la récupération. */}
+                  <Text style={[styles.hubAddress, { color: colors.textSecondary }]}>{item.displayDetail}</Text>
                 </View>
               </TouchableOpacity>
             );
@@ -215,20 +234,20 @@ const styles = StyleSheet.create({
   title: { ...Typography.h1 },
   subtitle: { ...Typography.body, marginTop: -Spacing.xs },
   info: { ...Typography.caption, lineHeight: 18 },
-  chipsRow: { gap: Spacing.sm, paddingVertical: Spacing.xs },
+  chipsSlot: { height: 44, justifyContent: 'center' },
+  chipsRow: { gap: Spacing.sm, paddingVertical: Spacing.xs, alignItems: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, gap: Spacing.xs },
   chipText: { ...Typography.captionMedium },
   chipX: { fontSize: 12, fontWeight: '700' },
   counter: { ...Typography.captionMedium },
   list: { paddingBottom: Spacing.md },
-  hubCard: { borderWidth: 1.5, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.xs },
-  hubTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  hubCard: { borderWidth: 2, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.xs },
+  hubTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 24 },
   hubNameRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1, marginRight: Spacing.sm },
   hubTypeIcon: { fontSize: 20 },
   hubName: { ...Typography.bodyMedium, flex: 1 },
   hubAddress: { ...Typography.caption, paddingLeft: 28 },
-  maxLabel: { ...Typography.caption, fontStyle: 'italic', paddingLeft: 28 },
-  checkCircle: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  checkCircle: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   checkIcon: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
   footer: { paddingHorizontal: Spacing.xxl },
 });

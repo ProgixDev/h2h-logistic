@@ -34,7 +34,21 @@ import { storage, StorageKeys, getStoredJSON, setStoredJSON } from '@/services/s
 import { requireClerk, peekClerk } from '@/lib/clerkBridge';
 import { supabase } from '@/lib/supabase';
 import { chargerMaConvention, signerConvention } from '@/services/convention';
-import { basculerEnLigne } from '@/services/disponibilite';
+import { basculerEnLigne, lireEnLigne } from '@/services/disponibilite';
+
+/**
+ * Aligne l'interrupteur « En ligne » sur le SERVEUR — voir `lireEnLigne`.
+ *
+ * ⚠️ UN ÉCHEC DE LECTURE NE CHANGE RIEN : on garde l'état connu plutôt que d'en
+ * inventer un. Et on ne bloque pas le démarrage pour ça.
+ */
+async function relireEnLigne(profilId: string, poser: (s: TransporterStatus) => void) {
+  try {
+    poser((await lireEnLigne(profilId)) ? 'active' : 'offline');
+  } catch (e) {
+    console.warn('[disponibilite] etat en ligne illisible :', (e as Error).message);
+  }
+}
 
 type TransporterStatus = 'active' | 'offline';
 
@@ -222,6 +236,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // drapeau de Clerk : c'est ce qui décide d'aller à complete-profile.
         isNewUser: !user.firstName,
       });
+      // 🔴 LE STOCKAGE LOCAL NE DIT PAS SI L'ON EST EN LIGNE ; le serveur, si.
+      void relireEnLigne(user.id, get().setTransporterStatus);
     } catch (e) {
       // ⚠️ UNE REPRISE QUI ÉCHOUE NE DOIT PAS EMPÊCHER L'APPLICATION DE
       // DÉMARRER : on retombe sur l'écran de connexion.
@@ -314,6 +330,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         token: (await clerk.session?.getToken()) ?? null,
         phoneNumber: null,
       });
+      // ⚠️ APRÈS UNE CONNEXION, le stockage vient d'être vidé par la
+      // déconnexion : seul le serveur sait si ce compte est en pause.
+      void relireEnLigne(user.id, get().setTransporterStatus);
       return true;
     } catch (e) {
       console.error('[auth] verification du code impossible', e);

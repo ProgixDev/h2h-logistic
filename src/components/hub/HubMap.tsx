@@ -40,6 +40,7 @@
 // a besoin de la garde, parce que seule elle dépend d'`expo-maps`.
 import React from 'react';
 import { Platform, View, Text, StyleSheet } from 'react-native';
+import { useImage } from 'expo-image';
 import type { Hub } from '@/types/hub';
 import { HubZoneMap } from '@/components/logistics/HubZoneMap';
 import { Typography } from '@/constants/Typography';
@@ -49,8 +50,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 type ModuleCartes = typeof import('expo-maps');
 
-/** `null` dès que le module natif n'est pas lié — Expo Go, ou build antérieur. */
-const CARTES: ModuleCartes | null = (() => {
+/**
+ * `null` dès que le module natif n'est pas lié — Expo Go, ou build antérieur.
+ * Exporté : `HubsMap` (plusieurs hubs à choisir) passe par la même garde.
+ */
+export const CARTES: ModuleCartes | null = (() => {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('expo-maps') as ModuleCartes;
@@ -73,6 +77,16 @@ export type HubMapProps = {
 export function HubMap({ hub, moi, autre, dansLaZone = false, hauteur = 200 }: HubMapProps) {
   const { colors } = useColorScheme();
   const { t } = useTranslation();
+  // 🔴 LE HUB ET MOI PORTAIENT LA MÊME ÉPINGLE ROUGE (vu à l'émulateur le
+  // 10/09/2026) : deux épingles identiques à 20 m l'une de l'autre, et rien pour
+  // dire laquelle est le point de rendez-vous. Le hub garde l'épingle — c'est le
+  // lieu — et les personnes deviennent des POINTS, vert pour moi, orange pour
+  // l'autre : les couleurs de la place de marché, et du schéma de repli.
+  //
+  // ⚠️ SUR ANDROID, UNE IMAGE EST LE SEUL MOYEN : le marqueur Google d'`expo-maps`
+  // n'a pas de couleur, seulement `icon`. Sur iOS, `tintColor` suffit.
+  const pointMoi = useImage(require('../../../assets/images/carte/point-moi.png'));
+  const pointAutre = useImage(require('../../../assets/images/carte/point-autre.png'));
 
   // ⚠️ APRÈS LES HOOKS. `CARTES` est constant pour la durée du programme, donc
   // la branche ne change jamais d'un rendu à l'autre — mais placer un retour
@@ -95,10 +109,28 @@ export function HubMap({ hub, moi, autre, dansLaZone = false, hauteur = 200 }: H
   // cadre et celle d'un rond-point serait un point.
   const zoom = hub.zoneRadiusM > 150 ? 16 : hub.zoneRadiusM > 80 ? 17 : 18;
 
+  const ios = Platform.OS === 'ios';
+  // Un point se pose par son CENTRE, pas par sa pointe comme une épingle.
+  const personne = (
+    id: string,
+    p: { lat: number; lng: number },
+    titre: string,
+    image: ReturnType<typeof useImage>,
+    teinte: string,
+  ) => ({
+    id,
+    coordinates: { latitude: p.lat, longitude: p.lng },
+    title: titre,
+    zIndex: 2,
+    ...(ios
+      ? { systemImage: 'circle.fill', tintColor: teinte }
+      : image ? { icon: image, anchor: { x: 0.5, y: 0.5 } } : {}),
+  });
+
   const marqueurs = [
-    { coordinates: centre, title: hub.name, snippet: hub.displayDetail },
-    ...(moi ? [{ coordinates: { latitude: moi.lat, longitude: moi.lng }, title: t('zone.you') }] : []),
-    ...(autre ? [{ coordinates: { latitude: autre.lat, longitude: autre.lng }, title: t('zone.other') }] : []),
+    { id: 'hub', coordinates: centre, title: hub.name, snippet: hub.displayDetail, zIndex: 1 },
+    ...(moi ? [personne('moi', moi, t('zone.you'), pointMoi, colors.success)] : []),
+    ...(autre ? [personne('autre', autre, t('zone.other'), pointAutre, colors.warning)] : []),
   ];
 
   const cercles = [
@@ -115,7 +147,7 @@ export function HubMap({ hub, moi, autre, dansLaZone = false, hauteur = 200 }: H
 
   return (
     <View style={[styles.cadre, { height: hauteur, borderColor: colors.border }]}>
-      {Platform.OS === 'ios' ? (
+      {ios ? (
         <AppleMaps.View
           style={StyleSheet.absoluteFill}
           cameraPosition={camera}

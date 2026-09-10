@@ -25,12 +25,13 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore, useMissionById } from '@/stores/useMissionStore';
-import { chargerHubs } from '@/services/hubs';
+import { chargerHub } from '@/services/hubs';
 import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
 import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
 import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
+import { tailleEtPoids } from '@/utils/formatting';
 import { enregistrerScan, messageDeScan, nouvelleCle } from '@/services/scans';
 
 // 🔴 « presence » EST LA PREMIÈRE PAGE DEPUIS LE 12/08/2026 (demande client).
@@ -103,8 +104,9 @@ export default function PickupScreen() {
   useEffect(() => {
     let vivant = true;
     if (!hubVise) return;
-    chargerHubs()
-      .then((hubs) => { if (vivant) setFullHub(hubs.find((h) => h.id === hubVise) ?? null); })
+    // ⚠️ UN HUB, PAS L'ANNUAIRE : voir `chargerHub`.
+    chargerHub(hubVise)
+      .then((h) => { if (vivant) setFullHub(h); })
       .catch((e) => console.error('[mission] hub de recuperation illisible', e));
     return () => { vivant = false; };
   }, [hubVise]);
@@ -647,7 +649,7 @@ export default function PickupScreen() {
               <View style={s.packageInfo}>
                 <Text style={[s.packageTitle, { color: colors.text }]}>{mission.package.description}</Text>
                 <Text style={[s.packageMeta, { color: colors.textSecondary }]}>
-                  Taille {mission.package.size} — {mission.package.weight} kg
+                  Taille {tailleEtPoids(mission.package.size, mission.package.weight)}
                 </Text>
               </View>
             </View>

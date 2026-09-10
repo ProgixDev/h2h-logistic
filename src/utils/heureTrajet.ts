@@ -69,6 +69,26 @@ export function normaliserHeure(saisie: string | null | undefined): string | nul
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * Met en forme une heure PENDANT la frappe, au pavé numérique : « 7 » → « 07 »,
+ * « 073 » → « 07:3 », « 0730 » → « 07:30 ».
+ *
+ * 🔴 LES CHAMPS D'HEURE OUVRAIENT LE CLAVIER TEXTE SUR ANDROID (vu le
+ * 10/09/2026). `keyboardType="numbers-and-punctuation"` n'existe que sur iOS ;
+ * Android retombe sur le clavier complet. Le pavé numérique (`number-pad`) n'a
+ * pas de « : » — c'est donc ici qu'il se pose.
+ *
+ * ⚠️ UN PREMIER CHIFFRE DE 3 À 9 EST UNE HEURE À UN CHIFFRE : « 7 » ne peut
+ * commencer ni « 70 » ni « 79 ». On écrit « 07 » tout de suite, et « 730 »
+ * devient « 07:30 » comme on l'a dit.
+ */
+export function saisieHeure(texte: string): string {
+  let chiffres = texte.replace(/\D/g, '');
+  if (/^[3-9]/.test(chiffres)) chiffres = `0${chiffres}`;
+  chiffres = chiffres.slice(0, 4);
+  return chiffres.length > 2 ? `${chiffres.slice(0, 2)}:${chiffres.slice(2)}` : chiffres;
+}
+
 /** Vrai si la saisie désigne une heure réelle. */
 export const heureValide = (saisie: string | null | undefined): boolean =>
   normaliserHeure(saisie) !== null;

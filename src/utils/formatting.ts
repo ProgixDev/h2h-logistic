@@ -69,6 +69,17 @@ export function formatWeight(kg: number): string {
   return `${kg} kg`;
 }
 
+/**
+ * « Taille M — 2 kg », ou « Taille M » si le poids n'a pas été déclaré.
+ *
+ * 🔴 « 0 kg » S'AFFICHAIT SUR CHAQUE CO-LIVRAISON (vu le 10/09/2026) : le poids
+ * n'est relevé nulle part, et `null` devenait `0`. Un poids inconnu ne s'écrit
+ * pas — un zéro, lui, se croit.
+ */
+export function tailleEtPoids(taille: string, kg: number | null | undefined): string {
+  return kg != null && kg > 0 ? `${taille} — ${formatWeight(kg)}` : taille;
+}
+
 export function formatDistance(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(1)} km`;

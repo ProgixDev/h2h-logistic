@@ -15,7 +15,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
-import { formatCurrency } from '@/utils/formatting';
+import { formatCurrency, tailleEtPoids } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -98,7 +98,7 @@ export default function MissionDetailScreen() {
         <Card>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Colis</Text>
           <Text style={[styles.packageDesc, { color: colors.textSecondary }]}>
-            {mission.package.description} — {mission.package.size} — {mission.package.weight} kg
+            {mission.package.description} — {tailleEtPoids(mission.package.size, mission.package.weight)}
           </Text>
         </Card>
 
@@ -169,8 +169,13 @@ function SellerWaitingScreen({ mission, colors, router }: { mission: Mission; co
           </View>
         </View>
 
+        {/* 🔴 CE N'EST PAS UNE PRÉSENCE AU HUB. Le vendeur confirme la
+            CO-LIVRAISON — « Je confirme la remise » (`confirmer_colivraison_vendeur`),
+            de chez lui, dans les vingt minutes. Sa présence au hub se déclare
+            plus tard, au rendez-vous. La phrase d'avant faisait attendre le
+            cotransporteur d'un geste qui n'arrive qu'à l'heure du passage. */}
         <Text style={[sw.timerHint, { color: colors.textSecondary }]}>
-          Le vendeur doit confirmer sa présence au hub dans les 20 prochaines minutes.
+          Le vendeur doit confirmer la co-livraison dans les 20 prochaines minutes.
         </Text>
         <Text style={[sw.warmText, { color: colors.textSecondary }]}>
           Patience, nous attendons la réponse du vendeur. Nous vous notifierons dès qu’il confirme.

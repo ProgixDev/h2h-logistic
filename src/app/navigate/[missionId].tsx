@@ -12,29 +12,29 @@ import { Button } from '@/components/ui/Button';
 import { getRoute, type RouteResult } from '@/services/routing';
 import { isVoiceEnabled, setVoiceEnabled } from '@/services/voiceGuidance';
 import { useMissionById } from '@/stores/useMissionStore';
+import { chargerHub } from '@/services/hubs';
+import { etapeANaviguer } from '@/utils/destinationNavigation';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { Typography } from '@/constants/Typography';
 import { Spacing } from '@/constants/Spacing';
 
 type NavState = 'loading' | 'overview' | 'navigating' | 'arrived' | 'error';
 
-const HUB_COORDS: Record<string, { lat: number; lng: number }> = {
-  'hub-nice-gare': { lat: 43.7046, lng: 7.2620 },
-  'hub-nice-tnt': { lat: 43.6947, lng: 7.2659 },
-  'hub-nice-etoile': { lat: 43.7010, lng: 7.2700 },
-  'hub-cannes-gare': { lat: 43.5524, lng: 7.0170 },
-  'hub-mrs-gare': { lat: 43.3026, lng: 5.3806 },
-  'hub-antibes-gare': { lat: 43.5844, lng: 7.1197 },
-};
+// 🔴 `HUB_COORDS` A DISPARU : six identifiants de démonstration, et un repli sur
+// la gare de Cannes pour tout le reste — donc pour TOUTES les vraies missions.
+// Voir `utils/destinationNavigation.ts`. Seule la démonstration garde un point
+// fixe, parce qu'elle n'a pas de hub.
+const DEMO_DESTINATION = { lat: 43.5524, lng: 7.0170 };
 
 export default function NavigateScreen() {
-  const { missionId } = useLocalSearchParams<{ missionId: string }>();
+  const { missionId, dest } = useLocalSearchParams<{ missionId: string; dest?: string }>();
   const router = useRouter();
   const { colors } = useColorScheme();
   const isDemo = missionId === 'demo';
   // ⚠️ UN CROCHET, PAS `getMissionById()` : voir `useMissionStore`.
   const trouvee = useMissionById(missionId);
   const mission = isDemo ? null : trouvee;
+  const etape = mission ? etapeANaviguer(mission.status, dest) : null;
 
   const [state, setState] = useState<NavState>('loading');
   const [routeData, setRouteData] = useState<RouteResult | null>(null);
@@ -46,17 +46,45 @@ export default function NavigateScreen() {
   const pendingNavRef = useRef<null | (() => void)>(null);
 
   const destHub = isDemo
-    ? { id: 'hub-cannes-gare', name: 'Gare de Cannes', city: 'Cannes', scheduledTime: '', toleranceMinutes: 10 }
-    : mission
-      ? ['pickup_pending', 'group_created'].includes(mission.status) ? mission.pickupHub : mission.deliveryHub
+    ? { id: '', name: 'Gare de Cannes', city: 'Cannes', scheduledTime: '', toleranceMinutes: 10, isOffHub: false }
+    : mission && etape
+      ? etape === 'pickup' ? mission.pickupHub : mission.deliveryHub
       : null;
-  const destCoords = destHub ? HUB_COORDS[destHub.id] ?? { lat: 43.5524, lng: 7.0170 } : null;
-  const hubName = destHub?.name ?? 'Gare de Cannes';
+  const hubName = destHub?.name ?? '';
+
+  // 🔴 LE POINT VIENT DE L'ANNUAIRE, PAR L'IDENTIFIANT QUE LA MISSION PORTE.
+  // `undefined` = en cours de lecture ; `null` = introuvable.
+  const [pointHub, setPointHub] = useState<{ lat: number; lng: number } | null | undefined>(undefined);
+  const hubId = !isDemo && destHub && !destHub.isOffHub ? destHub.id : '';
+  useEffect(() => {
+    if (!hubId) return;
+    let vivant = true;
+    chargerHub(hubId)
+      .then((h) => { if (vivant) setPointHub(h ? h.point : null); })
+      .catch((e) => {
+        console.error('[navigation] hub illisible', e);
+        if (vivant) setPointHub(null);
+      });
+    return () => { vivant = false; };
+  }, [hubId]);
+  const destCoords = isDemo ? DEMO_DESTINATION : pointHub ?? null;
 
   // ─── INIT ──────────────────────────────────────────────────
+  // ⚠️ ATTEND LE POINT DU HUB : il arrive après une lecture. L'ancienne version
+  // démarrait au montage, sur des coordonnées déjà « connues » — celles de Cannes.
+  const pret = isDemo || pointHub !== undefined || !hubId;
   useEffect(() => {
+    if (!pret) return;
     if (!isDemo && !mission) { setError('Co-livraison introuvable'); setState('error'); return; }
-    if (!destCoords) { setError('Destination non trouvée'); setState('error'); return; }
+    if (!isDemo && !etape) { setError('Cette co-livraison n’a plus de rendez-vous à rejoindre.'); setState('error'); return; }
+    if (!isDemo && destHub?.isOffHub) {
+      // Hors hub, le lieu est une adresse convenue entre les parties, sans
+      // épingle : on ne guide pas vers un point qu'on n'a pas.
+      setError(`Rendez-vous hors hub${destHub.offHubAddress ? ` : ${destHub.offHubAddress}` : ''}. Aucun point à rejoindre sur la carte.`);
+      setState('error');
+      return;
+    }
+    if (!destCoords) { setError('Le point du hub est introuvable.'); setState('error'); return; }
 
     if (isDemo) {
       const demoOrigin = { latitude: 43.7046, longitude: 7.2620 };
@@ -87,7 +115,10 @@ export default function NavigateScreen() {
         setState('error');
       }
     })();
-  }, []);
+    // ⚠️ UNE FOIS, QUAND LE POINT EST CONNU — pas à chaque rendu : l'itinéraire
+    // se calcule une fois, la navigation Mapbox recalcule d'elle-même ensuite.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pret]);
 
   // ─── START NAVIGATION ──────────────────────────────────────
   const startNavigation = useCallback(() => {
@@ -140,9 +171,8 @@ export default function NavigateScreen() {
     }
     // In real mode, ask the transporter whether they actually arrived so
     // we can flow directly into the pickup/delivery scan.
-    const phaseLabel = destHub === mission?.pickupHub ? 'prise en charge' : 'remise';
-    const nextPath =
-      mission && destHub === mission.pickupHub ? '/mission/pickup' : '/mission/delivery';
+    const phaseLabel = etape === 'pickup' ? 'prise en charge' : 'remise';
+    const nextPath = etape === 'pickup' ? '/mission/pickup' : '/mission/delivery';
 
     Alert.alert(
       'Êtes-vous arrivé ?',
@@ -164,7 +194,7 @@ export default function NavigateScreen() {
         },
       ],
     );
-  }, [isDemo, mission, destHub, scheduleNavigation, router]);
+  }, [isDemo, mission, etape, scheduleNavigation, router]);
 
   // ─── RENDER ────────────────────────────────────────────────
 
@@ -225,8 +255,7 @@ export default function NavigateScreen() {
                 scheduleNavigation(() => router.back());
                 return;
               }
-              const nextPath =
-                destHub === mission.pickupHub ? '/mission/pickup' : '/mission/delivery';
+              const nextPath = etape === 'pickup' ? '/mission/pickup' : '/mission/delivery';
               scheduleNavigation(() =>
                 router.replace({ pathname: nextPath as any, params: { id: mission.id } }),
               );

@@ -25,6 +25,7 @@ import {
   retirerTrajet,
 } from '@/services/trajets';
 import { sequenceur } from '@/utils/derniereLectureGagne';
+import { instantParis, prochainPassageParis } from '@/utils/heureDeParis';
 
 interface RouteState {
   routes: PublishedRoute[];
@@ -197,11 +198,16 @@ export const useRouteStore = create<RouteState>((set, get) => ({
         villeDepart: f.departureCity!,
         villeArrivee: f.arrivalCity!,
         arrets,
-        // ⚠️ UN TRAJET UNIQUE DOIT PORTER SA DATE — le serveur la réclame. Le
-        // formulaire ne collecte qu'une heure ; on la place sur le prochain
-        // jour à venir plutôt que d'envoyer un trajet qui ne se situe nulle
-        // part dans le temps.
-        departLe: f.type === 'one_time' ? prochainPassage(f.pickupTime) : null,
+        // ⚠️ UN TRAJET UNIQUE DOIT PORTER SA DATE — le serveur la réclame.
+        // 🔴 LE JOUR EST CHOISI, ET L'HEURE EST CELLE DE PARIS, comme les
+        // arrêts que le serveur lit `at time zone 'Europe/Paris'`. Voir
+        // `utils/heureDeParis.ts`.
+        departLe:
+          f.type === 'one_time'
+            ? f.departureDate && f.pickupTime
+              ? instantParis(f.departureDate, f.pickupTime)
+              : prochainPassageParis(f.pickupTime ?? '08:00', Date.now())
+            : null,
         joursRecurrents: f.type === 'recurring' ? f.recurringDays : [],
         transport: f.transportType ?? profileTransport ?? 'car',
         maxColis: f.maxPackages,
@@ -218,19 +224,3 @@ export const useRouteStore = create<RouteState>((set, get) => ({
     }
   },
 }));
-
-/**
- * L'heure « HH:MM » placée sur le prochain jour où elle n'est pas déjà passée.
- *
- * ⚠️ L'ASSISTANT NE DEMANDE QU'UNE HEURE, alors que la base attend un instant.
- * Choisir « aujourd'hui » pour une heure déjà écoulée publierait un trajet
- * périmé à la seconde où il est créé.
- */
-function prochainPassage(heure?: string): string {
-  const [h, m] = (heure ?? '08:00').split(':').map((n) => parseInt(n, 10) || 0);
-  const quand = new Date();
-  quand.setSeconds(0, 0);
-  quand.setHours(h, m);
-  if (quand.getTime() <= Date.now()) quand.setDate(quand.getDate() + 1);
-  return quand.toISOString();
-}

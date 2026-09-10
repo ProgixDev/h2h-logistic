@@ -21,6 +21,7 @@
 // dit que le nom seul ne suffit jamais — l'écarter est la seule réponse honnête.
 import { supabase } from '@/lib/supabase';
 import type { Hub, HubPlaceType } from '@/types/hub';
+import { villesDistinctes } from '@/utils/rechercheVille';
 
 type Ligne = {
   id: string;
@@ -89,6 +90,43 @@ export async function chargerHubs(): Promise<Hub[]> {
     .order('city', { ascending: true });
   if (error) throw new Error(error.message);
   return exploitables((data ?? []) as unknown as Ligne[]);
+}
+
+/**
+ * UN point de rendez-vous, par son identifiant.
+ *
+ * 🔴 LES ÉCRANS DE PRÉSENCE CHARGEAIENT LES 378 HUBS POUR EN TROUVER UN (vu à
+ * l'émulateur le 10/09/2026) : plusieurs secondes sans carte ni détail, au
+ * moment précis où le cotransporteur arrive au rendez-vous.
+ *
+ * ⚠️ SANS FILTRE SUR `status`, ET C'EST VOULU. Un hub retiré de l'annuaire
+ * APRÈS l'acceptation reste le lieu du rendez-vous de cette co-livraison : il
+ * doit rester lisible — son épingle surtout — pour ceux qui s'y rendent.
+ */
+export async function chargerHub(id: string): Promise<Hub | null> {
+  if (!id) return null;
+  const { data, error } = await supabase
+    .from('hubs')
+    .select(CHAMPS)
+    .eq('id', id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? versHub(data as unknown as Ligne) : null;
+}
+
+/**
+ * Les villes qui ont au moins un point de rendez-vous actif, triées.
+ *
+ * 🔴 LA PUBLICATION D'UN TRAJET PROPOSAIT DIX VILLES ÉCRITES À LA MAIN — dont
+ * Monaco, qui n'a aucun hub — quand l'annuaire en couvre près de trois cents.
+ * Un trajet part d'un hub et arrive à un hub : une ville sans hub ne mène à
+ * rien, et une ville avec hubs absente de la liste est un trajet impossible à
+ * publier.
+ */
+export async function chargerVillesAvecHubs(): Promise<string[]> {
+  const { data, error } = await supabase.from('hubs').select('city').eq('status', 'active');
+  if (error) throw new Error(error.message);
+  return villesDistinctes(((data ?? []) as { city: string | null }[]).map((l) => l.city));
 }
 
 /**

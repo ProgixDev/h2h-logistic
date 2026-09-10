@@ -17,7 +17,7 @@ import { useRouteStore } from '@/stores/useRouteStore';
 import { EcoImpactCard } from '@/components/mission/EcoImpactCard';
 import { StarsAnimation } from '@/components/mission/StarsAnimation';
 import { calculateCo2Saved, estimateDistanceKm } from '@/utils/carbon';
-import { formatCurrency, formatTime, formatDate } from '@/utils/formatting';
+import { formatCurrency, formatTime, formatDate, formatWeight } from '@/utils/formatting';
 
 export default function AcceptMissionScreen() {
   const { colors } = useColorScheme();
@@ -115,7 +115,9 @@ export default function AcceptMissionScreen() {
               )}
               <View style={styles.packageBadges}>
                 <Badge label={`Taille ${mission.package.size}`} variant="outline" />
-                <Badge label={`${mission.package.weight} kg`} variant="outline" />
+                {mission.package.weight != null && mission.package.weight > 0 && (
+                  <Badge label={formatWeight(mission.package.weight)} variant="outline" />
+                )}
               </View>
             </View>
           </View>
