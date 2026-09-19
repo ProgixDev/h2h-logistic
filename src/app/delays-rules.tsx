@@ -160,7 +160,49 @@ const SECTIONS: RuleSection[] = [
     ],
   },
   {
+    // Règle D6 du document client (H2H_Logistic_Formulaires_Regles, p. 8) et
+    // formulaire 13 (p. 6). Le pendant, à la collecte, du formulaire 6 au hub
+    // de remise — la « Règle simple à retenir » y renvoyait sans qu'aucune
+    // section ne le décrive.
     number: 4,
+    title: 'Règle spécifique au formulaire 13',
+    concerne: [
+      "Formulaire 13 : absence au rendez-vous de collecte lorsque le vendeur et le cotransporteur ne sont pas clairement présents, rempli par le vendeur ou le cotransporteur.",
+    ],
+    blocks: [
+      {
+        title: 'Fin de la tolérance',
+        paragraphs: [
+          "Si le vendeur et le cotransporteur sont absents au rendez-vous de collecte à la fin de la tolérance, ou si aucune présence claire n'est validée, la procédure liée au formulaire 13 est automatiquement lancée.",
+          "Dans ce cas, aucune prolongation n'est prévue.",
+        ],
+      },
+      {
+        title: 'Délai pour remplir le formulaire 13',
+        paragraphs: [
+          'Un délai de 10 minutes est ouvert pour permettre aux parties concernées de déposer une réclamation via le formulaire 13.',
+          "Ce formulaire permet de signaler une présence, une absence, une impossibilité de trouver l'autre partie, un problème de géolocalisation, un problème technique ou un point de rendez-vous difficile à identifier.",
+        ],
+      },
+      {
+        title: 'Clôture de la mission',
+        paragraphs: [
+          "La mission est ensuite clôturée et l'acheteur est remboursé.",
+          'Le dossier passe en analyse support HandtoHand.',
+        ],
+      },
+      {
+        title: 'Décision support',
+        paragraphs: [
+          "Après étude, le vendeur et/ou le cotransporteur peuvent se voir imputer un frais d'annulation de 2 € chacun, selon la responsabilité constatée.",
+          'Après la décision du support, les parties concernées disposent de 24 heures pour contester via le formulaire 14.',
+          'Passé ce délai, aucune réclamation ne sera possible.',
+        ],
+      },
+    ],
+  },
+  {
+    number: 5,
     title: 'Règle spécifique au formulaire 11',
     concerne: ['Formulaire 11 : refus du colis par le cotransporteur lors de la collecte.'],
     blocks: [
@@ -207,7 +249,7 @@ const SECTIONS: RuleSection[] = [
     ],
   },
   {
-    number: 5,
+    number: 6,
     title: 'Règle générale de clôture définitive',
     paragraphs: [
       'Certaines déclarations, absences, refus ou décisions peuvent être contestés dans un délai de 24 heures à compter de leur notification.',
@@ -219,7 +261,7 @@ const SECTIONS: RuleSection[] = [
     ],
   },
   {
-    number: 6,
+    number: 7,
     title: 'Règle simple à retenir',
     blocks: [
       {
