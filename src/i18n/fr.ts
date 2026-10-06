@@ -172,7 +172,7 @@ export const fr = {
     statusPreparation: 'Préparation',
     statusTolerance: 'Tolérance',
     statusLate: 'En retard',
-    distanceAway: 'Vous êtes à {distance} m du hub',
+    distanceAway: 'Vous êtes à {distance} du hub',
     confidentiality: 'Votre position n\'est utilisée que pendant le créneau pour faciliter la rencontre. Elle n\'est partagée avec l\'autre partie qu\'une fois les deux présences déclarées et les deux positions dans la zone du hub.',
     // 🔴 « ENREGISTRÉE », PAS « VALIDÉE ». Le serveur distingue les deux :
     // déclarer s'enregistre toujours, valider n'arrive que dans la zone.
@@ -182,7 +182,7 @@ export const fr = {
     // ⚠️ HORS ZONE, ON ENREGISTRE QUAND MÊME — le guide dit « ne peut pas
     // ENCORE être validée », pas « rien ne s'est passé ». Refuser d'écrire
     // détruirait la preuve que ce bouton existe pour produire.
-    recordedOutside: 'Présence enregistrée — vous êtes à {m} m du point. Rapprochez-vous pour qu\'elle soit validée.',
+    recordedOutside: 'Présence enregistrée — vous êtes à {m} du point. Rapprochez-vous pour qu\'elle soit validée.',
     // 🔴 TROIS CAUSES, TROIS PHRASES. « Activez la localisation » était dit à
     // tout le monde — y compris à qui l'avait activée et attendait seulement un
     // relevé. Voir `utils/positionDuTelephone.ts`.
@@ -195,7 +195,7 @@ export const fr = {
     // 🔴 HORS ZONE, ON RESTE SUR LA PAGE. Passer au scan en affichant un toast
     // de deux secondes laissait croire que tout était en ordre.
     outsideTitle: 'Présence enregistrée, pas encore validée',
-    outsideBody: 'Vous étiez à {m} m du point central ; la zone fait {radius} m. Rapprochez-vous, puis appuyez de nouveau.',
+    outsideBody: 'Vous étiez à {m} du point central ; la zone fait {radius} m. Rapprochez-vous, puis appuyez de nouveau.',
     retry: 'Je suis dans la zone — réessayer',
     continueUnvalidated: 'Continuer sans présence validée',
     continueUnvalidatedHint: 'Votre arrivée reste enregistrée, avec la distance mesurée.',
@@ -218,7 +218,7 @@ export const fr = {
     title: 'Zone du hub',
     inZone: 'Vous êtes dans la zone du hub',
     outOfZone: 'Rapprochez-vous du point de rendez-vous ({label}) — zone de {radius} m autour du point',
-    distanceAway: 'À {distance} m du point central',
+    distanceAway: 'À {distance} du point central',
     explainer: 'Vous êtes dans la zone du hub lorsque vous êtes à moins de {radius} mètres du point central.',
     confirmPresence: 'Confirmer ma présence dans la zone',
     presenceConfirmed: 'Présence confirmée dans la zone ✓',

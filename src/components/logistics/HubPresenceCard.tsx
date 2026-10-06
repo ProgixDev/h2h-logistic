@@ -13,6 +13,7 @@ import { getToleranceWindow, isWithinTolerance } from '@/utils/tolerance';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import type { Hub } from '@/types/hub';
+import { distanceLisible } from '@/utils/distanceLisible';
 
 /**
  * « Déclarer ma présence au hub » — LE MÊME BLOC QUE LA MARKETPLACE.
@@ -159,7 +160,7 @@ export function HubPresenceCard({
               </View>
               <Text style={[s.outsideBody, { color: colors.text }]}>
                 {t('presence.outsideBody')
-                  .replace('{m}', String(Math.round(horsZone.distanceM)))
+                  .replace('{m}', distanceLisible(horsZone.distanceM))
                   .replace('{radius}', String(Math.round(horsZone.rayonM)))}
               </Text>
             </View>
@@ -258,7 +259,7 @@ export function HubPresenceCard({
         <View style={[s.distanceRow, { backgroundColor: colors.warning + '12' }]}>
           <Icon name="location-filled" size={14} color={colors.warning} />
           <Text style={[s.distanceText, { color: colors.warning }]}>
-            {t('presence.distanceAway').replace('{distance}', String(Math.round(distanceMeters)))}
+            {t('presence.distanceAway').replace('{distance}', distanceLisible(distanceMeters))}
             {precisionM != null
               ? ` · ${t('presence.accuracy').replace('{m}', String(Math.round(precisionM)))}`
               : ''}

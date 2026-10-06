@@ -23,6 +23,21 @@ import {
   messageClesLive,
   type CleNommee,
 } from '@/utils/clesDeProduction';
+import { LogBox } from 'react-native';
+
+// ⚠️ CE BANDEAU JAUNE RECOUVRE LE BAS DE TOUS LES ÉCRANS, DONC LES BOUTONS.
+//
+// Clerk avertit à chaque démarrage que l'instance est en clés de test. C'est
+// exactement ce qu'on veut en développement (cf. le garde-fou ci-dessous, qui
+// REFUSE les clés de test en production) : l'avertissement ne nous apprend
+// rien et ne partira jamais. Or la notification LogBox se pose en bas de
+// l'écran et avale les touches : « Continuer » de la connexion, les onglets,
+// « Je prends ce colis » — plus rien n'est cliquable sur un appareil piloté en
+// test. On tait donc CE message précis, et lui seul : tout autre avertissement
+// doit continuer à se voir.
+if (__DEV__) {
+  LogBox.ignoreLogs(['Clerk has been loaded with development keys']);
+}
 
 SplashScreen.preventAutoHideAsync();
 

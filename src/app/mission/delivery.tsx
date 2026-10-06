@@ -30,6 +30,7 @@ import { chargerHub } from '@/services/hubs';
 import { declarerPresenceHub } from '@/services/presenceHub';
 import { useHubPresence } from '@/hooks/useHubPresence';
 import { CLE_MESSAGE_GPS } from '@/utils/positionDuTelephone';
+import { distanceLisible } from '@/utils/distanceLisible';
 import type { Hub } from '@/types/hub';
 import { isAfterTolerance, getToleranceWindow } from '@/utils/tolerance';
 import { formatCurrency } from '@/utils/formatting';
@@ -279,7 +280,7 @@ export default function DeliveryScreen() {
       );
       const message = r.dansLaZone
         ? t('presence.recorded')
-        : t('presence.recordedOutside').replace('{m}', String(Math.round(r.distanceM)));
+        : t('presence.recordedOutside').replace('{m}', distanceLisible(r.distanceM));
       showToast(message, r.dansLaZone ? 'success' : 'warning');
       AccessibilityInfo.announceForAccessibility(message);
       if (r.dansLaZone) {
