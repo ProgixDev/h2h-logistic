@@ -10,7 +10,7 @@
 // même personne, c'est deux profils — donc un cotransporteur qui ne peut plus
 // acheter avec son compte.
 import { createClient } from '@supabase/supabase-js';
-import { peekClerk } from './clerkBridge';
+import { clerkCharge, peekClerk } from './clerkBridge';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const cle = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
@@ -46,7 +46,12 @@ export const supabase = createClient(url, cle, {
   // ⚠️ ON NE MET TOUJOURS RIEN EN CACHE : Clerk renouvelle le jeton tout seul
   // (durée de vie 60 s). Un jeton gardé serait expiré, et la requête repartirait
   // en « anon » sans le dire.
+  //
+  // 🔴 ET ON ATTEND QUE CLERK AIT FINI DE SE CHARGER (`clerkCharge`). Sans
+  // l'attente, une requête partie avant le montage du pont concluait « personne »
+  // et tournait en « anon » : zéro ligne, présentée comme une liste vide.
   accessToken: async () => {
+    await clerkCharge();
     const clerk = peekClerk();
     if (!clerk?.session) return null;
     return (await clerk.session.getToken({ template: 'supabase' })) ?? null;

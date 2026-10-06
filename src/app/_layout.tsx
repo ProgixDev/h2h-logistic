@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
@@ -16,6 +16,9 @@ import {
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { setClerk } from '@/lib/clerkBridge';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { useCandidaturesStore } from '@/stores/useCandidaturesStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
+import { ecouterReceptions, ecouterTapsNotification, enregistrerAppareil } from '@/services/push';
 import {
   clesDeTest,
   clesLive,
@@ -99,6 +102,54 @@ function PontClerk() {
   return null;
 }
 
+/**
+ * Inscrit le téléphone au push une fois quelqu'un connecté, et suit les taps.
+ *
+ * 🔴 UN TAP PEUT DÉMARRER L'APPLICATION À FROID, AVANT LA REPRISE DE SESSION.
+ * Ouvrir la proposition à cet instant la ferait lire sans identité ; on garde
+ * donc la route, et on la suit dès que le profil est relu. L'écran d'accueil
+ * (`index`) reste dessous : sa redirection ne joue qu'une fois revenu au premier
+ * plan, c'est-à-dire au retour de la proposition.
+ *
+ * ⚠️ L'ÉCOUTE NE DÉPEND PAS DE LA CONNEXION : attendre le profil pour la poser
+ * ferait manquer l'événement qui a lancé le processus.
+ */
+function PontNotifications() {
+  const router = useRouter();
+  const profilId = useAuthStore((s) => s.user?.id ?? null);
+  const enAttente = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!profilId) return;
+    void enregistrerAppareil(profilId);
+    const route = enAttente.current;
+    enAttente.current = null;
+    if (route) router.push(route as never);
+  }, [profilId, router]);
+
+  useEffect(
+    () =>
+      ecouterTapsNotification((route) => {
+        if (useAuthStore.getState().user) router.push(route as never);
+        else enAttente.current = route;
+      }),
+    [router],
+  );
+
+  // Un avis reçu application ouverte : relire tout de suite.
+  useEffect(
+    () =>
+      ecouterReceptions(() => {
+        if (!useAuthStore.getState().user) return;
+        void useCandidaturesStore.getState().charger();
+        void useNotificationStore.getState().charger();
+      }),
+    [],
+  );
+
+  return null;
+}
+
 export default function RootLayout() {
   const { isDark, colors } = useColorScheme();
 
@@ -122,6 +173,7 @@ export default function RootLayout() {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       <PontClerk />
+      <PontNotifications />
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
           <StatusBar style={isDark ? 'light' : 'dark'} />

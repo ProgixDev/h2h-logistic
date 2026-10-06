@@ -11,5 +11,7 @@ export interface AppNotification {
   body: string;
   read: boolean;
   createdAt: string;
+  /** L'écran que l'avis désigne (`notifications.action_route`), s'il en désigne un. */
+  route?: string;
   data?: Record<string, string>;
 }

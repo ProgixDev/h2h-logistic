@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Typography } from '@/constants/Typography';
 import { Icon } from '@/components/ui/Icon';
 import { useMissionStore, useProposals } from '@/stores/useMissionStore';
+import { useCandidaturesStore, usePropositions } from '@/stores/useCandidaturesStore';
 
 /**
  * 🔴 UNE PROPOSITION SE PERD EN QUINZE MINUTES — la relecture doit venir à elle.
@@ -13,19 +14,27 @@ import { useMissionStore, useProposals } from '@/stores/useMissionStore';
  * ni l'arrivée d'une proposition, ni le retour au premier plan. Trente secondes
  * laissent quatorze minutes et demie pour accepter ; c'est une requête légère
  * (les co-livraisons de CE cotransporteur), et elle s'arrête en arrière-plan.
+ *
+ * ⚠️ ET LA MISE EN RELATION DU § 5 (vingt minutes par proposition) SE RELIT AU
+ * MÊME RYTHME. Le push l'annonce ; cette relecture est le filet quand il manque.
  */
 const RELECTURE_CO_LIVRAISONS_MS = 30_000;
 
 export default function TabsLayout() {
   const { colors } = useColorScheme();
   // ⚠️ UN CROCHET, PAS `getProposals()` : voir `useMissionStore`.
-  const proposalCount = useProposals().length;
-  const charger = useMissionStore((s) => s.charger);
+  const proposalCount = useProposals().length + usePropositions().length;
+  const chargerMissions = useMissionStore((s) => s.charger);
+  const chargerCandidatures = useCandidaturesStore((s) => s.charger);
 
   useEffect(() => {
+    const charger = () => {
+      void chargerMissions();
+      void chargerCandidatures();
+    };
     let minuteur: ReturnType<typeof setInterval> | null = null;
     const demarrer = () => {
-      if (!minuteur) minuteur = setInterval(() => { void charger(); }, RELECTURE_CO_LIVRAISONS_MS);
+      if (!minuteur) minuteur = setInterval(charger, RELECTURE_CO_LIVRAISONS_MS);
     };
     const arreter = () => {
       if (minuteur) clearInterval(minuteur);
@@ -35,7 +44,7 @@ export default function TabsLayout() {
     const abonnement = AppState.addEventListener('change', (etat) => {
       if (etat === 'active') {
         // De retour au premier plan : relire tout de suite, sans attendre le tic.
-        void charger();
+        charger();
         demarrer();
       } else {
         arreter();
@@ -45,7 +54,7 @@ export default function TabsLayout() {
       arreter();
       abonnement.remove();
     };
-  }, [charger]);
+  }, [chargerMissions, chargerCandidatures]);
 
   return (
     <Tabs

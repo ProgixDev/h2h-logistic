@@ -29,9 +29,10 @@ type LigneNotification = {
   body: string;
   is_read: boolean;
   created_at: string;
+  action_route: string | null;
 };
 
-const CHAMPS = 'id, type, title, body, is_read, created_at';
+const CHAMPS = 'id, type, title, body, is_read, created_at, action_route';
 
 function versNotification(l: LigneNotification): AppNotification {
   return {
@@ -41,6 +42,9 @@ function versNotification(l: LigneNotification): AppNotification {
     body: l.body,
     read: l.is_read,
     createdAt: l.created_at,
+    // ⚠️ GARDÉE TELLE QUELLE : c'est l'écran qui décide si elle s'ouvre ici
+    // (`routeSuivable`) — la base partage ses avis entre trois applications.
+    route: l.action_route ?? undefined,
   };
 }
 

@@ -8,6 +8,7 @@ import {
   RefreshControl,
   FlatList,
   Dimensions,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,6 +38,11 @@ import {
   useCompletedMissions,
 } from '@/stores/useMissionStore';
 import { useRouteStore } from '@/stores/useRouteStore';
+import { useCandidaturesStore, useJoursFermes, usePropositions } from '@/stores/useCandidaturesStore';
+import { CarteCandidature } from '@/components/mission/CarteCandidature';
+import { useMaintenant } from '@/components/mission/CompteARebours';
+import { dateParis } from '@/utils/heureDeParis';
+import { routeSuivable } from '@/utils/routeNotification';
 import { useEarningsStore, useEarningsForPeriod } from '@/stores/useEarningsStore';
 import { formatCurrency, formatTime } from '@/utils/formatting';
 import { type AppNotification } from '@/types/notification';
@@ -96,6 +102,61 @@ export default function HomeScreen() {
 
   const [dailyConfirmed, setDailyConfirmed] = useState<Record<string, boolean>>({});
 
+  // 🔴 « PAS AUJOURD'HUI » NE FAISAIT QUE CACHER LA CARTE. Le choix restait sur ce
+  // téléphone : le serveur continuait d'envoyer des propositions pour la journée
+  // que le cotransporteur venait d'écarter. Il part désormais en base
+  // (`cotransporteur_pas_aujourdhui`), qui n'en propose plus aucune ce jour-là,
+  // sur aucun trajet — et les co-livraisons déjà confirmées restent dues (§ 5.6.2
+  // des CGU H2H Logistic).
+  const joursFermes = useJoursFermes();
+  const propositionsOuvertes = usePropositions();
+  const chargerCandidatures = useCandidaturesStore((s) => s.charger);
+  const fermerJour = useCandidaturesStore((s) => s.fermerJour);
+  const rouvrirJour = useCandidaturesStore((s) => s.rouvrirJour);
+  // ⚠️ UNE HORLOGE D'ÉTAT, à la minute : l'accueil reste monté toute la journée,
+  // et « aujourd'hui » doit changer à minuit (voir `useMaintenant`).
+  const aujourdhui = dateParis(useMaintenant(60_000));
+  const journeeFermee = joursFermes.includes(aujourdhui);
+
+  const demanderPasAujourdhui = () => {
+    Alert.alert(
+      'Pas aujourd’hui ?',
+      'Vous ne recevrez plus de proposition de co-livraison aujourd’hui, sur aucun de vos trajets. '
+        + 'Vos co-livraisons déjà confirmées restent dues : pour en annuler une, utilisez l’annulation de la co-livraison.',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        {
+          text: 'Pas aujourd’hui',
+          onPress: async () => {
+            try {
+              await fermerJour(aujourdhui);
+            } catch (e) {
+              Alert.alert('Journée non fermée', e instanceof Error ? e.message : 'Réessayez dans un instant.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const reprendreAujourdhui = async () => {
+    try {
+      await rouvrirJour(aujourdhui);
+    } catch (e) {
+      Alert.alert('Reprise impossible', e instanceof Error ? e.message : 'Réessayez dans un instant.');
+    }
+  };
+
+  // ⚠️ MÊME GESTE QUE L'ÉCRAN NOTIFICATIONS : marquer lu, et ouvrir l'écran de
+  // l'avis s'il existe dans CETTE application (`routeSuivable`).
+  const marquerCommeLue = useNotificationStore((s) => s.marquerCommeLue);
+  const ouvrirNotification = (n: AppNotification) => {
+    if (!n.read) void marquerCommeLue(n.id);
+    const route = routeSuivable(n.route);
+    if (route) router.push(route as never);
+    else router.push('/notifications');
+  };
+
   const isOnline = transporterStatus === 'active';
   const activeMissions = [...enAttente, ...enCours];
   const activeRoutes = routes.filter((r) => r.status === 'active');
@@ -106,7 +167,8 @@ export default function HomeScreen() {
   // Recurring routes with today as a scheduled day
   const todayDay = new Date().getDay() || 7; // 1=Mon..7=Sun
   const todayRoutes = routes.filter(
-    (r) => r.type === 'recurring' && r.status === 'active' && r.schedule.recurringDays?.includes(todayDay) && !dailyConfirmed[r.id],
+    (r) => r.type === 'recurring' && r.status === 'active' && r.schedule.recurringDays?.includes(todayDay)
+      && !dailyConfirmed[r.id] && !journeeFermee,
   );
 
   // 🔴 CE BLOC ANNONÇAIT UNE ACTIVITÉ QUI N'EXISTAIT PAS. Les trois valeurs
@@ -132,6 +194,7 @@ export default function HomeScreen() {
 
   useEffect(() => {
     void chargerMissions();
+    void chargerCandidatures();
     void chargerTrajets();
     void chargerParticipations();
     void chargerNotifs();
@@ -146,11 +209,13 @@ export default function HomeScreen() {
     // la donnée arrive montre l'ancienne liste et laisse croire que rien n'a
     // changé.
     try {
-      await Promise.all([chargerTrajets(), chargerMissions(), chargerParticipations(), chargerNotifs()]);
+      await Promise.all([
+        chargerTrajets(), chargerMissions(), chargerCandidatures(), chargerParticipations(), chargerNotifs(),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [chargerTrajets, chargerMissions, chargerParticipations, chargerNotifs]);
+  }, [chargerTrajets, chargerMissions, chargerCandidatures, chargerParticipations, chargerNotifs]);
 
   // FAB animation
   const fabScale = useSharedValue(1);
@@ -272,13 +337,40 @@ export default function HomeScreen() {
           <AdBanner index={new Date().getDay()} />
         </Animated.View>
 
+        {/* ─── PROPOSITIONS OUVERTES — vingt minutes pour répondre (§ 5.2.1) ─── */}
+        {propositionsOuvertes.map((c) => (
+          <Animated.View key={c.id} entering={FadeInDown.delay(150).duration(300)}>
+            <CarteCandidature candidature={c} />
+          </Animated.View>
+        ))}
+
+        {/* ─── PAS AUJOURD'HUI — la journée est fermée en base ─── */}
+        {journeeFermee && (
+          <Animated.View entering={FadeInDown.delay(150).duration(300)}>
+            <Card style={{ borderColor: colors.warningBorder, borderWidth: 1.5 }}>
+              <View style={styles.pauseEntete}>
+                <Icon name="moon" size={18} color={colors.warningDark} />
+                <Text style={[styles.pauseTitre, { color: colors.text }]}>Pas aujourd’hui</Text>
+              </View>
+              <Text style={[styles.pauseTexte, { color: colors.textSecondary }]}>
+                Vous ne recevez plus de proposition aujourd’hui. Vos co-livraisons déjà confirmées restent dues.
+              </Text>
+              <TouchableOpacity onPress={() => { void reprendreAujourdhui(); }} hitSlop={8} style={styles.pauseAction}>
+                <Text style={[styles.pauseActionTexte, { color: colors.primary }]}>
+                  Reprendre les propositions aujourd’hui
+                </Text>
+              </TouchableOpacity>
+            </Card>
+          </Animated.View>
+        )}
+
         {/* ─── DAILY CONFIRMATION ─── */}
         {todayRoutes.map((route) => (
           <Animated.View key={route.id} entering={FadeInDown.delay(150).duration(300)}>
             <DailyConfirmation
               route={route}
               onConfirm={() => setDailyConfirmed((prev) => ({ ...prev, [route.id]: true }))}
-              onSkip={() => setDailyConfirmed((prev) => ({ ...prev, [route.id]: true }))}
+              onSkip={demanderPasAujourdhui}
             />
           </Animated.View>
         ))}
@@ -407,7 +499,7 @@ export default function HomeScreen() {
 
           <View style={styles.notifList}>
             {notifications.slice(0, 3).map((notif) => (
-              <NotificationRow key={notif.id} notif={notif} colors={colors} />
+              <NotificationRow key={notif.id} notif={notif} colors={colors} onOuvrir={ouvrirNotification} />
             ))}
           </View>
         </Animated.View>
@@ -595,7 +687,15 @@ const NOTIF_ANIM: Record<string, any> = {
   earning: require('@/assets/lottie/coin.json'),
 };
 
-function NotificationRow({ notif, colors }: { notif: AppNotification; colors: any }) {
+function NotificationRow({
+  notif,
+  colors,
+  onOuvrir,
+}: {
+  notif: AppNotification;
+  colors: any;
+  onOuvrir: (n: AppNotification) => void;
+}) {
   const iconMap: Record<string, IconName> = {
     mission_new: 'package',
     mission_update: 'refresh',
@@ -606,7 +706,9 @@ function NotificationRow({ notif, colors }: { notif: AppNotification; colors: an
   const timeAgo = getTimeAgo(notif.createdAt);
 
   return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => onOuvrir(notif)}
       style={[
         styles.notifRow,
         { borderBottomColor: colors.border },
@@ -633,7 +735,7 @@ function NotificationRow({ notif, colors }: { notif: AppNotification; colors: an
         <Text style={[styles.notifTime, { color: colors.textSecondary }]}>{timeAgo}</Text>
       </View>
       {!notif.read && <View style={[styles.notifUnread, { backgroundColor: colors.primary }]} />}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -653,6 +755,12 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
   },
+  // « Pas aujourd'hui »
+  pauseEntete: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, marginBottom: Spacing.sm },
+  pauseTitre: { ...Typography.h3 },
+  pauseTexte: { ...Typography.caption, lineHeight: 18 },
+  pauseAction: { marginTop: Spacing.md, alignSelf: 'flex-start' },
+  pauseActionTexte: { ...Typography.captionMedium, textDecorationLine: 'underline' },
 
   // Header
   header: {

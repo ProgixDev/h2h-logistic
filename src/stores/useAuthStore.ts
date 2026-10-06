@@ -35,6 +35,8 @@ import { requireClerk, peekClerk } from '@/lib/clerkBridge';
 import { supabase } from '@/lib/supabase';
 import { chargerMaConvention, signerConvention } from '@/services/convention';
 import { basculerEnLigne, lireEnLigne } from '@/services/disponibilite';
+import { oublierAppareil } from '@/services/push';
+import { useCandidaturesStore } from '@/stores/useCandidaturesStore';
 
 /**
  * Aligne l'interrupteur « En ligne » sur le SERVEUR — voir `lireEnLigne`.
@@ -464,6 +466,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
    * « connecté » après un « Se déconnecter » serait pire que l'erreur.
    */
   logout: async () => {
+    // 🔴 OUBLIER LE TÉLÉPHONE D'ABORD, TANT QUE LA SESSION EXISTE : la ligne
+    // `device_tokens` ne se supprime que par son propriétaire connecté. Après
+    // `signOut`, la suppression partirait en « anon » et ne toucherait rien — le
+    // téléphone continuerait de recevoir les propositions du compte quitté.
+    await oublierAppareil();
+    useCandidaturesStore.getState().vider();
     try {
       await requireClerk().signOut();
     } catch (e) {

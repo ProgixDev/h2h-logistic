@@ -17,6 +17,13 @@ import {
   useActiveMissions,
   useCompletedMissions,
 } from '@/stores/useMissionStore';
+import {
+  useCandidaturesStore,
+  usePropositions,
+  useCandidaturesEnCours,
+  useConfirmees,
+} from '@/stores/useCandidaturesStore';
+import { CarteCandidature } from '@/components/mission/CarteCandidature';
 import { formatCurrency, formatTime, formatDate, tailleEtPoids } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
 
@@ -27,6 +34,9 @@ export default function MissionsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { charger, isLoading, erreur } = useMissionStore();
+  const chargerCandidatures = useCandidaturesStore((s) => s.charger);
+  const chargementCandidatures = useCandidaturesStore((s) => s.isLoading);
+  const erreurCandidatures = useCandidaturesStore((s) => s.erreur);
   const [tab, setTab] = useState<Tab>('new');
 
   // 🔴 À CHAQUE RETOUR SUR L'ONGLET, PAS SEULEMENT AU PREMIER. Monté une fois,
@@ -34,7 +44,11 @@ export default function MissionsScreen() {
   // l'accepter — arrivée pendant qu'on regardait l'accueil n'apparaissait
   // qu'après avoir tué l'application (vu le 10/09/2026). La relecture de fond
   // vit dans `(tabs)/_layout.tsx`.
-  useFocusEffect(useCallback(() => { void charger(); }, [charger]));
+  const toutRelire = useCallback(() => {
+    void charger();
+    void chargerCandidatures();
+  }, [charger, chargerCandidatures]);
+  useFocusEffect(toutRelire);
 
   // 🔴 DES CROCHETS, PAS `getProposals()`. Appelés pendant le rendu, les
   // `get…()` du magasin sont mémoïsés par le React Compiler sur leur référence,
@@ -44,9 +58,19 @@ export default function MissionsScreen() {
   const active = useActiveMissions();
   const completed = useCompletedMissions();
 
+  // ⚠️ DEUX PARCOURS COEXISTENT. Les missions ci-dessus sont celles de l'ancien
+  // (une proposition adressée à un seul cotransporteur) ; la mise en relation du
+  // § 5 des CGU H2H Logistic rend des propositions et des candidatures, qui ne
+  // sont pas encore des missions. Elles se lisent ensemble, en tête de liste.
+  const propositionsV2 = usePropositions();
+  const candidaturesV2 = useCandidaturesEnCours();
+  const confirmeesV2 = useConfirmees();
+  const misesEnRelation =
+    tab === 'new' ? [...propositionsV2, ...candidaturesV2] : tab === 'active' ? confirmeesV2 : [];
+
   const tabs: { key: Tab; label: string; count: number }[] = [
-    { key: 'new', label: 'Nouvelles', count: proposals.length },
-    { key: 'active', label: 'En cours', count: active.length },
+    { key: 'new', label: 'Nouvelles', count: proposals.length + propositionsV2.length + candidaturesV2.length },
+    { key: 'active', label: 'En cours', count: active.length + confirmeesV2.length },
     { key: 'completed', label: 'Terminées', count: completed.length },
   ];
 
@@ -91,18 +115,27 @@ export default function MissionsScreen() {
           disponible » sur une requête qui a échoué dit exactement le contraire
           de ce qui s'est passé — et laisse attendre des propositions qui ne
           viendront jamais. */}
-      {erreur && (
-        <View style={[styles.erreur, { borderColor: colors.error, backgroundColor: colors.error + '10' }]}>
-          <Text style={[styles.erreurTexte, { color: colors.error }]}>{erreur}</Text>
+      {[erreur, erreurCandidatures].filter(Boolean).map((e) => (
+        <View key={e} style={[styles.erreur, { borderColor: colors.error, backgroundColor: colors.error + '10' }]}>
+          <Text style={[styles.erreurTexte, { color: colors.error }]}>{e}</Text>
         </View>
-      )}
+      ))}
 
       {/* Content */}
       <FlatList
         data={data}
-        refreshing={isLoading}
-        onRefresh={() => { void charger(); }}
+        refreshing={isLoading || chargementCandidatures}
+        onRefresh={toutRelire}
         keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          misesEnRelation.length > 0 ? (
+            <View style={{ gap: Spacing.md, marginBottom: data.length > 0 ? Spacing.md : 0 }}>
+              {misesEnRelation.map((c) => (
+                <CarteCandidature key={c.id} candidature={c} />
+              ))}
+            </View>
+          ) : null
+        }
         // ⚠️ `flexGrow: 1` : vide, la liste n'avait aucune hauteur — et une liste
         // sans hauteur ne se tire pas. Le « tirer pour rafraîchir » ne marchait
         // donc jamais là où il sert le plus, sur « Aucune co-livraison ».
@@ -120,7 +153,7 @@ export default function MissionsScreen() {
           </Animated.View>
         )}
         ListEmptyComponent={
-          isLoading ? null : tab === 'new' ? (
+          isLoading || misesEnRelation.length > 0 ? null : tab === 'new' ? (
             <EmptyState iconName="package" title="Aucune co-livraison disponible" description="Restez actif pour recevoir des propositions !" />
           ) : tab === 'active' ? (
             <EmptyState iconName="rocket" title="Aucune co-livraison en cours" description="Acceptez une proposition pour démarrer." />

@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useRouter } from 'expo-router';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaWrapper } from '@/components/layout/SafeAreaWrapper';
 import { Header } from '@/components/layout/Header';
@@ -11,9 +12,11 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import { formatDateTime } from '@/utils/formatting';
+import { routeSuivable } from '@/utils/routeNotification';
 
 export default function NotificationsScreen() {
   const { colors } = useColorScheme();
+  const router = useRouter();
   const { t } = useTranslation();
   const { notifications, isLoading, erreur, charger, marquerCommeLue } = useNotificationStore();
 
@@ -37,7 +40,14 @@ export default function NotificationsScreen() {
           return (
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => { if (!item.read) void marquerCommeLue(item.id); }}
+              onPress={() => {
+                if (!item.read) void marquerCommeLue(item.id);
+                // 🔴 L'APPUI NE FAISAIT QUE MARQUER LU : une proposition de vingt
+                // minutes s'ouvrait en allant la chercher dans l'onglet. On suit
+                // la route de l'avis — seulement si elle existe dans CETTE application.
+                const route = routeSuivable(item.route);
+                if (route) router.push(route as never);
+              }}
             >
             <Card
               style={
