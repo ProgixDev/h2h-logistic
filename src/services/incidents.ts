@@ -77,7 +77,7 @@ export async function declarerIncident(brouillon: BrouillonIncident): Promise<In
     p_longitude: brouillon.position?.lng ?? null,
     p_contests_id: brouillon.contesteId ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(messageRefusIncident(error.message, error.hint));
 
   const l = (Array.isArray(data) ? data[0] : data) as Record<string, unknown> | null;
   if (!l?.declaration_id) throw new Error('déclaration non enregistrée');
@@ -188,4 +188,31 @@ export async function televerserPreuves(
     chemins.push(chemin);
   }
   return chemins;
+}
+
+/**
+ * Le refus du colis a ses règles (hand-to-hand 20261008009000) : dites dans nos mots quand le serveur en donne
+ * l'indice ; les autres refus restent tels quels — c'est la seule information utile.
+ */
+export function messageRefusIncident(message: string, indice?: string | null): string {
+  switch (indice) {
+    case 'REFUS_COLIS_TROP_TOT':
+      return 'Le refus du colis se déclare pendant le créneau de collecte : il n’est pas encore ouvert.';
+    case 'REFUS_COLIS_TROP_TARD':
+      return 'Le créneau de collecte est passé : le refus du colis ne se déclare plus.';
+    case 'REFUS_COLIS_PRESENCE':
+      return 'Déclarez d’abord votre présence au hub (« Je suis au hub »), puis le refus du colis.';
+    case 'REFUS_COLIS_MOTIF':
+      return 'Indiquez le motif du refus.';
+    case 'REFUS_COLIS_DEJA_DECLARE':
+      return 'Le refus de ce colis est déjà déclaré.';
+    case 'REFUS_COLIS_ABSENCE_DECLAREE':
+      return 'Une absence est déjà déclarée à cette collecte.';
+    case 'REFUS_COLIS_ETAT':
+      return 'Cette co-livraison n’attend plus sa collecte : le colis ne se refuse plus.';
+    case 'REFUS_COLIS_DECLARE':
+      return 'Le colis a été refusé à cette collecte : une absence ne s’y déclare plus.';
+    default:
+      return message;
+  }
 }

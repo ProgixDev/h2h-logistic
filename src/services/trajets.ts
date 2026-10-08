@@ -18,6 +18,7 @@ import { supabase } from '@/lib/supabase';
 import type { PublishedRoute, RouteHub, RouteType } from '@/types/route';
 import type { TransportTypeId } from '@/constants/TransportTypes';
 import type { PackageSize } from '@/constants/TransportTypes';
+import { versCapaciteTrajets, type CapaciteTrajet } from '@/utils/capaciteTrajet';
 
 /** Un arrêt tel que la base l'attend : ordonné, hub facultatif. */
 export type ArretTrajet = {
@@ -226,4 +227,14 @@ export async function modifierTrajet(
 export async function retirerTrajet(id: string): Promise<void> {
   const { error } = await supabase.rpc('retirer_trajet', { p_id: id });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Les places de mes trajets, passage par passage, sur les sept prochains jours (hand-to-hand 20261008010000) : telles
+ * que la mise en relation les compte (§ 5.2.9) — pas l'ancien compteur `missions_count`, qui ne redescendait jamais.
+ */
+export async function lireCapaciteTrajets(): Promise<Record<string, CapaciteTrajet>> {
+  const { data, error } = await supabase.rpc('cotransporteur_capacite_trajets');
+  if (error) throw new Error(error.message);
+  return versCapaciteTrajets(data);
 }

@@ -10,6 +10,7 @@ export type IncidentFormType =
   | 'cancel_seller'
   | 'cancel_buyer'
   | 'refuse_package'
+  | 'contest_refuse_package'
   | 'cancel_transporter'
   | 'collect_absent'
   | 'contest_decision';

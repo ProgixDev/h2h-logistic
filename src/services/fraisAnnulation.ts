@@ -12,6 +12,8 @@ import { supabase } from '@/lib/supabase';
 
 export type FraisAnnulation = {
   role: 'acheteur' | 'vendeur' | 'cotransporteur';
+  /** `refus_colis` : un refus du colis dit injustifié (hand-to-hand 20261008009000) — il s'est contesté, lui. */
+  cause: 'annulation' | 'refus_colis';
   annuleeLe: string;
   fraisCents: number;
   /** Retenu sur les prochaines participations. */
@@ -35,6 +37,7 @@ export async function lireFraisAnnulation(orderId: string): Promise<FraisAnnulat
   const r = f.recours as Record<string, unknown> | null;
   return {
     role: f.role as FraisAnnulation['role'],
+    cause: f.cause === 'refus_colis' ? 'refus_colis' : 'annulation',
     annuleeLe: String(f.annulee_le),
     fraisCents: Number(f.frais_cents ?? 0),
     duCents: Number(f.du_cents ?? 0),

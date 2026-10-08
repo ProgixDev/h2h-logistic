@@ -25,6 +25,8 @@ import { attenteDepassee } from '@/utils/retardAuRendezVous';
 import { OffHubDecisionSheet } from '@/components/logistics/OffHubProposal';
 import { chargerDemandesHorsHub, repondreHorsHub, type DemandeHorsHub } from '@/services/horsHub';
 import { SupportDecisionCard } from '@/components/mission/SupportDecisionCard';
+import { RefusColisCarte, useRefusColis } from '@/components/mission/RefusColisCarte';
+import { refusEnCours } from '@/utils/refusColis';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -328,7 +330,12 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
   // Le lien réapparaîtra de lui-même le jour où les hubs embarqueront.
   const hubsSignalables = [mission.pickupHub, mission.deliveryHub].filter((h) => !!h.id);
 
-  const isPickupLate = attenteDepassee(
+  // 🔴 UN COLIS REFUSÉ À LA COLLECTE (hand-to-hand 20261008009000) : le rendez-vous n'a plus lieu, la co-livraison
+  // ne s'annule pas autrement — la collecte, l'absence du vendeur et l'annulation disparaissent de l'écran.
+  const refus = useRefusColis(mission.orderId);
+  const refusAttend = refusEnCours(refus);
+
+  const isPickupLate = !refusAttend && attenteDepassee(
     {
       statut: mission.status,
       heurePrevue: mission.pickupHub.scheduledTime,
@@ -407,6 +414,12 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           </Animated.View>
         )}
 
+        {refus && (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <RefusColisCarte refus={refus} />
+          </Animated.View>
+        )}
+
         {/* Off-hub active banner */}
         {horsHubAccepte && (
           <View style={[gs.banner, { backgroundColor: colors.warning + '12' }]}>
@@ -452,7 +465,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         )}
 
         {/* Big context-aware action button */}
-        {reminderPhase !== 'completed' && (
+        {reminderPhase !== 'completed' && !refusAttend && (
           <Animated.View entering={FadeInDown.delay(220).duration(300)}>
             <DirectionHubButton
               phase={reminderPhase}
@@ -640,7 +653,7 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
         </View>
 
         {/* Annuler — avant la prise en charge seulement : après, c'est le Protocole d'Incident (§ 5.5.3). */}
-        {AVANT_PRISE_EN_CHARGE.includes(mission.status) && (
+        {AVANT_PRISE_EN_CHARGE.includes(mission.status) && !refusAttend && (
           <TouchableOpacity onPress={() => { void handleCancelMission(); }} hitSlop={12} style={gs.cancelBtn}>
             <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la co-livraison</Text>
           </TouchableOpacity>

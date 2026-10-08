@@ -29,6 +29,8 @@ import { Icon, type IconName } from '@/components/ui/Icon';
 import { LiveDot } from '@/components/ui/LiveDot';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
+import { libellePlacesCourt, prochainPassage, type CapaciteTrajet } from '@/utils/capaciteTrajet';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
@@ -91,6 +93,7 @@ export default function HomeScreen() {
   // par le journal réel ; un commentaire périmé sur ce qui est vrai ou faux à
   // l'écran est précisément ce qui a laissé « 12 co-livraisons » survivre.
   const { routes, hydrate: chargerTrajets } = useRouteStore();
+  const capacites = useCapaciteTrajets();
   const { notifications, nonLues, charger: chargerNotifs } = useNotificationStore();
   const { summary, charger: chargerParticipations } = useEarningsStore();
   // 🔴 CALCULÉ SUR LES VRAIES CO-LIVRAISONS TERMINÉES, plus sur une graine
@@ -436,7 +439,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               }
               renderItem={({ item }) => (
-                <CompactRouteCard route={item} colors={colors} router={router} />
+                <CompactRouteCard route={item} capacite={capacites[item.id]} colors={colors} router={router} />
               )}
               ListEmptyComponent={
                 <Card style={styles.emptyRouteCard}>
@@ -614,13 +617,17 @@ function CompactMissionCard({
 
 function CompactRouteCard({
   route,
+  capacite,
   colors,
   router,
 }: {
   route: PublishedRoute;
+  capacite?: CapaciteTrajet;
   colors: any;
   router: any;
 }) {
+  // 🔴 LES PLACES DU PROCHAIN PASSAGE (hand-to-hand 20261008010000), pas l'ancien compteur qui ne redescendait jamais.
+  const prochain = prochainPassage(capacite);
   return (
     <TouchableOpacity
       onPress={() => router.push(`/route/${route.id}`)}
@@ -646,9 +653,11 @@ function CompactRouteCard({
               {route.status === 'active' ? 'Actif' : 'Pause'}
             </Text>
           </View>
-          <Text style={[styles.compactRouteCount, { color: colors.textSecondary }]}>
-            {route.missionsCount} colis
-          </Text>
+          {prochain && capacite ? (
+            <Text style={[styles.compactRouteCount, { color: colors.textSecondary }]}>
+              {libellePlacesCourt(prochain, capacite.places)}
+            </Text>
+          ) : null}
         </View>
       </View>
     </TouchableOpacity>

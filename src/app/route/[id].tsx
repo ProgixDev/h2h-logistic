@@ -13,6 +13,9 @@ import { HubParticipantChip, type HubParticipantInfo } from '@/components/route/
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
+import dayjs from 'dayjs';
+import { libellePlaces } from '@/utils/capaciteTrajet';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { auLieu } from '@/utils/lieuRendezVous';
 import { useRouteStore } from '@/stores/useRouteStore';
@@ -36,6 +39,7 @@ export default function RouteDetailScreen() {
   const { missions } = useMissionStore();
 
   const route = routes.find((r) => r.id === id);
+  const capacite = useCapaciteTrajets()[String(id)];
 
   // ⚠️ IL TOLÈRE UN TRAJET ABSENT, puisqu'il s'exécute maintenant AVANT la
   // garde. Sans trajet, il n'y a personne à afficher : une table vide.
@@ -170,10 +174,28 @@ export default function RouteDetailScreen() {
           <InfoRow label="Créé le" value={formatDate(route.createdAt)} colors={colors} />
         </Card>
 
+        {/* 🔴 LES PLACES DE CHAQUE PASSAGE (hand-to-hand 20261008010000) : telles que la mise en relation les compte,
+            pour les sept prochains jours — complet, chevauché par un autre engagement, ou « Pas aujourd'hui ». */}
+        {capacite && capacite.passages.length > 0 && (
+          <Card>
+            <Text style={[styles.statLabel, { color: colors.text, marginBottom: Spacing.xs }]}>
+              Places par passage (7 prochains jours)
+            </Text>
+            {capacite.passages.map((p) => (
+              <InfoRow
+                key={p.collecteLe}
+                label={`${DAYS_SHORT[new Date(p.collecteLe).getDay() || 7]} ${dayjs(p.collecteLe).format('DD/MM [à] HH:mm')}`}
+                value={libellePlaces(p, capacite.places)}
+                colors={colors}
+              />
+            ))}
+          </Card>
+        )}
+
         {/* Stats */}
         <View style={styles.statsRow}>
           <Card style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.primary }]}>{route.missionsCount}</Text>
+            <Text style={[styles.statValue, { color: colors.primary }]}>{capacite ? capacite.colivraisons : '—'}</Text>
             <Text style={[styles.statLabel, { color: colors.textSecondary }]}>Co-livraisons</Text>
           </Card>
           <Card style={styles.statCard}>

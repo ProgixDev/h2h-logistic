@@ -283,6 +283,27 @@ export const INCIDENT_FORM_SPECS: IncidentFormSpec[] = [
     danger: true,
   },
 
+  // ─── F11 contesté — par le vendeur (hand-to-hand 20261008009000, § 5.6.3) ───
+  // ⚠️ JAMAIS PROPOSÉ ICI : le vendeur conteste depuis la place de marché. La spec garde la table complète et fidèle à
+  // `ref.incident_forms`, comme `contest_seller_absent`.
+  {
+    type: 'contest_refuse_package',
+    title: 'Contester un refus du colis',
+    role: 'seller',
+    hub: 'pickup',
+    message:
+      "Le cotransporteur a refusé votre colis à la collecte. Si le colis était conforme, vous pouvez contester ce refus dans les vingt-quatre heures : l'équipe H2H Logistic examine les deux versions.",
+    contestsType: 'refuse_package',
+    reasonFieldId: 'motif',
+    fields: [
+      { id: 'motif', label: 'Motif de la contestation', type: 'radio', required: true, options: ["Le colis correspondait à l'annonce", "L'emballage permettait un transport sûr", "Le colis n'a pas été examiné devant moi", 'Autre motif'] },
+      { id: 'describe', label: "Décrivez ce qu'il s'est passé", type: 'textarea' },
+    ],
+    preValidation:
+      "En envoyant cette contestation, vous suspendez l'annulation : l'équipe H2H Logistic examine les deux versions.",
+    submitLabel: 'Envoyer ma contestation',
+  },
+
   // ─── F9 — Annulation vendeur avant le créneau (sans frais, D7) ───
   {
     type: 'cancel_seller',

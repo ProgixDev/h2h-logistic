@@ -413,11 +413,6 @@ export const useMissionStore = create<MissionState>((set, get) => ({
       get().openSupportReview(missionId, `incident-${type}`);
       return;
     }
-    if (type === 'refuse_package') {
-      // F11 — refus colis non conforme → co-livraison annulée, dossier analysable.
-      get().cancelMission(missionId, 'other');
-      return;
-    }
     if (type === 'cancel_seller' || type === 'cancel_buyer' || type === 'cancel_transporter') {
       const role: DeclarantRole = type === 'cancel_seller' ? 'seller' : type === 'cancel_buyer' ? 'buyer' : 'transporter';
       const refIso = m?.pickupHub.scheduledTime ?? new Date().toISOString();

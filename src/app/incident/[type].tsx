@@ -27,10 +27,15 @@ import { SETTLEMENT_PARTY_LABELS } from '@/types/settlement';
 import type { CommonFormData, MissionFormStatus } from '@/types/incident';
 import type { Mission } from '@/types/mission';
 
-/** Incident types that apply a mission outcome on submit. */
+/**
+ * Incident types that apply a mission outcome on submit.
+ *
+ * 🔴 PAS LE REFUS DU COLIS (hand-to-hand 20261008009000) : il annulait la mission dans la mémoire du téléphone, et le
+ * rafraîchissement suivant la rétablissait. Le serveur l'annule quand le refus devient effectif (§ 5.6.3).
+ */
 const OUTCOME_TYPES = [
   'buyer_absent', 'transporter_absent', 'seller_absent', 'hub_blocked',
-  'collect_absent', 'refuse_package', 'cancel_seller', 'cancel_buyer', 'cancel_transporter',
+  'collect_absent', 'cancel_seller', 'cancel_buyer', 'cancel_transporter',
 ];
 
 function computeStatus(m?: Mission): MissionFormStatus {
@@ -159,13 +164,20 @@ export default function IncidentFormScreen() {
     dayjs().isAfter(
       dayjs(mission.pickupHub.scheduledTime).add(mission.pickupHub.toleranceMinutes, 'minute'),
     );
+  // 🔴 ET PAS AVANT LE CRÉNEAU (hand-to-hand 20261008009000) : le refus se déclare à l'heure de collecte, à la
+  // tolérance près — le serveur le refuse plus tôt, et le colis n'a pas encore été présenté.
+  const collectNotYet =
+    !!spec.collectWindowOnly && !!mission && !pickupFinalized &&
+    dayjs().isBefore(
+      dayjs(mission.pickupHub.scheduledTime).subtract(mission.pickupHub.toleranceMinutes, 'minute'),
+    );
   const openF13 = () =>
     router.replace({ pathname: '/incident/[type]' as any, params: { type: 'collect_absent', missionId: technicalId } });
 
   const primaryVal = spec.primaryChoiceFieldId ? answers[spec.primaryChoiceFieldId] : undefined;
   const isWait = spec.waitValue !== undefined && primaryVal === spec.waitValue;
   const requiredAnswered = spec.fields.filter((f) => f.required).every((f) => !!answers[f.id]);
-  const canSubmit = !isWait && !windowClosed && !engagedLocked && !collectExpired
+  const canSubmit = !isWait && !windowClosed && !engagedLocked && !collectExpired && !collectNotYet
     && !contestationEnAttente
     && extras.accuracyConfirmed && requiredAnswered && !isSubmitting;
 
@@ -251,6 +263,14 @@ export default function IncidentFormScreen() {
     if (OUTCOME_TYPES.includes(spec.type) && !isWait && technicalId) {
       applyIncidentOutcome(technicalId, spec.type);
     }
+    // 🔴 UN REFUS DU COLIS N'ANNULE RIEN TOUT DE SUITE (§ 5.6.3) : le vendeur a vingt-quatre heures pour le contester.
+    // La mission le dit, relue au serveur.
+    if (spec.type === 'refuse_package' && technicalId) {
+      setToast({ texte: 'Refus enregistré : le vendeur dispose de vingt-quatre heures pour le contester.', type: 'success' });
+      void useMissionStore.getState().charger();
+      setTimeout(() => router.replace({ pathname: '/mission/[id]', params: { id: technicalId } } as never), 1600);
+      return;
+    }
     setToast({ texte: 'Formulaire envoyé.', type: 'success' });
     setTimeout(() => router.back(), 1600);
   };
@@ -293,6 +313,17 @@ export default function IncidentFormScreen() {
             <Icon name="alert-circle" size={14} color={colors.error} />
             <Text style={[styles.ruleNoteText, { color: colors.error }]}>
               {`Le délai de contestation (règle ${spec.delayRuleId}) est dépassé. Aucune réclamation n'est possible.`}
+            </Text>
+          </View>
+        )}
+
+        {/* F11 — pas encore le créneau de collecte */}
+        {collectNotYet && mission && (
+          <View style={[styles.ruleNote, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30' }]}>
+            <Icon name="time" size={14} color={colors.warning} />
+            <Text style={[styles.ruleNoteText, { color: colors.warning }]}>
+              {`Le refus du colis se déclare pendant le créneau de collecte, à partir de ${dayjs(mission.pickupHub.scheduledTime)
+                .subtract(mission.pickupHub.toleranceMinutes, 'minute').format('HH:mm')}.`}
             </Text>
           </View>
         )}

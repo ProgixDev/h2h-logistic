@@ -10,6 +10,7 @@ import { RouteCard } from '@/components/route/RouteCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
+import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useRouteStore } from '@/stores/useRouteStore';
@@ -22,6 +23,7 @@ export default function RoutesScreen() {
   const insets = useSafeAreaInsets();
   const { transporterStatus, toggleOnline } = useAuthStore();
   const { routes, hydrate } = useRouteStore();
+  const capacites = useCapaciteTrajets();
   const [filter, setFilter] = useState<FilterTab>('active');
 
   const isOnline = transporterStatus === 'active';
@@ -101,7 +103,7 @@ export default function RoutesScreen() {
         ItemSeparatorComponent={() => <View style={{ height: Spacing.md }} />}
         renderItem={({ item, index }) => (
           <Animated.View entering={FadeInDown.delay(index * 80).duration(300)}>
-            <RouteCard route={item} />
+            <RouteCard route={item} capacite={capacites[item.id]} />
           </Animated.View>
         )}
         ListEmptyComponent={

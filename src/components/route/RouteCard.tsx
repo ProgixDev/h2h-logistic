@@ -10,6 +10,8 @@ import { LiveDot } from '@/components/ui/LiveDot';
 import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
+import dayjs from 'dayjs';
+import { libellePlaces, prochainPassage, type CapaciteTrajet } from '@/utils/capaciteTrajet';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
 
@@ -17,9 +19,11 @@ const DAYS_SHORT: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'J
 
 interface RouteCardProps {
   route: PublishedRoute;
+  /** Les places de ses passages, telles que la mise en relation les compte ; absente tant qu'elle n'est pas lue. */
+  capacite?: CapaciteTrajet;
 }
 
-export function RouteCard({ route }: RouteCardProps) {
+export function RouteCard({ route, capacite }: RouteCardProps) {
   const { colors } = useColorScheme();
   const router = useRouter();
   const { toggleRouteStatus, deleteRoute, hasActiveMission } = useRouteStore();
@@ -28,6 +32,7 @@ export function RouteCard({ route }: RouteCardProps) {
   const transport = TRANSPORT_TYPES.find((t) => t.id === route.transportType);
   const isActive = route.status === 'active';
   const hasMission = hasActiveMission(route.id);
+  const prochain = prochainPassage(capacite);
 
   // Schedule text
   const scheduleText = (() => {
@@ -117,17 +122,26 @@ export function RouteCard({ route }: RouteCardProps) {
         </View>
 
         {/* Capacity + Missions */}
+        {/* 🔴 LES PLACES SE COMPTENT PAR PASSAGE (hand-to-hand 20261008010000) : l'ancien compteur ne redescendait
+            jamais, et disait « complet pour toujours » un trajet récurrent après trois acceptations. */}
         <View style={styles.bottomRow}>
           <Text style={[styles.capacity, { color: colors.textSecondary }]}>
             Capacité déclarée : {route.maxPackages} colis, taille {route.maxSize} max
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Icon name="package" size={14} color={colors.primary} />
-            <Text style={[styles.missions, { color: colors.primary }]}>
-              {route.missionsCount} co-livraisons
-            </Text>
-          </View>
+          {capacite && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="package" size={14} color={colors.primary} />
+              <Text style={[styles.missions, { color: colors.primary }]}>
+                {capacite.colivraisons} co-livraison{capacite.colivraisons > 1 ? 's' : ''}
+              </Text>
+            </View>
+          )}
         </View>
+        {prochain && capacite && (
+          <Text style={[styles.capacity, { color: colors.text, marginTop: Spacing.xs }]}>
+            Prochain passage, {dayjs(prochain.collecteLe).format('DD/MM [à] HH:mm')} : {libellePlaces(prochain, capacite.places)}
+          </Text>
+        )}
 
         {/* Active mission warning */}
         {hasMission && (

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
 import { FraisAnnulationCarte } from '@/components/mission/FraisAnnulationCarte';
+import { RefusColisResume } from '@/components/mission/RefusColisCarte';
 import { ParticipantsCard } from '@/components/mission/ParticipantsCard';
 import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
@@ -99,6 +100,9 @@ export default function MissionDetailScreen() {
             </Text>
           </View>
         </View>
+
+        {/* 🔴 UN COLIS REFUSÉ À LA COLLECTE (hand-to-hand 20261008009000) : l'issue, sa compensation ou ses frais. */}
+        {mission.status === 'cancelled' && mission.orderId && <RefusColisResume orderId={mission.orderId} />}
 
         {/* 🔴 SES FRAIS D'UNE ANNULATION TARDIVE, ET LEUR CONTESTATION (hand-to-hand 20261008007000). */}
         {mission.status === 'cancelled' && mission.orderId && (

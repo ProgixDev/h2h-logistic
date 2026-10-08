@@ -43,7 +43,8 @@ export function FraisAnnulationCarte({ missionId, orderId }: { missionId: string
   return (
     <Card>
       <Text style={[styles.titre, { color: colors.text }]}>
-        Frais d’annulation tardive : {formatCurrency(frais.fraisCents / 100)}
+        {frais.cause === 'refus_colis' ? 'Frais — refus du colis non retenu' : 'Frais d’annulation tardive'} :{' '}
+        {formatCurrency(frais.fraisCents / 100)}
       </Text>
       {etat ? (
         <>
