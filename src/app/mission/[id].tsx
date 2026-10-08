@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { MissionTimeline } from '@/components/mission/MissionTimeline';
+import { FraisAnnulationCarte } from '@/components/mission/FraisAnnulationCarte';
 import { ParticipantsCard } from '@/components/mission/ParticipantsCard';
 import { Icon } from '@/components/ui/Icon';
 import { Typography } from '@/constants/Typography';
@@ -87,13 +88,22 @@ export default function MissionDetailScreen() {
         )}
         <View style={styles.statusRow}>
           <Badge label={STATUS_LABELS[mission.status] ?? mission.status} variant={mission.status === 'delivered' || mission.status === 'completed' ? 'success' : 'error'} />
+          {/* ⚠️ UNE CO-LIVRAISON ANNULÉE NE PAIE AUCUNE PARTICIPATION : l'écran affichait la participation prévue,
+              en vert, sur une mission qui ne la versera jamais. */}
           <View style={styles.earningCol}>
-            <Text style={[styles.earningLabel, { color: colors.textSecondary }]}>Participation aux frais</Text>
-            <Text style={[styles.earning, { color: colors.success }]}>
-              {formatCurrency(mission.transporterEarning)}
+            <Text style={[styles.earningLabel, { color: colors.textSecondary }]}>
+              {mission.status === 'cancelled' ? 'Aucune participation' : 'Participation aux frais'}
+            </Text>
+            <Text style={[styles.earning, { color: mission.status === 'cancelled' ? colors.textSecondary : colors.success }]}>
+              {mission.status === 'cancelled' ? '—' : formatCurrency(mission.transporterEarning)}
             </Text>
           </View>
         </View>
+
+        {/* 🔴 SES FRAIS D'UNE ANNULATION TARDIVE, ET LEUR CONTESTATION (hand-to-hand 20261008007000). */}
+        {mission.status === 'cancelled' && mission.orderId && (
+          <FraisAnnulationCarte missionId={mission.id} orderId={mission.orderId} />
+        )}
 
         <Card>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Colis</Text>
