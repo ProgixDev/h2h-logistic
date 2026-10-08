@@ -23,6 +23,7 @@ import {
   type LigneParticipation,
 } from '@/services/participations';
 import { sequenceur } from '@/utils/derniereLectureGagne';
+import { estColivraison, estRecue } from '@/utils/participationRecue';
 
 export type Period = 'today' | 'week' | 'month' | 'total';
 
@@ -40,7 +41,7 @@ interface EarningsState {
 
 const JOUR_MS = 86_400_000;
 
-/** Les crédits du journal, regroupés par jour, sur les sept derniers jours. */
+/** Les participations reçues, regroupées par jour, sur les sept derniers jours (`estRecue`). */
 function parJour(journal: LigneParticipation[]): DailyEarning[] {
   const debut = new Date();
   debut.setHours(0, 0, 0, 0);
@@ -48,26 +49,22 @@ function parJour(journal: LigneParticipation[]): DailyEarning[] {
   for (let i = 6; i >= 0; i -= 1) {
     const d = new Date(debut.getTime() - i * JOUR_MS);
     const cle = d.toISOString().slice(0, 10);
-    const lignes = journal.filter(
-      (l) => l.sens === 'C' && l.survenuLe.slice(0, 10) === cle,
-    );
+    const lignes = journal.filter((l) => estRecue(l) && l.survenuLe.slice(0, 10) === cle);
     jours.push({
       date: cle,
       amount: Math.round(lignes.reduce((s, l) => s + l.montantEuros, 0) * 100) / 100,
-      deliveries: lignes.length,
+      deliveries: lignes.filter(estColivraison).length,
     });
   }
   return jours;
 }
 
-/** Ce qui a été porté au crédit depuis `depuis`. */
+/** Les participations reçues depuis `quand` — jamais les frais qu'un virement a soldés. */
 function depuis(journal: LigneParticipation[], quand: Date) {
-  const lignes = journal.filter(
-    (l) => l.sens === 'C' && new Date(l.survenuLe).getTime() >= quand.getTime(),
-  );
+  const lignes = journal.filter((l) => estRecue(l) && new Date(l.survenuLe).getTime() >= quand.getTime());
   return {
     amount: Math.round(lignes.reduce((s, l) => s + l.montantEuros, 0) * 100) / 100,
-    deliveries: lignes.length,
+    deliveries: lignes.filter(estColivraison).length,
   };
 }
 
@@ -93,7 +90,7 @@ export const useEarningsStore = create<EarningsState>((set, get) => ({
         chargerJournalParticipations(200),
       ]);
       if (lectures.estPerimee(jeton)) return;
-      const credits = journal.filter((l) => l.sens === 'C');
+      const colivraisons = journal.filter(estColivraison);
       const total = Math.round((p.soldeEuros + p.verseEuros) * 100) / 100;
       set({
         journal,
@@ -105,7 +102,7 @@ export const useEarningsStore = create<EarningsState>((set, get) => ({
           pendingBalance: p.enAttenteEuros,
           withdrawnTotal: p.verseEuros,
           totalEarnings: total,
-          totalMissions: credits.length,
+          totalMissions: colivraisons.length,
           // ⚠️ CES QUATRE-LÀ SE CALCULENT DU JOURNAL, pas d'un chiffre stocké :
           // la base n'agrège rien par période, et une somme recopiée dérive.
           todayEarnings: depuis(journal, debutDeJournee()).amount,

@@ -119,10 +119,17 @@ export default function EarningsScreen() {
                 titre disait « Solde disponible » au-dessus du solde TOTAL : une
                 co-livraison remise hier est due, pas encore versable — la
                 fenêtre de réclamation court. */}
-            <Text style={s.balanceLabel}>Participations à recevoir</Text>
-            <Text style={s.balanceAmount}>{formatCurrency(summary?.balance ?? 0)}</Text>
+            {/* 🔴 UN SOLDE PEUT ÊTRE NÉGATIF (hand-to-hand 20261008006000) : des frais d'annulation tardive
+                que rien n'a encore couverts, retenus sur les prochaines participations. Le dire comme tel —
+                jamais « −2,00 € à recevoir », ni « −2,00 € versable maintenant ». */}
+            <Text style={s.balanceLabel}>
+              {(summary?.balance ?? 0) < 0 ? 'Frais d’annulation à déduire' : 'Participations à recevoir'}
+            </Text>
+            <Text style={s.balanceAmount}>{formatCurrency(Math.abs(summary?.balance ?? 0))}</Text>
             <Text style={s.withdrawNote}>
-              {formatCurrency(summary?.availableBalance ?? 0)} versable maintenant
+              {(summary?.availableBalance ?? 0) < 0
+                ? `${formatCurrency(-(summary?.availableBalance ?? 0))} de frais d’annulation, retenus sur vos prochaines participations`
+                : `${formatCurrency(summary?.availableBalance ?? 0)} versable maintenant`}
               {(summary?.pendingBalance ?? 0) > 0
                 ? ` · ${formatCurrency(summary?.pendingBalance ?? 0)} en attente`
                 : ''}

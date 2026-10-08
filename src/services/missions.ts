@@ -266,6 +266,18 @@ export async function refuserMission(missionId: string, motif?: string): Promise
 // l'annulation se demande au serveur, qui la refuse ou la fait — et prévient les
 // deux autres.
 
+/**
+ * Les frais d'une annulation à moins d'une heure de la collecte (20261008006000), tels que la porte les
+ * appliquera : pour un cotransporteur, 2 €, dus — retenus sur ses prochaines participations (§ 5.6.2).
+ */
+export type FraisAnnulation = {
+  fraisCents: number;
+  /** Pris tout de suite sur un paiement (jamais pour un cotransporteur, qui n'a rien payé). */
+  retenuCents: number;
+  /** Retenu sur les prochains virements. */
+  duCents: number;
+};
+
 /** Ce que l'annulation serait, MAINTENANT, pour moi ; `null` si la base ne la connaît pas d'ici. */
 export type ConditionsAnnulation = {
   stade: 'recherche' | 'confirmee' | 'prise_en_charge' | 'terminee' | 'annulee' | 'inconnue';
@@ -273,6 +285,8 @@ export type ConditionsAnnulation = {
   /** La dernière heure sans frais : une heure avant la collecte (à une heure pile, encore). */
   sansFraisJusquAu: string | null;
   raison: 'tardive' | 'prise_en_charge' | 'terminee' | 'annulee' | 'inconnue' | null;
+  /** `null` quand l'annulation est sans frais. */
+  frais: FraisAnnulation | null;
 };
 
 /**
@@ -283,16 +297,30 @@ export async function lireConditionsAnnulation(orderId: string): Promise<Conditi
   const { data, error } = await supabase.rpc('colivraison_conditions_annulation', { p_order: orderId });
   if (error) throw new Error(messageAnnulation(error.hint, error.message));
   const c = data as { stade: ConditionsAnnulation['stade']; possible: boolean;
-                      sans_frais_jusqu_au: string | null; raison: ConditionsAnnulation['raison'] } | null;
+                      sans_frais_jusqu_au: string | null; raison: ConditionsAnnulation['raison'];
+                      frais?: { frais_cents: number | string; retenu_cents: number | string;
+                                du_cents: number | string } | null } | null;
   if (!c) return null;
-  return { stade: c.stade, possible: c.possible === true, sansFraisJusquAu: c.sans_frais_jusqu_au, raison: c.raison };
+  return {
+    stade: c.stade, possible: c.possible === true, sansFraisJusquAu: c.sans_frais_jusqu_au, raison: c.raison,
+    frais: c.frais
+      ? { fraisCents: Number(c.frais.frais_cents), retenuCents: Number(c.frais.retenu_cents),
+          duCents: Number(c.frais.du_cents) }
+      : null,
+  };
 }
 
-/** Annuler, sans frais : le serveur revérifie l'heure et le stade, puis prévient l'acheteur et le vendeur. */
-export async function annulerColivraison(orderId: string, motif?: string): Promise<void> {
+/**
+ * Annuler. Le serveur revérifie l'heure et le stade, puis prévient l'acheteur et le vendeur.
+ *
+ * 🔴 À MOINS D'UNE HEURE, `fraisCents` EST LE MONTANT QUE LE COTRANSPORTEUR A VU ET ACCEPTÉ : le serveur
+ * n'annule qu'à ce montant (`COLIVRAISON_FRAIS_A_ACCEPTER` sinon), jamais à un autre.
+ */
+export async function annulerColivraison(orderId: string, motif?: string, fraisCents?: number): Promise<void> {
   const { error } = await supabase.rpc('colivraison_annuler', {
     p_order: orderId,
     p_motif: motif?.trim() || null,
+    p_frais_cents: fraisCents ?? null,
   });
   if (error) throw new Error(messageAnnulation(error.hint, error.message));
 }
@@ -300,6 +328,8 @@ export async function annulerColivraison(orderId: string, motif?: string): Promi
 /** Le refus du serveur, dans des mots qu'un cotransporteur lit — son message brut est écrit sans accents. */
 export function messageAnnulation(indice: string | null | undefined, brut: string): string {
   switch (indice) {
+    case 'COLIVRAISON_FRAIS_A_ACCEPTER':
+      return 'L’heure de la collecte approche : des frais d’annulation s’appliquent désormais. Relisez-les avant d’annuler.';
     case 'COLIVRAISON_ANNULATION_TARDIVE':
       return 'À moins d’une heure de la collecte, l’annulation entraîne des frais : elle n’est pas encore possible dans l’application. Contactez le support.';
     case 'COLIVRAISON_PRISE_EN_CHARGE':

@@ -63,7 +63,8 @@ interface MissionState {
    * Annuler AU SERVEUR une co-livraison confirmée (20261008004000), puis relire. ⚠️ Le serveur refuse ce qu'il
    * doit refuser — la dernière heure, le colis pris, l'ancien parcours — et l'appelant MONTRE le message.
    */
-  annulerAuServeur: (id: string) => Promise<void>;
+  /** À moins d’une heure de la collecte, `fraisCents` : le montant vu et accepté (20261008006000). */
+  annulerAuServeur: (id: string, fraisCents?: number) => Promise<void>;
   reportSellerAbsence: (id: string) => void;
   reportBuyerAbsence: (id: string, extend?: boolean) => void;
   openSupportReview: (missionId: string, reportId: string, reportedUserId?: string) => void;
@@ -221,13 +222,13 @@ export const useMissionStore = create<MissionState>((set, get) => ({
     await get().charger();
   },
 
-  annulerAuServeur: async (id) => {
+  annulerAuServeur: async (id, fraisCents) => {
     const m = findMissionById(get(), id);
     // L'ancien parcours n'a pas d'annulation au serveur : le dire, plutôt que de faire semblant.
     if (!m?.orderId) throw new Error('Cette co-livraison s’annule par le support : contactez-le.');
     set({ isLoading: true, erreur: null });
     try {
-      await annulerColivraison(m.orderId);
+      await annulerColivraison(m.orderId, undefined, fraisCents);
     } catch (e) {
       set({ isLoading: false, erreur: e instanceof Error ? e.message : 'Annulation impossible' });
       throw e;

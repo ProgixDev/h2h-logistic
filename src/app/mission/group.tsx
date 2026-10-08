@@ -249,8 +249,9 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
 
   // 🔴 L'ANNULATION SE DEMANDE AU SERVEUR (20261008004000). Ce bouton ne changeait que cet écran : la
   // mission passait « Terminées », le rafraîchissement suivant la remettait en cours, et ni l'acheteur ni le
-  // vendeur n'en savaient rien. Le serveur lit l'heure et le stade, refuse ce qu'il doit refuser — la
-  // dernière heure avant la collecte, le colis déjà pris — et prévient les deux autres.
+  // vendeur n'en savaient rien. Le serveur lit l'heure et le stade, refuse ce qu'il doit refuser — le colis
+  // déjà pris — et prévient les deux autres. À moins d'une heure de la collecte (20261008006000), il annule
+  // avec des frais : présentés ici avant de confirmer, et envoyés acceptés.
   const handleCancelMission = async () => {
     const titre = 'Annuler la co-livraison';
     const parLeSupport = 'Cette co-livraison s’annule par le support : contactez-le.';
@@ -279,15 +280,23 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
       return;
     }
     const limite = c.sansFraisJusquAu ? dayjs(c.sansFraisJusquAu).format('DD/MM [à] HH:mm') : '';
+    const frais = c.frais;
+    const montant = frais ? formatCurrency(frais.fraisCents / 100) : '';
     Alert.alert(`${titre} ?`,
-      `Sans frais jusqu’au ${limite}. L’acheteur et le vendeur sont prévenus ; l’acheteur est intégralement remboursé.`, [
+      frais
+        // § 5.6.2 : 2 €, imputables par défaut (question 8) ; un examen pour ce qui ne l'est pas.
+        ? `La collecte est dans moins d’une heure : ${montant} de frais d’annulation tardive s’appliquent, `
+          + 'retenus sur vos prochaines participations. L’acheteur et le vendeur sont prévenus et intégralement '
+          + 'remboursés. Si cette annulation ne vous est pas imputable (force majeure, erreur du service, colis '
+          + 'non conforme), écrivez ensuite au support : il examinera votre demande.'
+        : `Sans frais jusqu’au ${limite}. L’acheteur et le vendeur sont prévenus ; l’acheteur est intégralement remboursé.`, [
         { text: 'Retour', style: 'cancel' },
         {
-          text: titre,
+          text: frais ? `${titre} (${montant})` : titre,
           style: 'destructive',
           onPress: async () => {
             try {
-              await annulerAuServeur(mission.id);
+              await annulerAuServeur(mission.id, frais?.fraisCents);
               toast('Co-livraison annulée.', 'warning');
               setTimeout(() => router.replace('/(tabs)/missions'), 2000);
             } catch (e) {
