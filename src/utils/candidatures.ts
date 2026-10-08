@@ -11,6 +11,7 @@ import type {
   RemiseNommee,
   StatutCandidature,
 } from '@/types/candidature';
+import type { AppNotification } from '@/types/notification';
 
 type Brut = Record<string, unknown>;
 
@@ -205,4 +206,23 @@ export function messageDeRefus(indice: string | null | undefined, brut: string):
     default:
       return brut;
   }
+}
+
+/**
+ * Ce que le serveur a dit en dernier d'une candidature qui n'est plus dans la liste : confirmée et devenue
+ * une mission, non retenue, demande annulée. L'avis le plus récent qui la désigne (`params.candidature`),
+ * hors la proposition elle-même ; `null` s'il n'y en a aucun.
+ *
+ * 🔴 SANS LUI, L'ÉCRAN D'UNE CANDIDATURE GAGNÉE DISAIT « son délai de vingt minutes est passé » : confirmée,
+ * elle quitte la liste pour devenir une mission, et l'écran resté ouvert ne savait pas pourquoi elle avait
+ * disparu (vu à l'émulateur le 08/10/2026). L'avis « Candidature non retenue » ouvrait le même écran, avec le
+ * même mensonge.
+ */
+export function dernierAvisDeCandidature(avis: AppNotification[], candidatureId: string): AppNotification | null {
+  let dernier: AppNotification | null = null;
+  for (const a of avis) {
+    if (a.data?.candidature !== candidatureId || a.type === 'mission_new') continue;
+    if (!dernier || new Date(a.createdAt).getTime() > new Date(dernier.createdAt).getTime()) dernier = a;
+  }
+  return dernier;
 }

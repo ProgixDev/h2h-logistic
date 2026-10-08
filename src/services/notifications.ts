@@ -30,9 +30,18 @@ type LigneNotification = {
   is_read: boolean;
   created_at: string;
   action_route: string | null;
+  params: Record<string, unknown> | null;
 };
 
-const CHAMPS = 'id, type, title, body, is_read, created_at, action_route';
+const CHAMPS = 'id, type, title, body, is_read, created_at, action_route, params';
+
+/** Les paramètres de l'avis, ceux qui sont du texte — les seuls qu'un écran compare. */
+function versDonnees(p: Record<string, unknown> | null): Record<string, string> | undefined {
+  if (!p) return undefined;
+  const donnees: Record<string, string> = {};
+  for (const [cle, valeur] of Object.entries(p)) if (typeof valeur === 'string') donnees[cle] = valeur;
+  return donnees;
+}
 
 function versNotification(l: LigneNotification): AppNotification {
   return {
@@ -45,6 +54,9 @@ function versNotification(l: LigneNotification): AppNotification {
     // ⚠️ GARDÉE TELLE QUELLE : c'est l'écran qui décide si elle s'ouvre ici
     // (`routeSuivable`) — la base partage ses avis entre trois applications.
     route: l.action_route ?? undefined,
+    // Les identifiants que l'avis désigne (`candidature`, `recherche`…) : c'est ainsi qu'un écran retrouve ce
+    // que le serveur a dit d'une candidature sortie de la liste (`dernierAvisDeCandidature`).
+    data: versDonnees(l.params),
   };
 }
 

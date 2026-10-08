@@ -11,6 +11,7 @@
 // acheter avec son compte.
 import { createClient } from '@supabase/supabase-js';
 import { clerkCharge, peekClerk } from './clerkBridge';
+import { jetonBientotFini } from '@/utils/jetonExpire';
 
 const url = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
 const cle = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
@@ -50,10 +51,20 @@ export const supabase = createClient(url, cle, {
   // 🔴 ET ON ATTEND QUE CLERK AIT FINI DE SE CHARGER (`clerkCharge`). Sans
   // l'attente, une requête partie avant le montage du pont concluait « personne »
   // et tournait en « anon » : zéro ligne, présentée comme une liste vide.
+  //
+  // 🔴 LE CACHE DE CLERK PEUT SERVIR UN JETON PÉRIMÉ AU RETOUR DE L'ARRIÈRE-PLAN
+  // (vu à l'émulateur le 08/10/2026 : « JWT expired » à la première requête).
+  // Il s'évince par un minuteur, et un minuteur ne tourne pas application
+  // suspendue. On lit donc la fin du jeton servi, et on en redemande un frais
+  // s'il est fini ou presque (`utils/jetonExpire`).
   accessToken: async () => {
     await clerkCharge();
     const clerk = peekClerk();
     if (!clerk?.session) return null;
-    return (await clerk.session.getToken({ template: 'supabase' })) ?? null;
+    const jeton = await clerk.session.getToken({ template: 'supabase' });
+    if (jeton && jetonBientotFini(jeton, 5)) {
+      return (await clerk.session.getToken({ template: 'supabase', skipCache: true })) ?? null;
+    }
+    return jeton ?? null;
   },
 });

@@ -27,8 +27,10 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useCandidature, useCandidaturesStore } from '@/stores/useCandidaturesStore';
+import { useNotificationStore } from '@/stores/useNotificationStore';
 import { formatCurrency } from '@/utils/formatting';
 import {
+  dernierAvisDeCandidature,
   explicationStatut,
   heureParis,
   libelleColis,
@@ -73,14 +75,19 @@ export default function PropositionScreen() {
   // à froid ; une lecture partie avant la reprise de session tournerait en
   // « anon » — et « plus ouverte » s'afficherait sur une proposition bien vivante.
   const [lu, setLu] = useState(false);
+  // Les avis aussi : ce sont eux qui disent ce qu'est devenue une candidature sortie de la liste.
+  const avis = useNotificationStore((st) => st.notifications);
+  const chargerAvis = useNotificationStore((st) => st.charger);
   useEffect(() => {
     if (!monId) return;
-    void charger().then(() => setLu(true));
-  }, [monId, id, charger]);
+    void Promise.all([charger(), chargerAvis()]).then(() => setLu(true));
+  }, [monId, id, charger, chargerAvis]);
 
   const [cleChoisie, setCleChoisie] = useState<string | null>(null);
 
   if (!c) {
+    const issue = lu ? dernierAvisDeCandidature(avis, id ?? '') : null;
+    const versMission = issue?.route?.startsWith('/mission/') ?? false;
     return (
       <View style={[s.ecran, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={s.entete}><Header title="Proposition de co-livraison" showBack /></View>
@@ -94,6 +101,16 @@ export default function PropositionScreen() {
             description={erreur}
             actionLabel="Réessayer"
             onAction={() => { void charger(); }}
+          />
+        ) : issue ? (
+          // 🔴 CE QUE LE SERVEUR A DIT D'ELLE : confirmée (elle est devenue une mission), non retenue, demande
+          // annulée — et non « délai passé » pour tout ce qui quitte la liste (vu à l'émulateur le 08/10/2026).
+          <EmptyState
+            iconName={versMission ? 'checkmark-circle' : 'info'}
+            title={issue.title}
+            description={issue.body}
+            actionLabel={versMission ? 'Voir la co-livraison' : 'Voir mes co-livraisons'}
+            onAction={() => router.replace((versMission ? issue.route : '/(tabs)/missions') as never)}
           />
         ) : (
           // § 5.2.1 : une notification expirée ne permet pas d'accepter, même si

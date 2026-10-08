@@ -6,6 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  dernierAvisDeCandidature,
   explicationStatut,
   heureParis,
   libelleJour,
@@ -146,4 +147,25 @@ test('✅ UN REFUS DU SERVEUR SE DIT EN FRANÇAIS — l’indice choisit le mess
   assert.match(messageDeRefus('COLIVRAISON_INDISPONIBLE', 'x'), /trop proche/);
   assert.match(messageDeRefus('COLIVRAISON_ETAT', 'x'), /plus ouverte/);
   assert.equal(messageDeRefus(null, 'brut'), 'brut');
+});
+
+test('🔴 UNE CANDIDATURE SORTIE DE LA LISTE DIT CE QU’ELLE EST DEVENUE — le dernier avis qui la nomme, pas « délai passé »', () => {
+  const avis = (id: string, titre: string, type: 'mission_new' | 'mission_update', le: string, route: string, candidature?: string) => ({
+    id, type, title: titre, body: '', read: false, createdAt: le, route,
+    data: candidature ? { candidature, recherche: 'r1' } : undefined,
+  });
+  const liste = [
+    avis('a', 'Nouvelle proposition de co-livraison', 'mission_new', '2026-10-08T17:06:10Z', '/proposition?id=c1', 'c1'),
+    avis('b', 'Vous êtes choisi pour une co-livraison', 'mission_update', '2026-10-08T17:09:25Z', '/proposition?id=c1', 'c1'),
+    avis('c', 'Co-livraison confirmée', 'mission_update', '2026-10-08T17:13:26Z', '/mission/m1', 'c1'),
+    avis('d', 'Candidature non retenue', 'mission_update', '2026-10-08T17:20:00Z', '/proposition?id=c2', 'c2'),
+    avis('e', 'Demande acceptee', 'mission_update', '2026-10-08T18:00:00Z', '/settings'),
+  ];
+  // Confirmée : l'avis mène à la mission.
+  assert.equal(dernierAvisDeCandidature(liste, 'c1')?.route, '/mission/m1');
+  // Non retenue : l'avis le dit, même s'il rouvre cet écran.
+  assert.equal(dernierAvisDeCandidature(liste, 'c2')?.title, 'Candidature non retenue');
+  // La proposition elle-même n'est pas une issue ; sans autre avis, rien.
+  assert.equal(dernierAvisDeCandidature(liste.slice(0, 1), 'c1'), null);
+  assert.equal(dernierAvisDeCandidature(liste, 'c3'), null);
 });

@@ -18,7 +18,13 @@ export function Header({ title, showBack = false, rightAction }: HeaderProps) {
   return (
     <View style={styles.container}>
       {showBack ? (
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        // 🔴 OUVERT PAR UN LIEN, L'ÉCRAN N'A PAS DE PAGE PRÉCÉDENTE : le tap d'un avis, application fermée,
+        // l'ouvre seul. `back()` n'y menait nulle part (« GO_BACK was not handled », vu à l'émulateur le
+        // 08/10/2026) et le cotransporteur restait coincé ; on revient alors à l'accueil.
+        <TouchableOpacity
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)'))}
+          style={styles.backButton}
+        >
           <Text style={[styles.backText, { color: colors.primary }]}>{'<'}</Text>
         </TouchableOpacity>
       ) : (

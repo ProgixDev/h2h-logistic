@@ -119,7 +119,9 @@ export default function MissionsScreen() {
           disponible » sur une requête qui a échoué dit exactement le contraire
           de ce qui s'est passé — et laisse attendre des propositions qui ne
           viendront jamais. */}
-      {[erreur, erreurCandidatures].filter(Boolean).map((e) => (
+      {/* ⚠️ UN MÊME REFUS DES DEUX LECTURES (« JWT expired », vu à l'émulateur le 08/10/2026) ne s'affiche
+          qu'une fois — deux bandeaux identiques, et deux clés identiques. */}
+      {[...new Set([erreur, erreurCandidatures].filter(Boolean))].map((e) => (
         <View key={e} style={[styles.erreur, { borderColor: colors.error, backgroundColor: colors.error + '10' }]}>
           <Text style={[styles.erreurTexte, { color: colors.error }]}>{e}</Text>
         </View>

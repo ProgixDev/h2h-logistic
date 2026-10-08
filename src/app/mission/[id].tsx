@@ -17,6 +17,7 @@ import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { formatCurrency, tailleEtPoids } from '@/utils/formatting';
 import type { Mission } from '@/types/mission';
 
@@ -49,11 +50,31 @@ export default function MissionDetailScreen() {
   // subscription pattern unreliable, which caused the timeline to freeze).
   const mission = useMissionStore((s) => s.missions.find((m) => m.id === (id ?? '')));
 
+  // 🔴 OUVERTE À FROID, LA MISSION N'EST PAS ENCORE DANS LE MAGASIN : c'est l'accueil qui le remplit, et le
+  // tap d'un avis (« Co-livraison confirmée », application fermée) mène droit ici. L'écran disait
+  // « introuvable » d'une co-livraison bien réelle (vu à l'émulateur le 08/10/2026). On la lit d'abord —
+  // une fois l'identité connue, comme `/proposition`.
+  const monId = useAuthStore((s) => s.user?.id);
+  const charger = useMissionStore((s) => s.charger);
+  const [lue, setLue] = useState(false);
+  useEffect(() => {
+    if (!monId || mission) return;
+    let active = true;
+    void charger().finally(() => {
+      if (active) setLue(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [monId, id, mission, charger]);
+
   if (!mission) {
     return (
       <SafeAreaWrapper>
         <Header title="Co-livraison" showBack />
-        <Text style={[styles.notFound, { color: colors.textSecondary }]}>Co-livraison introuvable</Text>
+        <Text style={[styles.notFound, { color: colors.textSecondary }]}>
+          {lue ? 'Co-livraison introuvable' : 'Chargement de la co-livraison…'}
+        </Text>
       </SafeAreaWrapper>
     );
   }
