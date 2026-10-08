@@ -21,10 +21,14 @@
 // jour où la vraie valeur descend sous 96%, personne ne le verra.
 
 /** Ce dont on a besoin d'une mission pour trancher : rien d'autre. */
-export type MissionJugee = { status: string };
+export type MissionJugee = { status: string; cancellationReason?: string };
 
 const REUSSIES = ['delivered', 'completed'];
 const ECHOUEES = ['cancelled'];
+// 🔴 UNE ANNULATION QUI N'EST PAS DE SON FAIT NE COMPTE PAS CONTRE LUI (20261008004000). L'acheteur ou le
+// vendeur qui annule (`other`), une absence d'un autre, le délai du vendeur : le cotransporteur n'y est pour
+// rien. ⚠️ Une annulation sans raison connue compte, par prudence — on ne sait pas qui l'a voulue.
+const PAS_DE_SON_FAIT = ['other', 'seller_no_show', 'buyer_no_show', 'seller_timer_expired'];
 
 /**
  * Le taux, en pourcentage entier — ou `null` quand il n'y a rien à mesurer.
@@ -44,7 +48,7 @@ export function tauxReussite(missions: readonly MissionJugee[]): number | null {
   let echouees = 0;
   for (const m of missions) {
     if (REUSSIES.includes(m.status)) reussies += 1;
-    else if (ECHOUEES.includes(m.status)) echouees += 1;
+    else if (ECHOUEES.includes(m.status) && !PAS_DE_SON_FAIT.includes(m.cancellationReason ?? '')) echouees += 1;
   }
   const jugees = reussies + echouees;
   if (jugees === 0) return null;

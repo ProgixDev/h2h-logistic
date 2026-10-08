@@ -17,7 +17,7 @@ import type { Mission, MissionStatus, CancellationReason, SupportOutcome } from 
 import { ACTIVE_STATUSES, COMPLETED_STATUSES } from '@/types/mission';
 import { sequenceur } from '@/utils/derniereLectureGagne';
 import type { DeclarantRole } from '@/types/incident';
-import { chargerMissions, accepterMission, refuserMission } from '@/services/missions';
+import { chargerMissions, accepterMission, refuserMission, annulerColivraison } from '@/services/missions';
 import { computeSettlement } from '@/utils/settlement';
 import { canCancelFree } from '@/constants/delaysRules';
 
@@ -59,6 +59,11 @@ interface MissionState {
   // ⚠️ CE QUI FAIT AVANCER UN COLIS, DÉSORMAIS : un scan
   // (`services/scans.ts` → `record_scan_event`), puis un `charger()`.
   cancelMission: (id: string, reason: CancellationReason) => void;
+  /**
+   * Annuler AU SERVEUR une co-livraison confirmée (20261008004000), puis relire. ⚠️ Le serveur refuse ce qu'il
+   * doit refuser — la dernière heure, le colis pris, l'ancien parcours — et l'appelant MONTRE le message.
+   */
+  annulerAuServeur: (id: string) => Promise<void>;
   reportSellerAbsence: (id: string) => void;
   reportBuyerAbsence: (id: string, extend?: boolean) => void;
   openSupportReview: (missionId: string, reportId: string, reportedUserId?: string) => void;
@@ -104,6 +109,13 @@ function isProposalSeparated(m: Mission, pairs: SeparatedPair[]): boolean {
 // ici et restent pour les gestionnaires d'événements.
 export function selectProposals(s: Pick<MissionState, 'proposals' | 'separatedPairs'>): Mission[] {
   return s.proposals.filter((m) => m.status === 'proposal' && !isProposalSeparated(m, s.separatedPairs));
+}
+
+/** Les co-livraisons annulées, les plus récentes d'abord : elles s'affichent avec les terminées, sans participation. */
+export function selectCancelledMissions(s: Pick<MissionState, 'missions'>): Mission[] {
+  return s.missions
+    .filter((m) => m.status === 'cancelled')
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0));
 }
 
 export function selectActiveMissions(s: Pick<MissionState, 'activeMissions'>): Mission[] {
@@ -204,6 +216,20 @@ export const useMissionStore = create<MissionState>((set, get) => ({
       await refuserMission(id);
     } catch (e) {
       set({ isLoading: false, erreur: e instanceof Error ? e.message : 'Refus impossible' });
+      throw e;
+    }
+    await get().charger();
+  },
+
+  annulerAuServeur: async (id) => {
+    const m = findMissionById(get(), id);
+    // L'ancien parcours n'a pas d'annulation au serveur : le dire, plutôt que de faire semblant.
+    if (!m?.orderId) throw new Error('Cette co-livraison s’annule par le support : contactez-le.');
+    set({ isLoading: true, erreur: null });
+    try {
+      await annulerColivraison(m.orderId);
+    } catch (e) {
+      set({ isLoading: false, erreur: e instanceof Error ? e.message : 'Annulation impossible' });
       throw e;
     }
     await get().charger();
@@ -431,5 +457,6 @@ export const useProposals = (): Mission[] => useMissionStore(useShallow(selectPr
 export const usePendingMissions = useProposals;
 export const useActiveMissions = (): Mission[] => useMissionStore(useShallow(selectActiveMissions));
 export const useCompletedMissions = (): Mission[] => useMissionStore((s) => s.completedMissions);
+export const useCancelledMissions = (): Mission[] => useMissionStore(useShallow(selectCancelledMissions));
 export const useMissionById = (id: string | undefined): Mission | undefined =>
   useMissionStore((s) => (id ? findMissionById(s, id) : undefined));

@@ -97,6 +97,11 @@ export interface Mission {
    * caché dans `package.id` — un endroit où personne ne va le chercher.
    */
   shipmentId: string;
+  /**
+   * La commande de la co-livraison : c'est elle que l'annulation au serveur désigne
+   * (`colivraison_annuler`, 20261008004000).
+   */
+  orderId?: string;
   routeId: string;
   status: MissionStatus;
   seller: MissionParticipant;

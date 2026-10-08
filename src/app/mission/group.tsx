@@ -31,7 +31,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useMissionStore } from '@/stores/useMissionStore';
 import { formatCurrency, tailleEtPoids } from '@/utils/formatting';
-import type { Mission, MissionParticipant } from '@/types/mission';
+import type { Mission, MissionParticipant, MissionStatus } from '@/types/mission';
+import { lireConditionsAnnulation, messageAnnulation, type ConditionsAnnulation } from '@/services/missions';
 
 const QUICK_MESSAGES = [
   'Je suis en route',
@@ -51,6 +52,9 @@ const INCIDENTS_REMISE: { type: string; label: string }[] = [
 ];
 
 // Cancellation forms (F9/F10/F12) — D8 locks them once the mission is engaged.
+/** Avant la prise en charge, une co-livraison confirmée s'annule ; après, non (§ 5.5.3). */
+const AVANT_PRISE_EN_CHARGE: MissionStatus[] = ['seller_pending', 'group_created', 'pickup_pending'];
+
 const ANNULATIONS: { type: string; label: string }[] = [
   { type: 'cancel_transporter', label: 'Annuler ma co-livraison' },
   { type: 'cancel_seller', label: 'Annulation vendeur' },
@@ -86,7 +90,7 @@ export default function MissionGroupScreen() {
 
 function GroupContent({ mission, colors, router, insets }: { mission: Mission; colors: any; router: any; insets: any }) {
   // Select actions individually so we don't re-subscribe to the whole state.
-  const cancelMission = useMissionStore((s) => s.cancelMission);
+  const annulerAuServeur = useMissionStore((s) => s.annulerAuServeur);
   const reportSellerAbsence = useMissionStore((s) => s.reportSellerAbsence);
   const reportBuyerAbsence = useMissionStore((s) => s.reportBuyerAbsence);
   const resolveSupportReview = useMissionStore((s) => s.resolveSupportReview);
@@ -243,17 +247,55 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
     ]);
   };
 
-  const handleCancelMission = () => {
-    const hasPackage = ['picked_up', 'in_transit', 'delivery_pending'].includes(mission.status);
-    const reason = hasPackage ? 'transporter_cancelled_after_pickup' as const : 'transporter_cancelled_before_pickup' as const;
-    const msg = hasPackage
-      ? 'Vous avez le colis. Veuillez le remettre au hub le plus proche.'
-      : 'L\'annulation sera notée sur votre profil.';
-
-    Alert.alert(hasPackage ? 'Vous avez le colis' : 'Annuler la co-livraison ?', msg, [
-      { text: 'Retour', style: 'cancel' },
-      { text: hasPackage ? 'J\'ai remis le colis' : 'Confirmer l\'annulation', style: 'destructive', onPress: () => { cancelMission(mission.id, reason); toast('Co-livraison annulée.', 'warning'); setTimeout(() => router.replace('/(tabs)/missions'), 2000); } },
-    ]);
+  // 🔴 L'ANNULATION SE DEMANDE AU SERVEUR (20261008004000). Ce bouton ne changeait que cet écran : la
+  // mission passait « Terminées », le rafraîchissement suivant la remettait en cours, et ni l'acheteur ni le
+  // vendeur n'en savaient rien. Le serveur lit l'heure et le stade, refuse ce qu'il doit refuser — la
+  // dernière heure avant la collecte, le colis déjà pris — et prévient les deux autres.
+  const handleCancelMission = async () => {
+    const titre = 'Annuler la co-livraison';
+    const parLeSupport = 'Cette co-livraison s’annule par le support : contactez-le.';
+    if (!mission.orderId) {
+      Alert.alert(titre, parLeSupport);
+      return;
+    }
+    let c: ConditionsAnnulation | null;
+    try {
+      c = await lireConditionsAnnulation(mission.orderId);
+    } catch (e) {
+      Alert.alert(titre, e instanceof Error ? e.message : 'Lecture impossible : réessayez dans un instant.');
+      return;
+    }
+    if (!c) {
+      Alert.alert(titre, parLeSupport);
+      return;
+    }
+    if (!c.possible) {
+      Alert.alert(titre, messageAnnulation(
+        c.raison === 'tardive' ? 'COLIVRAISON_ANNULATION_TARDIVE'
+          : c.raison === 'prise_en_charge' ? 'COLIVRAISON_PRISE_EN_CHARGE'
+            : c.raison === 'terminee' ? 'COLIVRAISON_TERMINEE'
+              : 'COLIVRAISON_ETAT',
+        'Cette co-livraison ne s’annule plus.'));
+      return;
+    }
+    const limite = c.sansFraisJusquAu ? dayjs(c.sansFraisJusquAu).format('DD/MM [à] HH:mm') : '';
+    Alert.alert(`${titre} ?`,
+      `Sans frais jusqu’au ${limite}. L’acheteur et le vendeur sont prévenus ; l’acheteur est intégralement remboursé.`, [
+        { text: 'Retour', style: 'cancel' },
+        {
+          text: titre,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await annulerAuServeur(mission.id);
+              toast('Co-livraison annulée.', 'warning');
+              setTimeout(() => router.replace('/(tabs)/missions'), 2000);
+            } catch (e) {
+              Alert.alert('Annulation impossible', e instanceof Error ? e.message : 'Réessayez dans un instant.');
+            }
+          },
+        },
+      ]);
   };
 
   // 🔴 CES DEUX ALERTES NE POUVAIENT PAS S'AFFICHER. Elles étaient
@@ -588,10 +630,12 @@ function GroupContent({ mission, colors, router, insets }: { mission: Mission; c
           ))}
         </View>
 
-        {/* Cancel */}
-        <TouchableOpacity onPress={handleCancelMission} hitSlop={12} style={gs.cancelBtn}>
-          <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la co-livraison</Text>
-        </TouchableOpacity>
+        {/* Annuler — avant la prise en charge seulement : après, c'est le Protocole d'Incident (§ 5.5.3). */}
+        {AVANT_PRISE_EN_CHARGE.includes(mission.status) && (
+          <TouchableOpacity onPress={() => { void handleCancelMission(); }} hitSlop={12} style={gs.cancelBtn}>
+            <Text style={[gs.cancelText, { color: colors.error }]}>Annuler la co-livraison</Text>
+          </TouchableOpacity>
+        )}
 
         {/* 🔴 LE MARCHEUR DE PHASES A ÉTÉ RETIRÉ LE 22/08/2026. Il faisait
             avancer le statut de la mission d'un cran par appui — jusqu'à

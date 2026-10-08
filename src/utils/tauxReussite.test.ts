@@ -43,6 +43,18 @@ test('🔴 LE TAUX SUIT LES VRAIES MISSIONS', () => {
   assert.equal(tauxReussiteLabel([{ status: 'completed' }, { status: 'cancelled' }]), '50%');
 });
 
+test('🔴 UNE ANNULATION QUI N’EST PAS DE SON FAIT NE COMPTE PAS CONTRE LUI', () => {
+  // L'acheteur ou le vendeur annule (`other`, 20261008004000) : le cotransporteur n'a rien raté.
+  assert.equal(tauxReussite([{ status: 'completed' }, { status: 'cancelled', cancellationReason: 'other' }]), 100);
+  assert.equal(tauxReussite([{ status: 'cancelled', cancellationReason: 'buyer_no_show' }]), null);
+  // La sienne compte, avant comme après la prise en charge.
+  assert.equal(
+    tauxReussite([{ status: 'completed' }, { status: 'cancelled', cancellationReason: 'transporter_cancelled_before_pickup' }]),
+    50,
+  );
+  assert.equal(tauxReussite([{ status: 'cancelled', cancellationReason: 'transporter_cancelled_after_pickup' }]), 0);
+});
+
 test('⚠️ UNE MISSION EN COURS NE COMPTE PAS COMME UN ÉCHEC', () => {
   // 🔴 SINON TRAVAILLER FERAIT BAISSER SON PROPRE TAUX. Une co-livraison
   // acceptee ce matin n'est pas ratee parce qu'elle n'est pas encore arrivee ;

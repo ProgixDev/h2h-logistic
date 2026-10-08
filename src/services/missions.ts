@@ -14,7 +14,7 @@
 // `shipments.state`, forcée par un trigger : même une fonction `security
 // definer` ne peut pas y écrire autre chose. Le client le LIT, point.
 import { supabase } from '@/lib/supabase';
-import type { Mission, MissionParticipant, MissionStatus } from '@/types/mission';
+import type { CancellationReason, Mission, MissionParticipant, MissionStatus } from '@/types/mission';
 
 /** Ce que la base rend pour une mission. `platform_fee_cents` n'est pas lisible. */
 type LigneMission = {
@@ -42,6 +42,8 @@ type LigneMission = {
   transporter_earning_cents: number | string;
   seller_timer_end: string | null;
   proposal_expires_at: string | null;
+  /** Pourquoi elle a été annulée : par le cotransporteur, ou par l'acheteur ou le vendeur (`other`). */
+  cancellation_reason: CancellationReason | null;
   is_return: boolean;
   off_hub_address: string | null;
   is_off_hub: boolean;
@@ -56,7 +58,7 @@ const CHAMPS = `
   package_description, parcel_format, package_weight_kg, package_photo,
   pickup_hub_id, delivery_hub_id, pickup_scheduled_at, delivery_scheduled_at,
   tolerance_minutes, price_cents, transporter_earning_cents,
-  seller_timer_end, proposal_expires_at, is_return,
+  seller_timer_end, proposal_expires_at, cancellation_reason, is_return,
   off_hub_address, is_off_hub, hors_hub_etapes, created_at, updated_at
 `;
 
@@ -164,6 +166,7 @@ function versMission(
   return {
     id: l.id,
     shipmentId: l.shipment_id ?? '',
+    orderId: l.order_id ?? undefined,
     routeId: l.route_id ?? '',
     status: l.status,
     seller: participant(l.seller_id, 'seller', profils),
@@ -197,6 +200,7 @@ function versMission(
     platformFee: Math.round((price - part) * 100) / 100,
     sellerTimerEnd: l.seller_timer_end ?? undefined,
     proposalExpiresAt: l.proposal_expires_at ?? undefined,
+    cancellationReason: l.cancellation_reason ?? undefined,
     isReturn: l.is_return,
     createdAt: l.created_at,
     updatedAt: l.updated_at,
@@ -252,4 +256,59 @@ export async function refuserMission(missionId: string, motif?: string): Promise
     p_motif: motif?.trim() || null,
   });
   if (error) throw new Error(error.message);
+}
+
+// ─── ANNULER UNE CO-LIVRAISON CONFIRMÉE (20261008004000) ─────────────────────
+//
+// 🔴 LE BOUTON NE CHANGEAIT QUE CET ÉCRAN. « Annuler la co-livraison » déplaçait
+// la mission dans « Terminées », et le rafraîchissement suivant la remettait en
+// cours : ni l'acheteur, ni le vendeur, ni la base n'en savaient rien. Désormais
+// l'annulation se demande au serveur, qui la refuse ou la fait — et prévient les
+// deux autres.
+
+/** Ce que l'annulation serait, MAINTENANT, pour moi ; `null` si la base ne la connaît pas d'ici. */
+export type ConditionsAnnulation = {
+  stade: 'recherche' | 'confirmee' | 'prise_en_charge' | 'terminee' | 'annulee' | 'inconnue';
+  possible: boolean;
+  /** La dernière heure sans frais : une heure avant la collecte (à une heure pile, encore). */
+  sansFraisJusquAu: string | null;
+  raison: 'tardive' | 'prise_en_charge' | 'terminee' | 'annulee' | 'inconnue' | null;
+};
+
+/**
+ * ⚠️ `null` POUR L'ANCIEN PARCOURS : une co-livraison qui n'est pas née d'une recherche du
+ * § 5 n'a pas d'annulation au serveur — elle passe par le support.
+ */
+export async function lireConditionsAnnulation(orderId: string): Promise<ConditionsAnnulation | null> {
+  const { data, error } = await supabase.rpc('colivraison_conditions_annulation', { p_order: orderId });
+  if (error) throw new Error(messageAnnulation(error.hint, error.message));
+  const c = data as { stade: ConditionsAnnulation['stade']; possible: boolean;
+                      sans_frais_jusqu_au: string | null; raison: ConditionsAnnulation['raison'] } | null;
+  if (!c) return null;
+  return { stade: c.stade, possible: c.possible === true, sansFraisJusquAu: c.sans_frais_jusqu_au, raison: c.raison };
+}
+
+/** Annuler, sans frais : le serveur revérifie l'heure et le stade, puis prévient l'acheteur et le vendeur. */
+export async function annulerColivraison(orderId: string, motif?: string): Promise<void> {
+  const { error } = await supabase.rpc('colivraison_annuler', {
+    p_order: orderId,
+    p_motif: motif?.trim() || null,
+  });
+  if (error) throw new Error(messageAnnulation(error.hint, error.message));
+}
+
+/** Le refus du serveur, dans des mots qu'un cotransporteur lit — son message brut est écrit sans accents. */
+export function messageAnnulation(indice: string | null | undefined, brut: string): string {
+  switch (indice) {
+    case 'COLIVRAISON_ANNULATION_TARDIVE':
+      return 'À moins d’une heure de la collecte, l’annulation entraîne des frais : elle n’est pas encore possible dans l’application. Contactez le support.';
+    case 'COLIVRAISON_PRISE_EN_CHARGE':
+      return 'Vous avez le colis : la co-livraison ne s’annule plus. Signalez une difficulté avec un formulaire d’incident.';
+    case 'COLIVRAISON_TERMINEE':
+      return 'Cette co-livraison est terminée : elle ne s’annule plus.';
+    case 'COLIVRAISON_ETAT':
+      return 'Cette co-livraison est déjà annulée, ou n’est plus confirmée.';
+    default:
+      return brut;
+  }
 }

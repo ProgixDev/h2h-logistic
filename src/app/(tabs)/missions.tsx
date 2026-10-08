@@ -16,6 +16,7 @@ import {
   useProposals,
   useActiveMissions,
   useCompletedMissions,
+  useCancelledMissions,
 } from '@/stores/useMissionStore';
 import {
   useCandidaturesStore,
@@ -57,6 +58,9 @@ export default function MissionsScreen() {
   const proposals = useProposals();
   const active = useActiveMissions();
   const completed = useCompletedMissions();
+  // Les annulées se rangent avec les terminées, sans participation (20261008004000) — une seule fois chacune.
+  const cancelled = useCancelledMissions();
+  const terminees = [...completed.filter((m) => m.status !== 'cancelled'), ...cancelled];
 
   // ⚠️ DEUX PARCOURS COEXISTENT. Les missions ci-dessus sont celles de l'ancien
   // (une proposition adressée à un seul cotransporteur) ; la mise en relation du
@@ -71,7 +75,7 @@ export default function MissionsScreen() {
   const tabs: { key: Tab; label: string; count: number }[] = [
     { key: 'new', label: 'Nouvelles', count: proposals.length + propositionsV2.length + candidaturesV2.length },
     { key: 'active', label: 'En cours', count: active.length + confirmeesV2.length },
-    { key: 'completed', label: 'Terminées', count: completed.length },
+    { key: 'completed', label: 'Terminées', count: terminees.length },
   ];
 
   const switchTab = useCallback((t: Tab) => {
@@ -79,7 +83,7 @@ export default function MissionsScreen() {
     setTab(t);
   }, []);
 
-  const data = tab === 'new' ? proposals : tab === 'active' ? active : completed;
+  const data = tab === 'new' ? proposals : tab === 'active' ? active : terminees;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: insets.top }]}>
@@ -328,9 +332,14 @@ function CompletedMissionCard({ mission, colors }: { mission: Mission; colors: a
           {formatDate(mission.updatedAt)}
         </Text>
       </View>
-      <Text style={[styles.completedEarning, { color: colors.success }]}>
-        +{formatCurrency(mission.transporterEarning)}
-      </Text>
+      {mission.status === 'cancelled' ? (
+        // ⚠️ UNE ANNULÉE NE RAPPORTE RIEN : pas de « +X € » en vert.
+        <Text style={[styles.completedEarning, { color: colors.textSecondary }]}>Annulée</Text>
+      ) : (
+        <Text style={[styles.completedEarning, { color: colors.success }]}>
+          +{formatCurrency(mission.transporterEarning)}
+        </Text>
+      )}
     </View>
   );
 }
