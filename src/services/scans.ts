@@ -18,19 +18,12 @@
 // colis — or le cotransporteur le porte depuis la récupération.
 import { File } from 'expo-file-system';
 import { supabase } from '@/lib/supabase';
+import type { GenreScan, ResultatScan } from '@/utils/messageDeScan';
 
-/** Ce que la base répond à un scan. */
-export type ResultatScan =
-  | 'success'
-  | 'package_mismatch'
-  | 'wrong_code'
-  | 'no_eligible'
-  | 'expired_qr'
-  | 'out_of_window'
-  | 'duplicate';
-
-/** Le genre de scan, tel que `handoff_kind` le nomme. */
-export type GenreScan = 'seller_qr' | 'buyer_qr' | 'tracking_qr' | 'photo' | 'geo_presence' | 'system';
+// ⚠️ LES MOTS D'UN RÉSULTAT VIVENT À PART (`utils/messageDeScan.ts`), sans la
+// base ni le téléphone : ils s'essaient seuls. Les écrans les prennent ici.
+export { messageDeScan } from '@/utils/messageDeScan';
+export type { GenreScan, ResultatScan };
 
 export type EtatColis =
   | 'created' | 'awaiting_transporter' | 'accepted' | 'seller_confirmed'
@@ -98,31 +91,6 @@ export async function enregistrerScan(s: Scan): Promise<ResultatScan> {
   if (error) throw new Error(error.message);
   const ligne = (Array.isArray(data) ? data[0] : data) as { result: ResultatScan } | null;
   return ligne?.result ?? 'no_eligible';
-}
-
-/** Ce qu'un résultat veut dire pour le cotransporteur particulier, en clair. */
-export function messageDeScan(r: ResultatScan, genre: GenreScan): string {
-  switch (r) {
-    case 'success':
-      return 'Vérifié ✓';
-    case 'package_mismatch':
-      return "Ce colis n'est pas celui de la co-livraison. Vérifiez l'étiquette.";
-    case 'wrong_code':
-      return genre === 'seller_qr'
-        ? "Ce n'est pas le code du vendeur de cette co-livraison."
-        : "Ce n'est pas le code de l'acheteur de cette co-livraison.";
-    case 'no_eligible':
-      // ⚠️ LE CAS LE PLUS SUBTIL, ET IL MÉRITE SES MOTS : le code était bon,
-      // mais l'étape ne l'était pas — le plus souvent parce que l'identité d'en
-      // face n'a pas encore été scannée.
-      return "Cette étape n'est pas ouverte : identifiez d'abord la personne en face.";
-    case 'expired_qr':
-      return 'Ce code a expiré. Demandez-en un nouveau.';
-    case 'out_of_window':
-      return 'Nous sommes hors du créneau prévu pour ce rendez-vous.';
-    case 'duplicate':
-      return 'Ce scan a déjà été enregistré.';
-  }
 }
 
 /**
