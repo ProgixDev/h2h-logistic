@@ -9,8 +9,11 @@
 // push à une seule application (`notifications.app`), mais la LISTE des avis, elle,
 // montre aussi les anciens : on n'ouvre que ce que cette application sait ouvrir.
 
-/** Les écrans de cette application qu'un avis peut désigner. */
-const ROUTES_DU_COTRANSPORTEUR = /^\/(proposition|mission)([/?]|$)/;
+/**
+ * Les écrans de cette application qu'un avis peut désigner. `/route/<id>` : la fiche d'un trajet — l'avis d'une
+ * suspension de ses nouvelles propositions y mène (hand-to-hand 20261013003000).
+ */
+const ROUTES_DU_COTRANSPORTEUR = /^\/(proposition|mission|route)([/?]|$)/;
 
 /**
  * La route à suivre, ou `null`.

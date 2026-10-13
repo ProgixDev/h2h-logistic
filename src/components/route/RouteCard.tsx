@@ -143,6 +143,19 @@ export function RouteCard({ route, capacite }: RouteCardProps) {
           </Text>
         )}
 
+        {/* 🔴 SUSPENDU PAR L'ÉQUIPE (hand-to-hand 20261013003000) : ce trajet ne reçoit plus de nouvelle proposition,
+            quelles que soient ses places. Le message de l'équipe se lit sur sa fiche. */}
+        {capacite?.suspension && (
+          <View style={[styles.missionBanner, { backgroundColor: colors.warning + '12' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="alert-circle" size={14} color={colors.warning} />
+              <Text style={[styles.missionBannerText, { color: colors.warning }]}>
+                Nouvelles propositions suspendues par l’équipe
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Active mission warning */}
         {hasMission && (
           <View style={[styles.missionBanner, { backgroundColor: colors.warning + '12' }]}>

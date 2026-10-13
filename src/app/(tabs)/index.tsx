@@ -30,7 +30,14 @@ import { LiveDot } from '@/components/ui/LiveDot';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
-import { libellePlacesCourt, prochainPassage, type CapaciteTrajet } from '@/utils/capaciteTrajet';
+import {
+  libellePlacesCourt,
+  messageDeConfirmation,
+  passageAConfirmer,
+  prochainPassage,
+  type CapaciteTrajet,
+} from '@/utils/capaciteTrajet';
+import { confirmerTrajet } from '@/services/trajets';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useAuthStore } from '@/stores/useAuthStore';
 import {
@@ -167,12 +174,24 @@ export default function HomeScreen() {
   const totalDeliveries = user?.totalDeliveries ?? completedMissions.length;
   const unreadNotifs = nonLues;
 
-  // Recurring routes with today as a scheduled day
-  const todayDay = new Date().getDay() || 7; // 1=Mon..7=Sun
+  // 🔴 « CONFIRMER LE TRAJET » NE QUITTAIT PAS LE TÉLÉPHONE : la carte se cachait, et revenait au lancement suivant.
+  // La confirmation part désormais en base (`cotransporteur_confirmer_trajet`, hand-to-hand 20261013004000), où
+  // l'équipe la lit ; et c'est le serveur qui dit ce qui reste à confirmer : un trajet actif — ponctuel ou
+  // récurrent — dont le passage d'aujourd'hui, À PARIS, est à venir, ni fermé, ni déjà confirmé. L'ancien calcul
+  // lisait le jour de la semaine DU TÉLÉPHONE, et ne connaissait que les trajets récurrents.
+  // ⚠️ `dailyConfirmed` ne sert plus qu'à cacher la carte tout de suite : la prochaine lecture la confirme.
   const todayRoutes = routes.filter(
-    (r) => r.type === 'recurring' && r.status === 'active' && r.schedule.recurringDays?.includes(todayDay)
-      && !dailyConfirmed[r.id] && !journeeFermee,
+    (r) => r.status === 'active' && !journeeFermee && !dailyConfirmed[`${aujourdhui}|${r.id}`]
+      && passageAConfirmer(capacites[r.id], aujourdhui) !== null,
   );
+  const confirmerLeTrajet = async (id: string) => {
+    try {
+      await confirmerTrajet(id, aujourdhui);
+      setDailyConfirmed((prev) => ({ ...prev, [`${aujourdhui}|${id}`]: true }));
+    } catch (e) {
+      Alert.alert('Trajet non confirmé', messageDeConfirmation(e instanceof Error ? e.message : null));
+    }
+  };
 
   // 🔴 CE BLOC ANNONÇAIT UNE ACTIVITÉ QUI N'EXISTAIT PAS. Les trois valeurs
   // étaient des littéraux — 12,30 € et 2 co-livraisons sur la journée, 34,80 €
@@ -372,7 +391,7 @@ export default function HomeScreen() {
           <Animated.View key={route.id} entering={FadeInDown.delay(150).duration(300)}>
             <DailyConfirmation
               route={route}
-              onConfirm={() => setDailyConfirmed((prev) => ({ ...prev, [route.id]: true }))}
+              onConfirm={() => { void confirmerLeTrajet(route.id); }}
               onSkip={demanderPasAujourdhui}
             />
           </Animated.View>
@@ -653,7 +672,10 @@ function CompactRouteCard({
               {route.status === 'active' ? 'Actif' : 'Pause'}
             </Text>
           </View>
-          {prochain && capacite ? (
+          {/* 🔴 SUSPENDU PAR L'ÉQUIPE : aucune place n'est proposée, quel que soit le passage (hand-to-hand 20261013003000). */}
+          {capacite?.suspension ? (
+            <Text style={[styles.compactRouteCount, { color: colors.warning }]}>Propositions suspendues</Text>
+          ) : prochain && capacite ? (
             <Text style={[styles.compactRouteCount, { color: colors.textSecondary }]}>
               {libellePlacesCourt(prochain, capacite.places)}
             </Text>

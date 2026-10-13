@@ -137,6 +137,26 @@ export default function RouteDetailScreen() {
       <Header title={`${route.departureCity} → ${route.arrivalCity}`} showBack />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
+        {/* 🔴 SUSPENDU PAR L'ÉQUIPE (hand-to-hand 20261013003000) : le message est le sien, tel qu'elle l'a écrit.
+            Ce qui est en cours suit son cours — c'est la base qui le garantit, l'écran le dit. */}
+        {capacite?.suspension && (
+          <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="alert-circle" size={16} color={colors.warning} />
+              <Text style={[styles.warningText, { color: colors.warning, flex: 1, fontFamily: 'Poppins_600SemiBold' }]}>
+                Nouvelles propositions suspendues par l’équipe
+              </Text>
+            </View>
+            <Text style={[styles.warningText, { color: colors.text, marginTop: 6 }]}>
+              « {capacite.suspension.message} »
+            </Text>
+            <Text style={[styles.warningText, { color: colors.textSecondary, marginTop: 6 }]}>
+              Ce trajet ne reçoit plus de nouvelle proposition de co-livraison. Vos propositions déjà reçues, vos
+              candidatures et vos co-livraisons en cours suivent leur cours. Une question ? Écrivez au support.
+            </Text>
+          </View>
+        )}
+
         {/* Active mission warning */}
         {hasMission && (
           <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
@@ -185,10 +205,15 @@ export default function RouteDetailScreen() {
               <InfoRow
                 key={p.collecteLe}
                 label={`${DAYS_SHORT[new Date(p.collecteLe).getDay() || 7]} ${dayjs(p.collecteLe).format('DD/MM [à] HH:mm')}`}
-                value={libellePlaces(p, capacite.places)}
+                value={`${libellePlaces(p, capacite.places)}${p.confirmeLe ? ' · déplacement confirmé' : ''}`}
                 colors={colors}
               />
             ))}
+            {capacite.suspension && (
+              <Text style={[styles.statLabel, { color: colors.textSecondary, marginTop: Spacing.xs }]}>
+                Tant que les propositions de ce trajet sont suspendues, ces places ne sont proposées à personne.
+              </Text>
+            )}
           </Card>
         )}
 

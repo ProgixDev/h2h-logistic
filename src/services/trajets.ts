@@ -238,3 +238,14 @@ export async function lireCapaciteTrajets(): Promise<Record<string, CapaciteTraj
   if (error) throw new Error(error.message);
   return versCapaciteTrajets(data);
 }
+
+/**
+ * Confirmer le déplacement d'un trajet, un jour donné (« AAAA-MM-JJ », à Paris) — hand-to-hand 20261013004000.
+ *
+ * 🔴 « CONFIRMER LE TRAJET » NE QUITTAIT PAS LE TÉLÉPHONE : la carte se cachait, et revenait au lancement suivant.
+ * La confirmation est désormais en base — l'équipe la lit —, et c'est le serveur qui dit ce qui se confirme.
+ */
+export async function confirmerTrajet(id: string, jour: string): Promise<void> {
+  const { error } = await supabase.rpc('cotransporteur_confirmer_trajet', { p_trajet: id, p_jour: jour });
+  if (error) throw new Error(error.message);
+}

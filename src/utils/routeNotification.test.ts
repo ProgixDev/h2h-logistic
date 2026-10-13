@@ -7,6 +7,9 @@ test('✅ LES ROUTES DU COTRANSPORTEUR SE SUIVENT — nouvelle mise en relation 
   assert.equal(routeSuivable('/proposition?id=c1'), '/proposition?id=c1');
   assert.equal(routeSuivable('/mission/m1'), '/mission/m1');
   assert.equal(routeSuivable('/mission/accept?id=m1'), '/mission/accept?id=m1');
+  // L'avis d'un trajet — ses nouvelles propositions suspendues ou rétablies par l'équipe — ouvre sa fiche.
+  assert.equal(routeSuivable('/route/r1'), '/route/r1');
+  assert.equal(routeSuivable('/routes'), null, 'un préfixe ne suffit pas');
 });
 
 test('🔴 UNE ROUTE DE LA PLACE DE MARCHÉ NE S’OUVRE PAS ICI — elle mènerait à « page introuvable »', () => {
