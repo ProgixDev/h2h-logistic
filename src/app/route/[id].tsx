@@ -15,7 +15,7 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
 import dayjs from 'dayjs';
-import { libellePlaces } from '@/utils/capaciteTrajet';
+import { bandeauPointsFermes, libellePlaces, pointFerme } from '@/utils/capaciteTrajet';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { auLieu } from '@/utils/lieuRendezVous';
 import { useRouteStore } from '@/stores/useRouteStore';
@@ -83,6 +83,8 @@ export default function RouteDetailScreen() {
   // réussite » — mais ici c'est de l'argent, donc ce qu'on croit avoir gagné.
   const missionsDuTrajet = missions.filter((m) => m.routeId === route.id);
   const participationLabel = participationMoyenneLabel(missionsDuTrajet);
+  // Ceux de ses points que l'équipe a fermés, tels que le serveur les dit (hand-to-hand 20261013007000).
+  const pointsFermes = bandeauPointsFermes(capacite);
 
   // ─── Participants per hubId from active missions on this route ───
   // (calculé plus haut, avant la garde — voir la note.)
@@ -157,6 +159,25 @@ export default function RouteDetailScreen() {
           </View>
         )}
 
+        {/* 🔴 UN DE SES POINTS EST FERMÉ (hand-to-hand 20261013007000) : l'avis reçu à la fermeture se rate, et le trajet
+            restait « actif » sans plus rien recevoir. Le serveur dit lesquels, et ce que cela lui retire. */}
+        {pointsFermes && (
+          <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="alert-circle" size={16} color={colors.warning} />
+              <Text style={[styles.warningText, { color: colors.warning, flex: 1, fontFamily: 'Poppins_600SemiBold' }]}>
+                {pointsFermes.titre}
+              </Text>
+            </View>
+            {pointsFermes.points.map((p) => (
+              <Text key={p} style={[styles.warningText, { color: colors.text, marginTop: 6 }]}>{p}</Text>
+            ))}
+            <Text style={[styles.warningText, { color: colors.textSecondary, marginTop: 6 }]}>
+              {pointsFermes.suite} Vos co-livraisons déjà confirmées gardent leur rendez-vous.
+            </Text>
+          </View>
+        )}
+
         {/* Active mission warning */}
         {hasMission && (
           <View style={[styles.warningBanner, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '40' }]}>
@@ -214,6 +235,11 @@ export default function RouteDetailScreen() {
                 Tant que les propositions de ce trajet sont suspendues, ces places ne sont proposées à personne.
               </Text>
             )}
+            {pointsFermes?.places && (
+              <Text style={[styles.statLabel, { color: colors.textSecondary, marginTop: Spacing.xs }]}>
+                {pointsFermes.places}
+              </Text>
+            )}
           </Card>
         )}
 
@@ -252,6 +278,9 @@ export default function RouteDetailScreen() {
               <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                 {route.pickupHub.city} — {route.schedule.pickupTime}
               </Text>
+              {pointFerme(capacite, route.pickupHub.hubId) && (
+                <Text style={[styles.lockLabel, { color: colors.warning }]}>Fermé par l’équipe : n’est plus proposé</Text>
+              )}
               {hasMission && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Verrouillé — co-livraison en cours</Text></View>}
             </View>
             {participantsByHubId[route.pickupHub.hubId]?.length > 0 && (
@@ -290,6 +319,9 @@ export default function RouteDetailScreen() {
                   <Text style={[styles.hubMeta, { color: colors.textSecondary }]}>
                     {hub.city} — {time}
                   </Text>
+                  {pointFerme(capacite, hub.hubId) && (
+                    <Text style={[styles.lockLabel, { color: colors.warning }]}>Fermé par l’équipe : n’est plus proposé</Text>
+                  )}
                   {isLocked && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><Icon name="lock" size={11} color={colors.warning} /><Text style={[styles.lockLabel, { color: colors.warning }]}>Hub verrouillé — co-livraison en cours</Text></View>}
                   {isDimmed && <Text style={[styles.lockLabel, { color: colors.textSecondary }]}>Désactivé pendant la co-livraison</Text>}
                 </View>

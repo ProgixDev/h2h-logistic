@@ -31,6 +31,7 @@ import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import { useCapaciteTrajets } from '@/hooks/useCapaciteTrajets';
 import {
+  bandeauPointsFermes,
   libellePlacesCourt,
   messageDeConfirmation,
   passageAConfirmer,
@@ -647,6 +648,8 @@ function CompactRouteCard({
 }) {
   // 🔴 LES PLACES DU PROCHAIN PASSAGE (hand-to-hand 20261008010000), pas l'ancien compteur qui ne redescendait jamais.
   const prochain = prochainPassage(capacite);
+  // Ce qui manque au trajet pour recevoir une proposition, tel que le serveur le dit (hand-to-hand 20261013007000).
+  const sansPoint = bandeauPointsFermes(capacite)?.court ?? null;
   return (
     <TouchableOpacity
       onPress={() => router.push(`/route/${route.id}`)}
@@ -675,6 +678,9 @@ function CompactRouteCard({
           {/* 🔴 SUSPENDU PAR L'ÉQUIPE : aucune place n'est proposée, quel que soit le passage (hand-to-hand 20261013003000). */}
           {capacite?.suspension ? (
             <Text style={[styles.compactRouteCount, { color: colors.warning }]}>Propositions suspendues</Text>
+          ) : sansPoint ? (
+            // 🔴 SON POINT DE COLLECTE EST FERMÉ, OU PLUS AUCUN POINT DE REMISE : ses places ne sont proposées à personne.
+            <Text style={[styles.compactRouteCount, { color: colors.warning }]}>{sansPoint}</Text>
           ) : prochain && capacite ? (
             <Text style={[styles.compactRouteCount, { color: colors.textSecondary }]}>
               {libellePlacesCourt(prochain, capacite.places)}

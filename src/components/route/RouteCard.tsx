@@ -11,7 +11,7 @@ import { TRANSPORT_TYPES } from '@/constants/TransportTypes';
 import { Typography } from '@/constants/Typography';
 import { Spacing, BorderRadius } from '@/constants/Spacing';
 import dayjs from 'dayjs';
-import { libellePlaces, prochainPassage, type CapaciteTrajet } from '@/utils/capaciteTrajet';
+import { bandeauPointsFermes, libellePlaces, prochainPassage, type CapaciteTrajet } from '@/utils/capaciteTrajet';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
 
@@ -33,6 +33,7 @@ export function RouteCard({ route, capacite }: RouteCardProps) {
   const isActive = route.status === 'active';
   const hasMission = hasActiveMission(route.id);
   const prochain = prochainPassage(capacite);
+  const pointsFermes = bandeauPointsFermes(capacite);
 
   // Schedule text
   const scheduleText = (() => {
@@ -151,6 +152,19 @@ export function RouteCard({ route, capacite }: RouteCardProps) {
               <Icon name="alert-circle" size={14} color={colors.warning} />
               <Text style={[styles.missionBannerText, { color: colors.warning }]}>
                 Nouvelles propositions suspendues par l’équipe
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* 🔴 UN DE SES POINTS EST FERMÉ (hand-to-hand 20261013007000) : ce qui manque au trajet, ou combien de points.
+            Leurs noms, et ce qu'il reste à faire, se lisent sur sa fiche. */}
+        {pointsFermes && (
+          <View style={[styles.missionBanner, { backgroundColor: colors.warning + '12' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="alert-circle" size={14} color={colors.warning} />
+              <Text style={[styles.missionBannerText, { color: colors.warning }]}>
+                {pointsFermes.titre}
               </Text>
             </View>
           </View>
