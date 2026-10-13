@@ -25,6 +25,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useRouteStore } from '@/stores/useRouteStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { libelleDate } from '@/utils/heureDeParis';
+import { messageDePublication } from '@/utils/publicationTrajet';
 
 const DAYS_MAP: Record<number, string> = { 1: 'Lun', 2: 'Mar', 3: 'Mer', 4: 'Jeu', 5: 'Ven', 6: 'Sam', 7: 'Dim' };
 
@@ -79,8 +80,9 @@ export default function PublishReviewScreen() {
       setTimeout(() => {
         setShowInterstitial(true);
       }, 1800);
-    } catch {
-      Alert.alert('Erreur', 'Impossible de publier le trajet. Veuillez réessayer.');
+    } catch (e) {
+      // ⚠️ UN REFUS DU SERVEUR N'EST PAS TOUJOURS UNE PANNE : un point fermé entre le choix et la publication se dit.
+      Alert.alert('Erreur', messageDePublication(e instanceof Error ? e.message : null));
     }
   };
 
